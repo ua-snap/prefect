@@ -16,6 +16,7 @@ def beetle_risk(
     ingest_directory,
     source_directory,
     destination_directory,
+    unzipped_directory,
 ):
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -36,7 +37,7 @@ def beetle_risk(
             ssh, source_directory, destination_directory
         )
 
-        ingest_tasks.unzip_files(ssh, destination_directory)
+        ingest_tasks.unzip_files(ssh, destination_directory, unzipped_directory)
 
         ingest_tasks.run_ingest(ssh, ingest_directory)
     finally:
@@ -55,5 +56,6 @@ if __name__ == "__main__":
             "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/beetles/",
             "source_directory": "/Data/Base/Other/Spruce_Beetle_Risk/",
             "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/beetles/risk_class/",
+            "unzipped_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/beetles/risk_class/risk_class/",
         },
     )

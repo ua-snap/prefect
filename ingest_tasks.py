@@ -32,7 +32,7 @@ def copy_data_from_nfs_mount(ssh, source_directory, destination_directory):
 
 
 @task
-def unzip_files(ssh, data_directory):
+def unzip_files(ssh, data_directory, unzipped_directory=None):
     # Check if only .zip and .png files exist in the target directory
     check_files_exist_command = (
         f"cd {data_directory} && ls | grep -v -E '(\.zip$|\.png$)' | wc -l"
@@ -52,6 +52,19 @@ def unzip_files(ssh, data_directory):
             raise Exception(
                 f"Failed to unzip files in {data_directory}. Error: {error_output}"
             )
+        if unzipped_directory:
+            # Move the unzipped files to the unzipped directory
+            stdin, stdout, stderr = ssh.exec_command(
+                f"mv {unzipped_directory}/* {data_directory}"
+            )
+            exit_status = stdout.channel.recv_exit_status()
+
+            # Check the exit status for errors
+            if exit_status != 0:
+                error_output = stderr.read().decode("utf-8")
+                raise Exception(
+                    f"Failed to move unzipped files to {unzipped_directory}. Error: {error_output}"
+                )
 
 
 @task
