@@ -8,7 +8,7 @@ ssh_port = 22
 
 
 @flow(log_prints=True)
-def ingest_flow(
+def dot_precip(
     ssh_username,
     ssh_private_key_path,
     branch_name,
@@ -42,7 +42,7 @@ def ingest_flow(
 
 
 if __name__ == "__main__":
-    ingest_flow.serve(
+    dot_precip.serve(
         name="dot_precip",
         tags=["dot_precip"],
         parameters={
