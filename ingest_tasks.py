@@ -7,13 +7,13 @@ ssh_port = 22
 
 
 @task
-def check_for_nfs_mount(ssh):
-    stdin, stdout, stderr = ssh.exec_command("df -h | grep /Data")
+def check_for_nfs_mount(ssh, nfs_directory="/CKAN_Data"):
+    stdin, stdout, stderr = ssh.exec_command(f"df -h | grep {nfs_directory}")
 
     nfs_mounted = bool(stdout.read())
 
     if not nfs_mounted:
-        raise Exception(f"NFS directory '/Data' is not mounted")
+        raise Exception(f"NFS directory '{nfs_directory}' is not mounted")
 
 
 @task
@@ -122,10 +122,10 @@ def clone_github_repository(ssh, branch, destination_directory):
 
 
 @task
-def run_ingest(ssh, ingest_directory):
+def run_ingest(ssh, ingest_directory, ingest_file="ingest.json"):
     # Run the command
     stdin, stdout, stderr = ssh.exec_command(
-        f"cd {ingest_directory} && export LUTS_PATH={ingest_directory}luts.py && /opt/rasdaman/bin/wcst_import.sh -c 0 ingest.json"
+        f"cd {ingest_directory} && export LUTS_PATH={ingest_directory}luts.py && /opt/rasdaman/bin/wcst_import.sh -c 0 {ingest_file}"
     )
 
     # Wait for the command to finish and get the exit status

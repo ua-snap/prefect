@@ -8,7 +8,7 @@ ssh_port = 22
 
 
 @flow(log_prints=True)
-def beetle_risk(
+def annual_mean_pr(
     ssh_username,
     ssh_private_key_path,
     branch_name,
@@ -16,7 +16,6 @@ def beetle_risk(
     ingest_directory,
     source_directory,
     destination_directory,
-    unzipped_directory,
 ):
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -31,31 +30,28 @@ def beetle_risk(
 
         ingest_tasks.clone_github_repository(ssh, branch_name, working_directory)
 
-        ingest_tasks.check_for_nfs_mount(ssh)
+        ingest_tasks.check_for_nfs_mount(ssh, "/Data")
 
         ingest_tasks.copy_data_from_nfs_mount(
             ssh, source_directory, destination_directory
         )
 
-        ingest_tasks.unzip_files(ssh, destination_directory, unzipped_directory)
-
-        ingest_tasks.run_ingest(ssh, ingest_directory)
+        ingest_tasks.run_ingest(ssh, ingest_directory, "hook_ingest.json")
     finally:
         ssh.close()
 
 
 if __name__ == "__main__":
-    beetle_risk.serve(
-        name="beetle_risk",
-        tags=["beetle_risk"],
+    annual_mean_pr.serve(
+        name="annual_mean_pr",
+        tags=["annual_mean_pr"],
         parameters={
             "ssh_username": "rltorgerson",
             "ssh_private_key_path": "/Users/rltorgerson/.ssh/id_rsa",
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/rltorgerson/",
-            "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/beetles/",
-            "source_directory": "/CKAN_Data/Base/Other/Spruce_Beetle_Risk/",
-            "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/beetles/risk_class/",
-            "unzipped_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/beetles/risk_class/risk_class/",
+            "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_pr/",
+            "source_directory": "/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/annual_precip_totals_mm/",
+            "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_pr/geotiffs/",
         },
     )

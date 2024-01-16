@@ -53,7 +53,7 @@ if __name__ == "__main__":
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/rltorgerson/",
             "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/ardac/gipl/",
-            "source_directory": "/Data/Base/AK_1km/GIPL/",
+            "source_directory": "/CKAN_Data/Base/AK_1km/GIPL/",
             "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/ardac/gipl/geotiffs/",
         },
     )
