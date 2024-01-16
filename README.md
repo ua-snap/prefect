@@ -2,7 +2,7 @@
 
 ## Download Prefect on your local system
 
-`pip install -U prefect`
+`pip install -U prefect paramiko`
 
 ## Run a local Prefect server to connect your flows
 
