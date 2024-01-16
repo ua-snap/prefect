@@ -8,7 +8,7 @@ ssh_port = 22
 
 
 @flow(log_prints=True)
-def annual_mean_pr(
+def annual_mean_dtr(
     ssh_username,
     ssh_private_key_path,
     branch_name,
@@ -36,22 +36,22 @@ def annual_mean_pr(
             ssh, source_directory, destination_directory
         )
 
-        ingest_tasks.run_ingest(ssh, ingest_directory, "hook_ingest.json")
+        ingest_tasks.run_ingest(ssh, ingest_directory)
     finally:
         ssh.close()
 
 
 if __name__ == "__main__":
-    annual_mean_pr.serve(
-        name="annual_mean_pr",
-        tags=["annual_mean_pr"],
+    annual_mean_dtr.serve(
+        name="annual_mean_dtr",
+        tags=["annual_mean_dtr"],
         parameters={
             "ssh_username": "rltorgerson",
             "ssh_private_key_path": "/Users/rltorgerson/.ssh/id_rsa",
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/rltorgerson/",
-            "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_pr/",
-            "source_directory": "/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/annual_precip_totals_mm/",
-            "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_pr/geotiffs/",
+            "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_dtr/",
+            "source_directory": "/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/mean_annual_dtr/",
+            "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_dtr/geotiffs/",
         },
     )
