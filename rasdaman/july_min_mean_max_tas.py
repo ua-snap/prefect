@@ -8,7 +8,7 @@ ssh_port = 22
 
 
 @flow(log_prints=True)
-def jul_min_mean_max_temp(
+def july_min_mean_max_temp(
     ssh_username,
     ssh_private_key_path,
     branch_name,
@@ -42,9 +42,9 @@ def jul_min_mean_max_temp(
 
 
 if __name__ == "__main__":
-    jul_min_mean_max_temp.serve(
-        name="jul_min_mean_max_temp",
-        tags=["jul_min_mean_max_temp"],
+    july_min_mean_max_temp.serve(
+        name="july_min_mean_max_temp",
+        tags=["july_min_mean_max_temp"],
         parameters={
             "ssh_username": "rltorgerson",
             "ssh_private_key_path": "/Users/rltorgerson/.ssh/id_rsa",
