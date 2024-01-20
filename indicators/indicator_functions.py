@@ -1,3 +1,4 @@
+from time import sleep
 from prefect import task
 import paramiko
 
@@ -85,3 +86,36 @@ def create_and_run_slurm_script(
         )
 
     print("Slurm scripts created and run successfully")
+
+
+@task
+def get_job_ids(ssh, username):
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
+    )
+
+    # Get a list of job IDs for the specified user
+    job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
+
+    print(job_ids)
+    return job_ids
+
+
+@task
+def wait_for_jobs_completion(ssh, job_ids):
+    while job_ids:
+        # Check the status of each job in the list
+        for job_id in job_ids.copy():
+            stdin, stdout, stderr = ssh.exec_command(
+                f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
+            )
+
+            # If the job is no longer in the queue, remove it from the list
+            if not stdout.read():
+                job_ids.remove(job_id)
+
+        if job_ids:
+            # Sleep for a while before checking again
+            sleep(10)
+
+    print("All indicator jobs completed!")

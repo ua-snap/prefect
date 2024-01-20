@@ -40,6 +40,10 @@ def generate_indicators(
         indicator_functions.create_and_run_slurm_script(
             ssh, indicators, models, scenarios, slurm_script, input_dir, output_dir
         )
+
+        job_ids = indicator_functions.get_job_ids(ssh, ssh_username)
+
+        indicator_functions.wait_for_jobs_completion(ssh, job_ids)
     finally:
         ssh.close()
 
