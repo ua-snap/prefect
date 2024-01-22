@@ -67,7 +67,7 @@ if __name__ == "__main__":
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
             "branch_name": branch_name,
-            "working_directory": working_dgirectory,
+            "working_directory": working_directory,
             "indicators": indicators,
             "models": models,
             "scenarios": scenarios,
