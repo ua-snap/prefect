@@ -49,10 +49,10 @@ def generate_indicators(
 
 
 if __name__ == "__main__":
-    ssh_username = "rltorgerson"
-    ssh_private_key_path = "/Users/rltorgerson/.ssh/id_rsa"
+    ssh_username = "snapdata"
+    ssh_private_key_path = "/Users/snapdata/.ssh/id_rsa"
     branch_name = "main"
-    working_directory = Path("/import/beegfs/CMIP6/rltorgerson/")
+    working_directory = Path(f"/import/beegfs/CMIP6/{ssh_username}/")
     indicators = "rx1day"
     models = "CESM2 GFDL-ESM4 TaiESM1"
     scenarios = "historical ssp126 ssp245 ssp370 ssp585"
