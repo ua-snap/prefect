@@ -50,7 +50,7 @@ def generate_indicators(
 
 if __name__ == "__main__":
     ssh_username = "snapdata"
-    ssh_private_key_path = "/Users/snapdata/.ssh/id_rsa"
+    ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
     working_directory = Path(f"/import/beegfs/CMIP6/{ssh_username}/")
     indicators = "rx1day"
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
             "branch_name": branch_name,
-            "working_directory": working_directory,
+            "working_directory": working_dgirectory,
             "indicators": indicators,
             "models": models,
             "scenarios": scenarios,
