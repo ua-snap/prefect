@@ -119,3 +119,20 @@ def wait_for_jobs_completion(ssh, job_ids):
             sleep(10)
 
     print("All indicator jobs completed!")
+
+
+@task
+def qc(ssh, qc_script, output_dir):
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && python {qc_script} --out_dir '{output_dir}'"
+    )
+
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
+
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running QC script. Error: {error_output}")
+
+    print("QC script run successfully")
