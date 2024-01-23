@@ -19,6 +19,7 @@ def generate_indicators(
     models,
     scenarios,
     slurm_script,
+    qc_script,
     input_dir,
     output_dir,
 ):
