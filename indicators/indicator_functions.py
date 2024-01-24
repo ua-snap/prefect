@@ -123,8 +123,14 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 @task
 def qc(ssh, qc_script, output_dir):
+    conda_init_script = (
+        "/beegfs/CMIP6/jdpaul3/scratch/cmip6-utils/indicators/conda_init.sh"
+    )
+
     stdin, stdout, stderr = ssh.exec_command(
-        f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && python {qc_script} --out_dir '{output_dir}'"
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"python {qc_script} --out_dir '{output_dir}'"
     )
 
     # Wait for the command to finish and get the exit status
