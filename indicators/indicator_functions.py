@@ -133,6 +133,11 @@ def qc(ssh, qc_script, output_dir):
         f"python {qc_script} --out_dir '{output_dir}'"
     )
 
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
+
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
 
