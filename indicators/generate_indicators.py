@@ -39,14 +39,14 @@ def generate_indicators(
         indicator_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
         indicator_functions.create_and_run_slurm_script(
-            ssh, indicators, models, scenarios, slurm_script, input_dir, output_dir
+            ssh, indicators, models, scenarios, working_directory, input_dir
         )
 
         job_ids = indicator_functions.get_job_ids(ssh, ssh_username)
 
         indicator_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        indicator_functions.qc(ssh, qc_script, output_dir)
+        indicator_functions.qc(ssh, working_directory)
 
     finally:
         ssh.close()
@@ -60,10 +60,6 @@ if __name__ == "__main__":
     indicators = "rx1day"
     models = "CESM2 GFDL-ESM4 TaiESM1"
     scenarios = "historical ssp126 ssp245 ssp370 ssp585"
-    slurm_script = working_directory.joinpath("cmip6-utils/indicators/slurm.py")
-    qc_script = working_directory.joinpath("cmip6-utils/indicators/qc.py")
-    input_dir = "/import/beegfs/CMIP6/arctic-cmip6/regrid/"
-    output_dir = working_directory.joinpath("indicators/")
 
     generate_indicators.serve(
         name="generate_indicators",
@@ -76,9 +72,5 @@ if __name__ == "__main__":
             "indicators": indicators,
             "models": models,
             "scenarios": scenarios,
-            "slurm_script": slurm_script,
-            "qc_script": qc_script,
-            "input_dir": input_dir,
-            "output_dir": output_dir,
         },
     )
