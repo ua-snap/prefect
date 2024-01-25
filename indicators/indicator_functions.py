@@ -119,3 +119,31 @@ def wait_for_jobs_completion(ssh, job_ids):
             sleep(10)
 
     print("All indicator jobs completed!")
+
+
+@task
+def qc(ssh, qc_script, output_dir):
+    conda_init_script = (
+        "/beegfs/CMIP6/jdpaul3/scratch/cmip6-utils/indicators/conda_init.sh"
+    )
+
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"python {qc_script} --out_dir '{output_dir}'"
+    )
+
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
+
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
+
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running QC script. Error: {error_output}")
+
+    print("QC script run successfully")

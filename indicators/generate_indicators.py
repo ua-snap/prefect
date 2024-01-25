@@ -19,6 +19,7 @@ def generate_indicators(
     models,
     scenarios,
     slurm_script,
+    qc_script,
     input_dir,
     output_dir,
 ):
@@ -44,6 +45,9 @@ def generate_indicators(
         job_ids = indicator_functions.get_job_ids(ssh, ssh_username)
 
         indicator_functions.wait_for_jobs_completion(ssh, job_ids)
+
+        indicator_functions.qc(ssh, qc_script, output_dir)
+
     finally:
         ssh.close()
 
@@ -57,6 +61,7 @@ if __name__ == "__main__":
     models = "CESM2 GFDL-ESM4 TaiESM1"
     scenarios = "historical ssp126 ssp245 ssp370 ssp585"
     slurm_script = working_directory.joinpath("cmip6-utils/indicators/slurm.py")
+    qc_script = working_directory.joinpath("cmip6-utils/indicators/qc.py")
     input_dir = "/import/beegfs/CMIP6/arctic-cmip6/regrid/"
     output_dir = working_directory.joinpath("indicators/")
 
@@ -72,6 +77,7 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "slurm_script": slurm_script,
+            "qc_script": qc_script,
             "input_dir": input_dir,
             "output_dir": output_dir,
         },
