@@ -18,10 +18,7 @@ def generate_indicators(
     indicators,
     models,
     scenarios,
-    slurm_script,
-    qc_script,
     input_dir,
-    output_dir,
 ):
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -56,13 +53,14 @@ if __name__ == "__main__":
     ssh_username = "snapdata"
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
-    working_directory = Path(f"/import/beegfs/CMIP6/{ssh_username}/")
+    working_directory = Path(f"/import/beegfs/CMIP6/snapdata/")
     indicators = "rx1day"
     models = "CESM2 GFDL-ESM4 TaiESM1"
     scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+    input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
 
     generate_indicators.serve(
-        name="generate_indicators",
+        name="generate-indicators-bob",
         tags=["CMIP6 Indicators"],
         parameters={
             "ssh_username": ssh_username,
@@ -72,5 +70,6 @@ if __name__ == "__main__":
             "indicators": indicators,
             "models": models,
             "scenarios": scenarios,
+            "input_dir": input_dir,
         },
     )

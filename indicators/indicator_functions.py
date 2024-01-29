@@ -25,7 +25,7 @@ def clone_github_repository(ssh, branch, destination_directory):
     if directory_exists:
         # Directory exists, check the current branch
         get_current_branch_command = (
-            f"cd {target_directory} && git branch --show-current"
+            f"cd {target_directory} && git pull && git branch --show-current"
         )
         stdin, stdout, stderr = ssh.exec_command(get_current_branch_command)
         current_branch = stdout.read().decode("utf-8").strip()
@@ -71,10 +71,10 @@ def clone_github_repository(ssh, branch, destination_directory):
 def create_and_run_slurm_script(
     ssh, indicators, models, scenarios, working_directory, input_dir
 ):
-    slurm_script = working_directory.joinpath("cmip6-utils/indicators/slurm.py")
+    slurm_script = f"{working_directory}/cmip6-utils/indicators/slurm.py"
 
     stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --out_dir '{working_directory}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_directory}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -127,8 +127,8 @@ def wait_for_jobs_completion(ssh, job_ids):
 def qc(ssh, working_directory):
     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
 
-    qc_script = working_directory.joinpath("cmip6-utils/indicators/qc.py")
-    output_dir = working_directory.joinpath("output/")
+    qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
+    output_dir = f"{working_directory}/output/"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
