@@ -60,7 +60,7 @@ if __name__ == "__main__":
     input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
 
     generate_indicators.serve(
-        name="generate-indicators-bob",
+        name="generate-indicators",
         tags=["CMIP6 Indicators"],
         parameters={
             "ssh_username": ssh_username,
