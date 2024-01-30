@@ -99,6 +99,7 @@ def get_job_ids(ssh, username):
     # Get a list of job IDs for the specified user
     job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
 
+    # Prints the list of job IDs to the log for debugging purposes
     print(job_ids)
     return job_ids
 
