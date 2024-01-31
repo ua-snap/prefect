@@ -43,7 +43,7 @@ def generate_indicators(
 
         indicator_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        indicator_functions.qc(ssh, working_directory)
+        indicator_functions.qc(ssh, working_directory, input_dir)
 
     finally:
         ssh.close()

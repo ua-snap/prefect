@@ -125,7 +125,7 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 
 @task
-def qc(ssh, working_directory):
+def qc(ssh, working_directory, input_dir):
     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
 
     qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
@@ -134,7 +134,7 @@ def qc(ssh, working_directory):
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"python {qc_script} --out_dir '{output_dir}'"
+        f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
     )
 
     # Collect output from QC script above and print it
