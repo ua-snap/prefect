@@ -4,6 +4,14 @@
 
 `pip install -U prefect paramiko`
 
+## Use the production Prefect server for running real tasks
+
+To set your Terminal window to use the production Prefect server, run the following:
+
+`prefect config set PREFECT_API_URL=https://prefect.earthmaps.io/api`
+
+Now when you trigger a workflow run, you will use the production Prefect server to schedule the task. This also allows for the run to be logged on a shared resource for review by the entire team.
+
 ## Run a local Prefect server to connect your flows
 
 ```
@@ -46,11 +54,3 @@ $ python gipl_ingest.py
 ```
 
 Go to localhost:4200 and click on Deployments, the name of the deployment you want, and hit Run at the top right of the screen. Adjust the parameters to match your environment for your username, your SSH key, etc.
-
-## Use the production Prefect server for running real tasks
-
-To set your Terminal window to use the production Prefect server, run the following:
-
-`prefect config set PREFECT_API_URL=https://prefect.earthmaps.io/api`
-
-Now when you trigger a workflow run, you will use the production Prefect server to schedule the task. This also allows for the run to be logged on a shared resource for review by the entire team.

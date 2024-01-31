@@ -25,7 +25,7 @@ def clone_github_repository(ssh, branch, destination_directory):
     if directory_exists:
         # Directory exists, check the current branch
         get_current_branch_command = (
-            f"cd {target_directory} && git branch --show-current"
+            f"cd {target_directory} && git pull && git branch --show-current"
         )
         stdin, stdout, stderr = ssh.exec_command(get_current_branch_command)
         current_branch = stdout.read().decode("utf-8").strip()
@@ -69,10 +69,12 @@ def clone_github_repository(ssh, branch, destination_directory):
 
 @task
 def create_and_run_slurm_script(
-    ssh, indicators, models, scenarios, slurm_script, input_dir, output_dir
+    ssh, indicators, models, scenarios, working_directory, input_dir
 ):
+    slurm_script = f"{working_directory}/cmip6-utils/indicators/slurm.py"
+
     stdin, stdout, stderr = ssh.exec_command(
-        f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --out_dir '{output_dir}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_directory}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -91,12 +93,13 @@ def create_and_run_slurm_script(
 @task
 def get_job_ids(ssh, username):
     stdin, stdout, stderr = ssh.exec_command(
-        f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
     )
 
     # Get a list of job IDs for the specified user
     job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
 
+    # Prints the list of job IDs to the log for debugging purposes
     print(job_ids)
     return job_ids
 
@@ -107,7 +110,7 @@ def wait_for_jobs_completion(ssh, job_ids):
         # Check the status of each job in the list
         for job_id in job_ids.copy():
             stdin, stdout, stderr = ssh.exec_command(
-                f"source ~/.bashrc && export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
+                f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
             )
 
             # If the job is no longer in the queue, remove it from the list
@@ -122,10 +125,11 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 
 @task
-def qc(ssh, qc_script, output_dir):
-    conda_init_script = (
-        "/beegfs/CMIP6/jdpaul3/scratch/cmip6-utils/indicators/conda_init.sh"
-    )
+def qc(ssh, working_directory):
+    conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
+
+    qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
+    output_dir = f"{working_directory}/output/"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
