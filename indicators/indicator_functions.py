@@ -246,7 +246,7 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 
 @task
-def qc(ssh, working_directory):
+def qc(ssh, working_directory, input_dir):
     """
     Task to run the quality control (QC) script to check the output of the indicator calculations.
 
@@ -263,7 +263,7 @@ def qc(ssh, working_directory):
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"python {qc_script} --out_dir '{output_dir}'"
+        f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
     )
 
     # Collect output from QC script above and print it
