@@ -35,6 +35,10 @@ def generate_indicators(
 
         indicator_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
+        indicator_functions.install_conda_environment(
+            ssh, "cmip6-utils", f"{working_directory}/cmip6-utils/environment.yml"
+        )
+
         indicator_functions.create_and_run_slurm_script(
             ssh, indicators, models, scenarios, working_directory, input_dir
         )
