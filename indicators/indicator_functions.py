@@ -206,14 +206,25 @@ def get_job_ids(ssh, username):
     """
 
     stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username} --format='%.18i %.9P %.50j %.8u %.8T %.10M %.9l %.6D %R'"
     )
 
     # Get a list of job IDs for the specified user
-    job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
+    job_ids = list()  # Skip header
+
+    for line in stdout.readlines()[1:]:  # Skip header
+        fields = line.split()
+        job_id = fields[0]
+        job_name = " ".join(fields[2])
+
+        # Only add job IDs for indicator calculations
+        if "indicator" in job_name:
+            job_ids.append(job_id)
 
     # Prints the list of job IDs to the log for debugging purposes
-    print(job_ids)
+    print(
+        f"Job IDs for jobs started by {username} and containing 'indicator': {', '.join(job_ids)}"
+    )
     return job_ids
 
 
