@@ -96,10 +96,6 @@ def clone_github_repository(ssh, branch, destination_directory):
             )
 
 
-from prefect import task
-import paramiko
-
-
 @task
 def install_conda_environment(ssh, conda_env_name, conda_env_file):
     """
