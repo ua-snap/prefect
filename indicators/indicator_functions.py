@@ -280,3 +280,40 @@ def qc(ssh, working_directory, input_dir):
         raise Exception(f"Error running QC script. Error: {error_output}")
 
     print("QC script run successfully")
+
+
+@task
+def visual_qc_nb(ssh, working_directory, indicators, models, scenarios):
+    """
+    Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - working_directory: Directory to where all of the processing takes place
+    """
+
+    conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
+
+    visual_qc_nb = f"{working_directory}/cmip6-utils/indicators/visual_qc.ipynb"
+    output_nb = f"{working_directory}/output/qc/visual_qc_out.ipynb"
+
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"papermill {visual_qc_nb} {output_nb} -r indicators '{indicators}' -r models '{models}' -r scenarios '{scenarios}'"
+    )
+
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
+
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
+
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running Visual QC script. Error: {error_output}")
+
+    print(f"Visual QC notebook created successfully. See {output_nb} for results.")
