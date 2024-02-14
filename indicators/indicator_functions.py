@@ -283,7 +283,7 @@ def qc(ssh, working_directory, input_dir):
 
 
 @task
-def visual_qc_nb(ssh, working_directory, indicators, models, scenarios):
+def visual_qc_nb(ssh, working_directory, input_directory):
     """
     Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
 
@@ -300,7 +300,7 @@ def visual_qc_nb(ssh, working_directory, indicators, models, scenarios):
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"papermill {visual_qc_nb} {output_nb} -r indicators '{indicators}' -r models '{models}' -r scenarios '{scenarios}'"
+        f"papermill {visual_qc_nb} {output_nb} -r working_directory '{working_directory}' -r input_directory '{input_directory}'"
     )
 
     # Collect output from QC script above and print it

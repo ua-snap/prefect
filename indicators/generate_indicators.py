@@ -49,7 +49,7 @@ def generate_indicators(
 
         indicator_functions.qc(ssh, working_directory, input_dir)
 
-        indicator_functions.visual_qc_nb(ssh, working_directory, indicators, models, scenarios)
+        indicator_functions.visual_qc_nb(ssh, working_directory, input_dir)
 
     finally:
         ssh.close()
