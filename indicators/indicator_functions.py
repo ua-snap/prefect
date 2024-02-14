@@ -293,14 +293,16 @@ def visual_qc_nb(ssh, working_directory, input_directory):
     """
 
     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
-
+    repo_indicators_dir = f"{working_directory}/cmip6-utils/indicators"
     visual_qc_nb = f"{working_directory}/cmip6-utils/indicators/visual_qc.ipynb"
     output_nb = f"{working_directory}/output/qc/visual_qc_out.ipynb"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"papermill {visual_qc_nb} {output_nb} -r working_directory '{working_directory}' -r input_directory '{input_directory}'"
+        f"cd {repo_indicators_dir}\n"
+        f"papermill {visual_qc_nb} {output_nb} -r working_directory '{working_directory}' -r input_directory '{input_directory}'\n"
+        f"jupyter nbconvert --to html {output_nb}"
     )
 
     # Collect output from QC script above and print it
