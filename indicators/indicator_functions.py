@@ -49,15 +49,25 @@ def clone_github_repository(ssh, branch, destination_directory):
             current_branch = stdout.read().decode("utf-8").strip()
         except:
             # If the current branch cannot be determined, assume it's the wrong branch
-            set_branch_to_main = f"cd {target_directory} && git checkout main"
-            stdin, stdout, stderr = ssh.exec_command(set_branch_to_main)
+            delete_git_repo = f"cd {destination_directory} && rm -rf cmip6-utils"
+            stdin, stdout, stderr = ssh.exec_command(delete_git_repo)
 
-            # Get the current branch again# Directory exists, check the current branch
-            get_current_branch_command = (
-                f"cd {target_directory} && git pull && git branch --show-current"
-            )
-            stdin, stdout, stderr = ssh.exec_command(get_current_branch_command)
-            current_branch = stdout.read().decode("utf-8").strip()
+            print(f"Cloning the GitHub repository on branch {branch}...")
+            # Run the Git clone command to clone the repository
+            git_command = f"cd {destination_directory} && git clone -b {branch} https://github.com/ua-snap/cmip6-utils.git"
+            stdin, stdout, stderr = ssh.exec_command(git_command)
+
+            # Wait for the Git command to finish and get the exit status
+            exit_status = stdout.channel.recv_exit_status()
+
+            # Check the exit status for errors
+            if exit_status != 0:
+                error_output = stderr.read().decode("utf-8")
+                raise Exception(
+                    f"Error cloning the GitHub repository. Error: {error_output}"
+                )
+
+            current_branch = branch
 
         if current_branch != branch:
             print(f"Change repository branch to branch {branch}...")
@@ -215,7 +225,7 @@ def get_job_ids(ssh, username):
     for line in stdout.readlines()[1:]:  # Skip header
         fields = line.split()
         job_id = fields[0]
-        job_name = " ".join(fields[2])
+        job_name = " ".join(fields[2:])
 
         # Only add job IDs for indicator calculations
         if "indicator" in job_name:
@@ -242,11 +252,17 @@ def wait_for_jobs_completion(ssh, job_ids):
         # Check the status of each job in the list
         for job_id in job_ids.copy():
             stdin, stdout, stderr = ssh.exec_command(
-                f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
+                f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && sacct -n -X -o State,ExitCode -j {job_id}"
             )
 
+            job_status = stdout.read().decode().strip()
+
             # If the job is no longer in the queue, remove it from the list
-            if not stdout.read():
+            if "COMPLETED" in job_status:
+                print(f"Job {job_id} completed successfully.")
+                job_ids.remove(job_id)
+            elif "FAILED" in job_status:
+                print(f"Job {job_id} failed.")
                 job_ids.remove(job_id)
 
         if job_ids:
