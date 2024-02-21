@@ -127,7 +127,7 @@ def install_conda_environment(conda_env_name, conda_env_file):
         print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-@task(log_stdout=True, log_stderr=True)
+@task
 def execute_local_script(script_path):
     # Execute the script on the local machine
     process = subprocess.Popen(
