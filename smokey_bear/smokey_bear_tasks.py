@@ -143,7 +143,8 @@ def execute_local_script(script_path):
     errors = stderr.decode("utf-8")
 
     if exit_code == 0:
-        print(f"Output of the script {script_path}: {output}")
+        print(f"Processing output: {errors}")
+        print(f"Final output of the script {script_path}: {output}")
         print(f"Script {script_path} executed successfully.")
     else:
         print(f"Error occurred while executing the script {script_path}.")
