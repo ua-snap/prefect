@@ -127,12 +127,26 @@ def install_conda_environment(conda_env_name, conda_env_file):
         print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-@task
+@task(log_stdout=True, log_stderr=True)
 def execute_local_script(script_path):
     # Execute the script on the local machine
-    exit_code = subprocess.run(f"sudo bash {script_path} $HOME", shell=True).returncode
+    process = subprocess.Popen(
+        f"sudo bash {script_path} $HOME",
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = process.communicate()
+    exit_code = process.returncode
+
+    output = stdout.decode("utf-8")
+    errors = stderr.decode("utf-8")
 
     if exit_code == 0:
+        print(f"Output of the script {script_path}: {output}")
         print(f"Script {script_path} executed successfully.")
     else:
         print(f"Error occurred while executing the script {script_path}.")
+        print(f"Error output: {errors}")
+
+    return exit_code, output, errors
