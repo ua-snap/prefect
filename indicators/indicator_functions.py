@@ -289,7 +289,8 @@ def visual_qc_nb(ssh, working_directory, input_directory):
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - working_directory: Directory to where all of the processing takes place
+    - working_directory: Directory where all of the processing takes place
+    - input_directory: Directory containing source input data collection
     """
 
     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
