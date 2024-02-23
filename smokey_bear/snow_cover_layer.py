@@ -30,8 +30,8 @@ def snow_cover_layer(
 
 if __name__ == "__main__":
     snow_cover_layer.serve(
-        name="smokey_bear_layer",
-        tags=["smokey_bear_layer"],
+        name="snow_cover_layer",
+        tags=["snow_cover_layer"],
         parameters={
             "branch_name": "main",
             "admin_password": "GET THIS FROM BITWARDEN",
