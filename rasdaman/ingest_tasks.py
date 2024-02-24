@@ -35,13 +35,22 @@ def copy_data_from_nfs_mount(source_directory, destination_directory):
 @task
 def unzip_files(data_directory, unzipped_directory=None):
     # Unzip files
-    check_files_exist_command = f"ls {data_directory} | grep -E 'zip$' | wc -l"
-
+    check_files_exist_command = [
+        "ls",
+        data_directory,
+        "|",
+        "grep",
+        "-E",
+        "(\.zip$|\.png$)",
+        "|",
+        "wc",
+        "-l",
+    ]
     result = subprocess.run(check_files_exist_command, capture_output=True, text=True)
     file_count = int(result.stdout.strip())
 
     if file_count == 0:
-        unzip_command = f"unzip {data_directory}/*.zip -d {data_directory}"
+        unzip_command = ["unzip", f"{data_directory}/*.zip", "-d", data_directory]
         result = subprocess.run(unzip_command, capture_output=True, text=True)
         if result.returncode != 0:
             raise Exception(
@@ -49,7 +58,7 @@ def unzip_files(data_directory, unzipped_directory=None):
             )
 
         if unzipped_directory:
-            move_command = f"mv {unzipped_directory}/* {data_directory}"
+            move_command = ["mv", f"{unzipped_directory}/*", data_directory]
             result = subprocess.run(move_command, capture_output=True, text=True)
             if result.returncode != 0:
                 raise Exception(
