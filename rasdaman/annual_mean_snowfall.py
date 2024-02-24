@@ -26,9 +26,9 @@ if __name__ == "__main__":
         tags=["annual_mean_snowfall"],
         parameters={
             "branch_name": "main",
-            "working_directory": "/opt/rasdaman/user_data/rltorgerson/",
-            "ingest_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_snowfall/",
+            "working_directory": "/opt/rasdaman/user_data/snapdata/",
+            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/annual_mean_snowfall/",
             "source_directory": "/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/mean_annual_snowfall_mm/",
-            "destination_directory": "/opt/rasdaman/user_data/rltorgerson/rasdaman-ingest/arctic_eds/annual_mean_snowfall/geotiffs/",
+            "destination_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/annual_mean_snowfall/geotiffs/",
         },
     )
