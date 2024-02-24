@@ -35,7 +35,7 @@ def copy_data_from_nfs_mount(source_directory, destination_directory):
 @task
 def unzip_files(data_directory, unzipped_directory=None):
     # Unzip files
-    check_files_exist_command = f"ls {data_directory} | grep -v -E 'zip$' | wc -l"
+    check_files_exist_command = f"ls {data_directory} | grep -E 'zip$' | wc -l"
 
     result = subprocess.run(check_files_exist_command, capture_output=True, text=True)
     file_count = int(result.stdout.strip())
