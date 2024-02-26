@@ -3,7 +3,7 @@ import ingest_tasks
 
 
 @flow(log_prints=True)
-def jul_min_mean_max_temp(
+def jan_min_mean_max_temp(
     branch_name,
     working_directory,
     ingest_directory,
@@ -20,14 +20,14 @@ def jul_min_mean_max_temp(
 
 
 if __name__ == "__main__":
-    jul_min_mean_max_temp.serve(
-        name="jul_min_mean_max_temp",
-        tags=["jul_min_mean_max_temp"],
+    jan_min_mean_max_temp.serve(
+        name="jan_min_mean_max_temp",
+        tags=["jan_min_mean_max_temp"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
-            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/jan_july_tas_stats/jul_min_mean_max_tas/",
-            "source_directory": "/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/jul_min_max_mean_temp/",
-            "destination_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/jan_july_tas_stats/jul_min_mean_max_tas/geotiffs/",
+            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/jan_july_tas_stats/jan_min_mean_max_tas/",
+            "source_directory": "/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/jan_min_max_mean_temp/",
+            "destination_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/jan_july_tas_stats/jan_min_mean_max_tas/geotiffs/",
         },
     )
