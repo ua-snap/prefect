@@ -176,6 +176,13 @@ def create_and_run_slurm_script(
     - input_dir: Directory containing the input data for the indicators
     """
 
+    if indicators == "all":
+        indicators = "rx1day su dw ftc"
+    if models == "all":
+        models = "CESM2 CESM2-WACCM CNRM-CM6-1-HR EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-LR NorESM2-MM TaiESM1"
+    if scenarios == "all":
+        scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+
     slurm_script = f"{working_directory}/cmip6-utils/indicators/slurm.py"
 
     stdin, stdout, stderr = ssh.exec_command(
