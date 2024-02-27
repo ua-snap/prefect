@@ -2,6 +2,12 @@ from time import sleep
 from prefect import task
 import paramiko
 
+all_indicators = "rx1day su dw ftc"
+
+all_models = "CESM2 CESM2-WACCM CNRM-CM6-1-HR EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-LR NorESM2-MM TaiESM1"
+
+all_scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+
 
 @task
 def check_for_nfs_mount(ssh, nfs_directory="/import/beegfs"):
@@ -177,11 +183,11 @@ def create_and_run_slurm_script(
     """
 
     if indicators == "all":
-        indicators = "rx1day su dw ftc"
+        indicators = all_indicators
     if models == "all":
-        models = "CESM2 CESM2-WACCM CNRM-CM6-1-HR EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-LR NorESM2-MM TaiESM1"
+        models = all_models
     if scenarios == "all":
-        scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+        scenarios = all_scenarios
 
     slurm_script = f"{working_directory}/cmip6-utils/indicators/slurm.py"
 
