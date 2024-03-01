@@ -202,8 +202,7 @@ def create_and_run_slurm_script(
             f"Error creating or running Slurm scripts. Error: {error_output}"
         )
     else:
-        job_ids = stdout.read().decode("utf-8")
-        print(job_ids)
+        job_ids = eval(stdout.read().decode("utf-8"))
 
     print("Slurm scripts created and run successfully")
     print(f"Job IDs: {job_ids}")
@@ -235,46 +234,46 @@ def wait_for_jobs_completion(ssh, job_ids):
             # Sleep for a while before checking again
             sleep(10)
 
-    print("All indicator jobs completed!")
+    print("All DTR jobs completed.")
 
 
-# @task
-# def qc(ssh, working_directory, input_dir, models, scenarios):
-#     """
-#     Task to verify that all expected outputs are present in the working directory.
-#     This requires checking to make sure the slurm jobs completed without error and that all data files are present and look right.
+@task
+def qc_nb(ssh, working_dir, input_dir):
+    """
+    Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory where all of the processing takes place, and where outputs are written
-#     - input_dir: directory where inputs are, which should be common grid CMIP6 data with child dirs grouped by model
-#     - models: models given to process
-#     - scenarios: scenarios given to process
-#     """
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - working_dir: Directory where all of the processing takes place
+    - input_dir: Directory containing source input data collection
+    """
 
-# conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
+    conda_init_script = f"{working_dir}/cmip6-utils/indicators/conda_init.sh"
+    repo_derived_dir = f"{working_dir}/cmip6-utils/derived"
+    output_nb = f"{working_dir}/dtr_processing/qc/dtr_qc_out.ipynb"
 
-# qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
-# output_dir = f"{working_directory}/output/"
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"cd {repo_derived_dir}\n"
+        f"papermill dtr_qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}'\n"
+        f"jupyter nbconvert --to html {output_nb}"
+    )
 
-# stdin, stdout, stderr = ssh.exec_command(
-#     f"source {conda_init_script}\n"
-#     f"conda activate cmip6-utils\n"
-#     f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
-# )
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
 
-# # Collect output from QC script above and print it
-# lines = stdout.readlines()
-# for line in lines:
-#     print(line)
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
 
-# # Wait for the command to finish and get the exit status
-# exit_status = stdout.channel.recv_exit_status()
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running Visual QC script. Error: {error_output}")
 
-# # Check the exit status for errors
-# if exit_status != 0:
-#     error_output = stderr.read().decode("utf-8")
-#     raise Exception(f"Error running QC script. Error: {error_output}")
+    print(f"QC notebook created successfully. See {output_nb} for results.")
 
 
 # Define your SSH parameters
@@ -325,7 +324,7 @@ def run_dtr_processing(
 
         wait_for_jobs_completion(ssh, job_ids)
 
-        # qc(ssh, working_dir, input_dir)
+        qc_nb(ssh, working_dir, input_dir)
 
     finally:
         ssh.close()
