@@ -32,11 +32,6 @@ def regrid_cmip6(
     # target regridding file - all files will be regridded to the grid in this file
     target_grid_fp = f"{cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
 
-    # # make these dirs if they don't exist
-    # Path(regrid_dir).mkdir(exist_ok=True, parents=True)
-    # Path(regrid_batch_dir).mkdir(exist_ok=True, parents=True)
-    # Path(slurm_dir).mkdir(exist_ok=True, parents=True)
-
     # Create an SSH client
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -47,11 +42,6 @@ def regrid_cmip6(
 
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        # make these dirs if they don't exist
-        Path(regrid_dir).mkdir(exist_ok=True, parents=True)
-        Path(regrid_batch_dir).mkdir(exist_ok=True, parents=True)
-        Path(slurm_dir).mkdir(exist_ok=True, parents=True)
 
         regridding_functions.clone_github_repository(ssh, branch_name, scratch_directory)
 
