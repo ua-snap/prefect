@@ -161,36 +161,11 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 
 @task
-def generate_batch_files(ssh, conda_init_script, generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email):
-
-    generate_batch_files_sbatch_fp = generate_batch_files_script.replace(".py", ".slurm")
-    generate_batch_files_sbatch_out_fp = generate_batch_files_script.replace(".py", "_%j.out")
-
-    sbatch_text = (
-        "#!/bin/sh\n"
-        "#SBATCH --nodes=1\n"
-        f"#SBATCH --exclude=138\n"
-        f"#SBATCH --cpus-per-task=24\n"
-        "#SBATCH --mail-type=FAIL\n"
-        f"#SBATCH --mail-user={slurm_email}\n"
-        f"#SBATCH -p t1small\n"
-        f"#SBATCH --output {generate_batch_files_sbatch_out_fp}\n"
-        # print start time
-        "echo Start slurm && date\n"
-        # prepare shell for using activate
-        f"source {conda_init_script}\n"
-        f"conda activate cmip6-utils\n"
-        #run the generate batch files script
-        f"python {generate_batch_files_script} --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}'\n"
-    )
-
-    # save the sbatch text into a new slurm file in the main repo directory
-    with open(generate_batch_files_sbatch_fp, "w") as f:
-        f.write(sbatch_text)
+def run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script, run_generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email):
 
     stdin_, stdout, stderr = ssh.exec_command(
-        f"sbatch {generate_batch_files_sbatch_fp}"
-    )
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}'"
+        )
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()

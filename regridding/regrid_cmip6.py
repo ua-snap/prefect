@@ -25,6 +25,7 @@ def regrid_cmip6(
     regrid_script = f"{scratch_directory}/regridding/regrid.py"
     slurm_script = f"{scratch_directory}/regridding/slurm.py"
     generate_batch_files_script = f"{scratch_directory}/regridding/generate_batch_files.py"
+    run_generate_batch_files_script = f"{scratch_directory}/regridding/run_generate_batch_files.py"
     regrid_dir = f"{scratch_directory}/regrid"
     regrid_batch_dir = f"{scratch_directory}/regrid_batch"
     slurm_dir = f"{scratch_directory}/slurm"
@@ -49,7 +50,7 @@ def regrid_cmip6(
 
         regridding_functions.install_conda_environment(ssh, "cmip6-utils", f"{scratch_directory}/cmip6-utils/environment.yml")
 
-        regridding_functions.generate_batch_files(ssh, conda_init_script, generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email)
+        regridding_functions.run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script, run_generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email)
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
