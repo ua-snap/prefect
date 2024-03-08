@@ -161,6 +161,51 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 
 @task
+def generate_batch_files(ssh, conda_init_script, generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email):
+
+    generate_batch_files_sbatch_fp = generate_batch_files_script.replace(".py", ".slurm")
+    generate_batch_files_sbatch_out_fp = generate_batch_files_script.replace(".py", "_%j.out")
+
+    sbatch_text = (
+        "#!/bin/sh\n"
+        "#SBATCH --nodes=1\n"
+        f"#SBATCH --exclude=138\n"
+        f"#SBATCH --cpus-per-task=24\n"
+        "#SBATCH --mail-type=FAIL\n"
+        f"#SBATCH --mail-user={slurm_email}\n"
+        f"#SBATCH -p t1small\n"
+        f"#SBATCH --output {generate_batch_files_sbatch_out_fp}\n"
+        # print start time
+        "echo Start slurm && date\n"
+        # prepare shell for using activate
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        #run the generate batch files script
+        f"python {generate_batch_files_script} --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}'\n"
+    )
+
+    # save the sbatch text into a new slurm file in the main repo directory
+    with open(generate_batch_files_sbatch_fp, "w") as f:
+        f.write(sbatch_text)
+
+    stdin_, stdout, stderr = ssh.exec_command(
+        f"sbatch {generate_batch_files_sbatch_fp}"
+    )
+
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
+
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(
+            f"Error generating batch files. Error: {error_output}"
+        )
+
+    print("Generate batch files job submitted!")
+
+
+@task
 def create_and_run_slurm_scripts(ssh, 
                                 slurm_script, 
                                 slurm_dir,
@@ -178,14 +223,14 @@ def create_and_run_slurm_scripts(ssh,
     Parameters:
     - ssh: Paramiko SSHClient object
     - slurm_script: Directory to regridding slurm.py script
-    - slurm_dir:
-    - regrid_dir: 
-    - regrid_batch_dir:
-    - slurm_email:
-    - conda_init_script:
-    - regrid_script:
-    - target_grid_fp:
-    - no_clobber: 
+    - slurm_dir: Directory to save slurm sbatch files
+    - regrid_dir: Path to directory where regridded files are written
+    - regrid_batch_dir: Directory of batch files
+    - slurm_email: Email address to send slurm emails to
+    - conda_init_script: Script to initialize conda during slurm jobs
+    - regrid_script: Location of regrid.py script in the repo
+    - target_grid_fp: Path to file used as the regridding target
+    - no_clobber: Do not overwrite regidded files if they exist
     """
 
     stdin_, stdout, stderr = ssh.exec_command(
@@ -202,59 +247,62 @@ def create_and_run_slurm_scripts(ssh,
             f"Error creating or running Slurm scripts. Error: {error_output}"
         )
 
-    print("Slurm scripts created and run successfully")
+    print("Regridding jobs submitted!")
 
 
-# @task
-# def get_job_ids(ssh, username):
-#     """
-#     Task to get a list of job IDs for a specified user from the Slurm queue via SSH.
+@task
+def get_job_ids(ssh, username):
+    """
+    Task to get a list of job IDs for a specified user from the Slurm queue via SSH.
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - username: Username to get job IDs for
-#     """
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - username: Username to get job IDs for
+    """
 
-#     stdin, stdout, stderr = ssh.exec_command(
-#         f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
-#     )
+    stdin_, stdout, stderr_ = ssh.exec_command(
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
+    )
 
-#     # Get a list of job IDs for the specified user
-#     job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
+    # Get a list of job IDs for the specified user
+    job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
 
-#     # Prints the list of job IDs to the log for debugging purposes
-#     print(job_ids)
-#     return job_ids
-
-
-# @task
-# def wait_for_jobs_completion(ssh, job_ids):
-#     """
-#     Task to wait for a list of Slurm jobs to complete in the queue via SSH.
-
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - job_ids: List of job IDs to wait for
-#     """
-
-#     while job_ids:
-#         # Check the status of each job in the list
-#         for job_id in job_ids.copy():
-#             stdin, stdout, stderr = ssh.exec_command(
-#                 f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
-#             )
-
-#             # If the job is no longer in the queue, remove it from the list
-#             if not stdout.read():
-#                 job_ids.remove(job_id)
-
-#         if job_ids:
-#             # Sleep for a while before checking again
-#             sleep(10)
-
-#     print("All indicator jobs completed!")
+    # Prints the list of job IDs to the log for debugging purposes
+    print(job_ids)
+    return job_ids
 
 
+@task
+def wait_for_jobs_completion(ssh, job_ids):
+    """
+    Task to wait for a list of Slurm jobs to complete in the queue via SSH.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - job_ids: List of job IDs to wait for
+    """
+
+    while job_ids:
+        # Check the status of each job in the list
+        for job_id in job_ids.copy():
+            stdin_, stdout, stderr_ = ssh.exec_command(
+                f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
+            )
+
+            # If the job is no longer in the queue, remove it from the list
+            if not stdout.read():
+                job_ids.remove(job_id)
+
+        if job_ids:
+            # Sleep for a while before checking again
+            sleep(10)
+
+    print("Jobs completed!")
+
+#TODO: implement regridding/tests.slurm from here
+
+#TODO: create QC functions for regridding pipeline and call them from here
+    
 # @task
 # def qc(ssh, working_directory, input_dir):
 #     """

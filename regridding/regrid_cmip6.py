@@ -25,11 +25,10 @@ def regrid_cmip6(
     conda_init_script = f"{project_directory}/cmip6-utils/regridding/conda_init.sh"
     regrid_script = project_directory.joinpath("regridding/regrid.py")
     slurm_script = project_directory.joinpath("regridding/slurm.py")
-    manifest_filepath = project_directory.joinpath("transfers/llnl_manifest.csv")
+    generate_batch_files_script = project_directory.joinpath("regridding/generate_batch_files.py")
     regrid_dir = scratch_directory.joinpath("regrid")
     regrid_batch_dir = scratch_directory.joinpath("regrid_batch")
     slurm_dir = scratch_directory.joinpath("slurm")
-    transfers_config = project_directory.joinpath("transfers/config.py")
 
     # target regridding file - all files will be regridded to the grid in this file
     target_grid_fp = cmip6_directory.joinpath("ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc")
@@ -38,11 +37,6 @@ def regrid_cmip6(
     regrid_dir.mkdir(exist_ok=True)
     regrid_batch_dir.mkdir(exist_ok=True)
     slurm_dir.mkdir(exist_ok=True)
-
-    # get variables from transfers config pipeline
-    model_inst_lu = transfers_config.model_inst_lu
-    prod_scenarios = transfers_config.prod_scenarios
-    variables = transfers_config.variables
 
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -61,6 +55,12 @@ def regrid_cmip6(
 
         regridding_functions.install_conda_environment(ssh, "cmip6-utils", f"{project_directory}/cmip6-utils/environment.yml")
 
+        regridding_functions.generate_batch_files(ssh, conda_init_script, generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email)
+
+        job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
+
+        regridding_functions.wait_for_jobs_completion(ssh, job_ids)
+
         regridding_functions.create_and_run_slurm_scripts(ssh, 
                                                           slurm_script, 
                                                           slurm_dir,
@@ -72,9 +72,9 @@ def regrid_cmip6(
                                                           target_grid_fp,
                                                           no_clobber)
 
-        #job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
+        job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
-        #regridding_functions.wait_for_jobs_completion(ssh, job_ids)
+        regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
         #regridding_functions.qc(ssh, working_directory, input_dir)
 
