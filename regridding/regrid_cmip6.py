@@ -14,12 +14,29 @@ def regrid_cmip6(
     ssh_username,
     ssh_private_key_path,
     branch_name,
-    working_directory,
-    #indicators,
-    #models,
-    #scenarios,
-    #input_dir,
+    cmip6_directory,
+    project_directory,
+    scratch_directory
 ):
+    
+    # build additional parameters from prefect inputs
+    conda_init_script = f"{project_directory}/cmip6-utils/regridding/conda_init.sh"
+    regrid_script = project_directory.joinpath("regridding/regrid.py")
+    manifest_filepath = project_directory.joinpath("transfers/llnl_manifest.csv")
+    regrid_dir = scratch_directory.joinpath("regrid")
+    regrid_batch_dir = scratch_directory.joinpath("regrid_batch")
+    slurm_dir = scratch_directory.joinpath("slurm")
+    transfers_config = project_directory.joinpath("transfers/config.py")
+
+    # target regridding file - all files will be regridded to the grid in this file
+    target_grid_fp = cmip6_directory.joinpath("ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc")
+
+    # make these dirs if they don't exist
+    regrid_dir.mkdir(exist_ok=True)
+    regrid_batch_dir.mkdir(exist_ok=True)
+    slurm_dir.mkdir(exist_ok=True)
+
+
     # Create an SSH client
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -56,14 +73,14 @@ def regrid_cmip6(
 
 
 if __name__ == "__main__":
+    # prefect parameter inputs 
     ssh_username = "snapdata"
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
-    working_directory = Path(f"/import/beegfs/CMIP6/snapdata/")
-    #indicators = "rx1day"
-    #models = "CESM2 GFDL-ESM4 TaiESM1"
-    #scenarios = "historical ssp126 ssp245 ssp370 ssp585"
-    #input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
+    cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
+    project_directory = Path(f"/import/beegfs/CMIP6/snapdata/") #repo directory
+    scratch_directory = Path(f"/center1/CMIP6/snapdata/") #directory to where all of the processing takes place
+    slurm_email = "uaf-snap-sys-team@alaska.edu"
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -72,10 +89,9 @@ if __name__ == "__main__":
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
             "branch_name": branch_name,
-            "working_directory": working_directory,
-            #"indicators": indicators,
-            #"models": models,
-            #"scenarios": scenarios,
-            #"input_dir": input_dir,
+            "cmip6_directory": cmip6_directory,
+            "project_directory": project_directory,
+            "scratch_directory": scratch_directory,
+            "slurm_email": slurm_email,
         },
     )

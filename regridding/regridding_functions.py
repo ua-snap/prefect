@@ -160,39 +160,36 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
         print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-# @task
-# def create_and_run_slurm_script(
-#     ssh, indicators, models, scenarios, working_directory, input_dir
-# ):
-#     """
-#     Task to create and run a Slurm script to run the indicator calculation scripts.
+@task
+def create_and_run_slurm_script(
+    ssh, working_directory, input_dir
+):
+    """
+    Task to create and run a Slurm script to regrid batches of CMIP6 data.
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - indicators: Space-separated list of indicators to calculate
-#     - models: Space-separated list of models to calculate indicators for
-#     - scenarios: Space-separated list of scenarios to calculate indicators for
-#     - working_directory: Directory to where all of the processing takes place
-#     - input_dir: Directory containing the input data for the indicators
-#     """
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - working_directory: Directory to where all of the processing takes place
+    - input_dir: Directory containing the input data for the indicators
+    """
 
-#     slurm_script = f"{working_directory}/cmip6-utils/indicators/slurm.py"
+    slurm_script = f"{working_directory}/cmip6-utils/regridding/slurm.py"
 
-#     stdin, stdout, stderr = ssh.exec_command(
-#         f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_directory}'"
-#     )
+    stdin, stdout, stderr = ssh.exec_command(
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_directory}'"
+    )
 
-#     # Wait for the command to finish and get the exit status
-#     exit_status = stdout.channel.recv_exit_status()
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
 
-#     # Check the exit status for errors
-#     if exit_status != 0:
-#         error_output = stderr.read().decode("utf-8")
-#         raise Exception(
-#             f"Error creating or running Slurm scripts. Error: {error_output}"
-#         )
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(
+            f"Error creating or running Slurm scripts. Error: {error_output}"
+        )
 
-#     print("Slurm scripts created and run successfully")
+    print("Slurm scripts created and run successfully")
 
 
 # @task
