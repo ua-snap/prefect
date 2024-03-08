@@ -15,17 +15,16 @@ def regrid_cmip6(
     ssh_private_key_path,
     branch_name,
     cmip6_directory,
-    project_directory,
     scratch_directory,
     slurm_email,
     no_clobber,
 ):
     
     # build additional parameters from prefect inputs
-    conda_init_script = f"{project_directory}/cmip6-utils/regridding/conda_init.sh"
-    regrid_script = project_directory.joinpath("regridding/regrid.py")
-    slurm_script = project_directory.joinpath("regridding/slurm.py")
-    generate_batch_files_script = project_directory.joinpath("regridding/generate_batch_files.py")
+    conda_init_script = f"{scratch_directory}/cmip6-utils/regridding/conda_init.sh"
+    regrid_script = scratch_directory.joinpath("regridding/regrid.py")
+    slurm_script = scratch_directory.joinpath("regridding/slurm.py")
+    generate_batch_files_script = scratch_directory.joinpath("regridding/generate_batch_files.py")
     regrid_dir = scratch_directory.joinpath("regrid")
     regrid_batch_dir = scratch_directory.joinpath("regrid_batch")
     slurm_dir = scratch_directory.joinpath("slurm")
@@ -49,11 +48,11 @@ def regrid_cmip6(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        regridding_functions.clone_github_repository(ssh, branch_name, project_directory)
+        regridding_functions.clone_github_repository(ssh, branch_name, scratch_directory)
 
         regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
-        regridding_functions.install_conda_environment(ssh, "cmip6-utils", f"{project_directory}/cmip6-utils/environment.yml")
+        regridding_functions.install_conda_environment(ssh, "cmip6-utils", f"{scratch_directory}/cmip6-utils/environment.yml")
 
         regridding_functions.generate_batch_files(ssh, conda_init_script, generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email)
 
@@ -90,7 +89,6 @@ if __name__ == "__main__":
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
-    project_directory = Path(f"/import/beegfs/CMIP6/snapdata/") 
     scratch_directory = Path(f"/center1/CMIP6/snapdata/")
     slurm_email = "uaf-snap-sys-team@alaska.edu"
     no_clobber = False
@@ -103,7 +101,6 @@ if __name__ == "__main__":
             "ssh_private_key_path": ssh_private_key_path,
             "branch_name": branch_name,
             "cmip6_directory": cmip6_directory,
-            "project_directory": project_directory,
             "scratch_directory": scratch_directory,
             "slurm_email": slurm_email,
             "no_clobber": no_clobber,
