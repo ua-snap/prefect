@@ -22,10 +22,10 @@ def regrid_cmip6(
     
     # build additional parameters from prefect inputs
     conda_init_script = f"{scratch_directory}/cmip6-utils/regridding/conda_init.sh"
-    regrid_script = f"{scratch_directory}/regridding/regrid.py"
-    slurm_script = f"{scratch_directory}/regridding/slurm.py"
-    generate_batch_files_script = f"{scratch_directory}/regridding/generate_batch_files.py"
-    run_generate_batch_files_script = f"{scratch_directory}/regridding/run_generate_batch_files.py"
+    regrid_script = f"{scratch_directory}/cmip6-utils/regridding/regrid.py"
+    slurm_script = f"{scratch_directory}/cmip6-utils/regridding/slurm.py"
+    generate_batch_files_script = f"{scratch_directory}/cmip6-utils/regridding/generate_batch_files.py"
+    run_generate_batch_files_script = f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
     regrid_dir = f"{scratch_directory}/regrid"
     regrid_batch_dir = f"{scratch_directory}/regrid_batch"
     slurm_dir = f"{scratch_directory}/slurm"
