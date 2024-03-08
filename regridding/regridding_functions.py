@@ -161,22 +161,35 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 
 @task
-def create_and_run_slurm_script(
-    ssh, working_directory, input_dir
-):
+def create_and_run_slurm_scripts(ssh, 
+                                slurm_script, 
+                                slurm_dir,
+                                regrid_dir,
+                                regrid_batch_dir,
+                                slurm_email,
+                                conda_init_script,
+                                regrid_script,
+                                target_grid_fp,
+                                no_clobber
+                                ):
     """
-    Task to create and run a Slurm script to regrid batches of CMIP6 data.
+    Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - working_directory: Directory to where all of the processing takes place
-    - input_dir: Directory containing the input data for the indicators
+    - slurm_script: Directory to regridding slurm.py script
+    - slurm_dir:
+    - regrid_dir: 
+    - regrid_batch_dir:
+    - slurm_email:
+    - conda_init_script:
+    - regrid_script:
+    - target_grid_fp:
+    - no_clobber: 
     """
 
-    slurm_script = f"{working_directory}/cmip6-utils/regridding/slurm.py"
-
-    stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_directory}'"
+    stdin_, stdout, stderr = ssh.exec_command(
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --no_clobber '{no_clobber}'"
     )
 
     # Wait for the command to finish and get the exit status

@@ -16,12 +16,15 @@ def regrid_cmip6(
     branch_name,
     cmip6_directory,
     project_directory,
-    scratch_directory
+    scratch_directory,
+    slurm_email,
+    no_clobber,
 ):
     
     # build additional parameters from prefect inputs
     conda_init_script = f"{project_directory}/cmip6-utils/regridding/conda_init.sh"
     regrid_script = project_directory.joinpath("regridding/regrid.py")
+    slurm_script = project_directory.joinpath("regridding/slurm.py")
     manifest_filepath = project_directory.joinpath("transfers/llnl_manifest.csv")
     regrid_dir = scratch_directory.joinpath("regrid")
     regrid_batch_dir = scratch_directory.joinpath("regrid_batch")
@@ -36,6 +39,10 @@ def regrid_cmip6(
     regrid_batch_dir.mkdir(exist_ok=True)
     slurm_dir.mkdir(exist_ok=True)
 
+    # get variables from transfers config pipeline
+    model_inst_lu = transfers_config.model_inst_lu
+    prod_scenarios = transfers_config.prod_scenarios
+    variables = transfers_config.variables
 
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -48,17 +55,22 @@ def regrid_cmip6(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        #regridding_functions.clone_github_repository(ssh, branch_name, working_directory)
+        regridding_functions.clone_github_repository(ssh, branch_name, project_directory)
 
-        #regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
+        regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
-        # regridding_functions.install_conda_environment(
-        #     ssh, "cmip6-utils", f"{working_directory}/cmip6-utils/environment.yml"
-        # )
+        regridding_functions.install_conda_environment(ssh, "cmip6-utils", f"{project_directory}/cmip6-utils/environment.yml")
 
-        # regridding_functions.create_and_run_slurm_script(
-        #     ssh, indicators, models, scenarios, working_directory, input_dir
-        # )
+        regridding_functions.create_and_run_slurm_scripts(ssh, 
+                                                          slurm_script, 
+                                                          slurm_dir,
+                                                          regrid_dir,
+                                                          regrid_batch_dir,
+                                                          slurm_email,
+                                                          conda_init_script,
+                                                          regrid_script,
+                                                          target_grid_fp,
+                                                          no_clobber)
 
         #job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
@@ -78,9 +90,10 @@ if __name__ == "__main__":
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
-    project_directory = Path(f"/import/beegfs/CMIP6/snapdata/") #repo directory
-    scratch_directory = Path(f"/center1/CMIP6/snapdata/") #directory to where all of the processing takes place
+    project_directory = Path(f"/import/beegfs/CMIP6/snapdata/") 
+    scratch_directory = Path(f"/center1/CMIP6/snapdata/")
     slurm_email = "uaf-snap-sys-team@alaska.edu"
+    no_clobber = False
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -93,5 +106,6 @@ if __name__ == "__main__":
             "project_directory": project_directory,
             "scratch_directory": scratch_directory,
             "slurm_email": slurm_email,
+            "no_clobber": no_clobber,
         },
     )
