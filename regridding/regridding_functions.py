@@ -275,81 +275,38 @@ def wait_for_jobs_completion(ssh, job_ids):
     print("Jobs completed!")
 
 #TODO: implement regridding/tests.slurm from here
-
 #TODO: create QC functions for regridding pipeline and call them from here
     
+
 # @task
-# def qc(ssh, working_directory, input_dir):
+# def tests(ssh, working_directory, input_dir):
 #     """
-#     Task to run the quality control (QC) script to check the output of the indicator calculations.
+#     Task to run the tests to check the output of the regridding pipeline.
 
 #     Parameters:
 #     - ssh: Paramiko SSHClient object
 #     - working_directory: Directory to where all of the processing takes place
 #     """
 
-#     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
+    
+# @task
+# def qc(ssh, working_directory, input_dir):
+#     """
+#     Task to run the quality control (QC) script to check the output of the regridding pipeline.
 
-#     qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
-#     output_dir = f"{working_directory}/output/"
-
-#     stdin, stdout, stderr = ssh.exec_command(
-#         f"source {conda_init_script}\n"
-#         f"conda activate cmip6-utils\n"
-#         f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
-#     )
-
-#     # Collect output from QC script above and print it
-#     lines = stdout.readlines()
-#     for line in lines:
-#         print(line)
-
-#     # Wait for the command to finish and get the exit status
-#     exit_status = stdout.channel.recv_exit_status()
-
-#     # Check the exit status for errors
-#     if exit_status != 0:
-#         error_output = stderr.read().decode("utf-8")
-#         raise Exception(f"Error running QC script. Error: {error_output}")
-
-#     print("QC script run successfully")
+#     Parameters:
+#     - ssh: Paramiko SSHClient object
+#     - working_directory: Directory to where all of the processing takes place
+#     """
 
 
 # @task
 # def visual_qc_nb(ssh, working_directory, input_directory):
 #     """
-#     Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
+#     Task to run the visual quality control (QC) notebook to check the output of the regriddig pipeline.
 
 #     Parameters:
 #     - ssh: Paramiko SSHClient object
 #     - working_directory: Directory where all of the processing takes place
 #     - input_directory: Directory containing source input data collection
 #     """
-
-#     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
-#     repo_indicators_dir = f"{working_directory}/cmip6-utils/indicators"
-#     visual_qc_nb = f"{working_directory}/cmip6-utils/indicators/visual_qc.ipynb"
-#     output_nb = f"{working_directory}/output/qc/visual_qc_out.ipynb"
-
-#     stdin, stdout, stderr = ssh.exec_command(
-#         f"source {conda_init_script}\n"
-#         f"conda activate cmip6-utils\n"
-#         f"cd {repo_indicators_dir}\n"
-#         f"papermill {visual_qc_nb} {output_nb} -r working_directory '{working_directory}' -r input_directory '{input_directory}'\n"
-#         f"jupyter nbconvert --to html {output_nb}"
-#     )
-
-#     # Collect output from QC script above and print it
-#     lines = stdout.readlines()
-#     for line in lines:
-#         print(line)
-
-#     # Wait for the command to finish and get the exit status
-#     exit_status = stdout.channel.recv_exit_status()
-
-#     # Check the exit status for errors
-#     if exit_status != 0:
-#         error_output = stderr.read().decode("utf-8")
-#         raise Exception(f"Error running Visual QC script. Error: {error_output}")
-
-#     print(f"Visual QC notebook created successfully. See {output_nb} for results.")

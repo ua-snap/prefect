@@ -74,6 +74,8 @@ def regrid_cmip6(
 
         regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
+        #regridding_functions.tests(ssh, working_directory, input_dir)
+
         #regridding_functions.qc(ssh, working_directory, input_dir)
 
         #regridding_functions.visual_qc_nb(ssh, working_directory, input_dir)
