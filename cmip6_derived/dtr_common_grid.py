@@ -331,20 +331,20 @@ def run_dtr_processing(
 
 
 if __name__ == "__main__":
-    ssh_username = "kmredilla"
-    ssh_private_key_path = "/Users/kmredilla/.ssh/id_rsa"
+    ssh_username = "snapdata"
+    ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     # change after testing
-    branch_name = "dtr_processing"
-    working_dir = Path(f"/import/beegfs/CMIP6/kmredilla/")
+    branch_name = "main"
+    working_dir = Path(f"/import/beegfs/CMIP6/snapdata/")
     models = " ".join(prod_models)
     scenarios = " ".join(prod_scenarios)
     input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
     # change after testing
-    partition = "debug"
+    partition = "t2small"
     ncpus = "24"
 
     run_dtr_processing.serve(
-        name="dtr-processing-kyle-testing",
+        name="dtr-processing",
         tags=["CMIP6", "dtr", "regrid"],
         parameters={
             "ssh_username": ssh_username,
