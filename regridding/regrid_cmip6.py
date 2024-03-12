@@ -27,9 +27,10 @@ def regrid_cmip6(
     slurm_script = f"{scratch_directory}/cmip6-utils/regridding/slurm.py"
     generate_batch_files_script = f"{scratch_directory}/cmip6-utils/regridding/generate_batch_files.py"
     run_generate_batch_files_script = f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
-    regrid_dir = f"{scratch_directory}/regrid"
-    regrid_batch_dir = f"{scratch_directory}/regrid_batch"
-    slurm_dir = f"{scratch_directory}/slurm"
+    output_directory = f"{scratch_directory}/cmip6_regridding"
+    regrid_dir = f"{output_directory}/regrid"
+    regrid_batch_dir = f"{output_directory}/regrid_batch"
+    slurm_dir = f"{output_directory}/slurm"
 
     # target regridding file - all files will be regridded to the grid in this file
     target_grid_fp = f"{cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
