@@ -16,3 +16,6 @@ Open the Prefect UI in your browser, and click `Run > Quick Run` at the top righ
 - `{models}`: a list of models formatted as a string and separated by whitespace (e.g. "CESM2 GFDL-ESM4 TaiESM1")
 - `{scenarios}`: a list of models formatted as a string and separated by whitespace (e.g. "historical ssp126 ssp245 ssp370 ssp585")
 - `{input_dir}`: path to regridded CMIP6 data (should be "/import/beegfs/CMIP6/arctic-cmip6/regrid")
+
+
+To see all the possible choices for models, scenarios, and indicators, check out the various lookup tables and configuration files in the [cmip6-utils](https://github.com/ua-snap/cmip6-utils/tree/main) repo. 
