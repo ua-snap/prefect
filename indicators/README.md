@@ -18,4 +18,4 @@ Open the Prefect UI in your browser, and click `Run > Quick Run` at the top righ
 - `{input_dir}`: path to regridded CMIP6 data (should be "/import/beegfs/CMIP6/arctic-cmip6/regrid")
 
 
-To see all the possible choices for models, scenarios, and indicators, check out the various lookup tables and configuration files in the [cmip6-utils](https://github.com/ua-snap/cmip6-utils/tree/main) repo. 
+To see all the possible choices for models, scenarios, and indicators, check out the various lookup tables and configuration files in the [cmip6-utils](https://github.com/ua-snap/cmip6-utils/tree/main) repo. Alternatively, you can use the "all" string in any/all of the `{models}`, `{scenarios}`, and `{indicators}` parameters to run all possible choices.
