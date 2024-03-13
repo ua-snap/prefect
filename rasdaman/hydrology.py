@@ -17,6 +17,10 @@ def hydrology(
 
     ingest_tasks.copy_data_from_nfs_mount(source_directory, destination_directory)
 
+    ingest_tasks.install_conda_environment(
+        "rasdaman", f"{working_directory}/rasdaman-ingest/ingest_env.yml"
+    )
+
     ingest_tasks.merge_data(ingest_directory)
 
     ingest_tasks.run_ingest(ingest_directory)
