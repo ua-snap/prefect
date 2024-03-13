@@ -162,11 +162,19 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 
 @task
-def run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script, run_generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email, vars):
-
+def run_generate_batch_files(
+    ssh,
+    conda_init_script,
+    generate_batch_files_script,
+    run_generate_batch_files_script,
+    cmip6_directory,
+    regrid_batch_dir,
+    slurm_email,
+    vars,
+):
     stdin_, stdout, stderr = ssh.exec_command(
         f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --vars '{vars}'"
-        )
+    )
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -174,25 +182,24 @@ def run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script
     # Check the exit status for errors
     if exit_status != 0:
         error_output = stderr.read().decode("utf-8")
-        raise Exception(
-            f"Error generating batch files. Error: {error_output}"
-        )
+        raise Exception(f"Error generating batch files. Error: {error_output}")
 
     print("Generate batch files job submitted!")
 
 
 @task
-def create_and_run_slurm_scripts(ssh, 
-                                slurm_script, 
-                                slurm_dir,
-                                regrid_dir,
-                                regrid_batch_dir,
-                                slurm_email,
-                                conda_init_script,
-                                regrid_script,
-                                target_grid_fp,
-                                no_clobber
-                                ):
+def create_and_run_slurm_scripts(
+    ssh,
+    slurm_script,
+    slurm_dir,
+    regrid_dir,
+    regrid_batch_dir,
+    slurm_email,
+    conda_init_script,
+    regrid_script,
+    target_grid_fp,
+    no_clobber,
+):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
 
@@ -275,6 +282,7 @@ def wait_for_jobs_completion(ssh, job_ids):
 
     print("Jobs completed!")
 
+
 @task
 def validate_vars(vars):
     if vars == "all":
@@ -291,9 +299,9 @@ def validate_vars(vars):
         return vars
 
 
-#TODO: implement regridding/tests.slurm from here
-#TODO: create QC functions for regridding pipeline and call them from here
-    
+# TODO: implement regridding/tests.slurm from here
+# TODO: create QC functions for regridding pipeline and call them from here
+
 
 # @task
 # def tests(ssh, working_directory, input_dir):
@@ -305,7 +313,7 @@ def validate_vars(vars):
 #     - working_directory: Directory to where all of the processing takes place
 #     """
 
-    
+
 # @task
 # def qc(ssh, working_directory, input_dir):
 #     """
