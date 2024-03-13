@@ -139,3 +139,19 @@ def run_ingest(ingest_directory, ingest_file="ingest.json"):
 
     print("Command Output:")
     print(result.stdout)
+
+
+@task
+def merge_data(data_directory):
+    # Run the merge script
+    merge_script = f"{data_directory}/merge.py"
+    result = subprocess.run(
+        ["python", merge_script],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise Exception(f"Error running merge.py script. Error: {result.stderr}")
+
+    print("Merge Script Output:")
+    print(result.stdout)
