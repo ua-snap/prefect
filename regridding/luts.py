@@ -3,7 +3,7 @@
 # use this list to validate variables
 # these were copied from the transfers/config.py in the cmip6-utils repo and include the WRF variables
 
-valid_vars = [
+all_vars = [
     'clt',
     'evspsbl',
     'hfls',
@@ -43,3 +43,21 @@ valid_vars = [
     'vas',
     'zg',
     ]
+
+land_vars = [
+    'mrro',
+    'mrsol',
+    'mrsos',
+    'snd',
+    'snw',
+
+]
+
+sea_vars = [
+    'tos',
+    'siconc',
+    'sithick',
+]
+
+global_vars = [i for i in all_vars if i not in land_vars + sea_vars]
+

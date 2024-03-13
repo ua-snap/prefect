@@ -1,7 +1,7 @@
 from time import sleep
 from prefect import task
 import paramiko
-from luts import valid_vars
+from luts import *
 
 
 @task
@@ -277,8 +277,18 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 @task
 def validate_vars(vars):
-    var_list = vars.split()
-    assert all(x in valid_vars for x in var_list), "Variables not valid."
+    if vars == "all":
+        return (" ").join(all_vars)
+    elif vars == "land":
+        return (" ").join(land_vars)
+    elif vars == "sea":
+        return (" ").join(sea_vars)
+    elif vars == "global":
+        return (" ").join(global_vars)
+    else:
+        var_list = vars.split()
+        assert all(x in all_vars for x in var_list), "Variables not valid."
+        return vars
 
 
 #TODO: implement regridding/tests.slurm from here
