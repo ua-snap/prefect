@@ -19,6 +19,7 @@ def regrid_cmip6(
     slurm_email,
     no_clobber,
     generate_batch_files,
+    vars,
 ):
     
     # build additional parameters from prefect inputs
@@ -54,7 +55,7 @@ def regrid_cmip6(
 
         if generate_batch_files == True:
             
-            regridding_functions.run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script, run_generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email)
+            regridding_functions.run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script, run_generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email, vars)
 
             job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
@@ -95,6 +96,7 @@ if __name__ == "__main__":
     slurm_email = "uaf-snap-sys-team@alaska.edu"
     no_clobber = False
     generate_batch_files = True
+    vars = "all"
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -108,5 +110,6 @@ if __name__ == "__main__":
             "slurm_email": slurm_email,
             "no_clobber": no_clobber,
             "generate_batch_files": generate_batch_files,
+            "vars": vars
         },
     )
