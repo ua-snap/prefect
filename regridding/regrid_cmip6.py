@@ -22,6 +22,8 @@ def regrid_cmip6(
     vars,
 ):
     
+    regridding_functions.validate_vars(vars)
+    
     # build additional parameters from prefect inputs
     conda_init_script = f"{scratch_directory}/cmip6-utils/regridding/conda_init.sh"
     regrid_script = f"{scratch_directory}/cmip6-utils/regridding/regrid.py"

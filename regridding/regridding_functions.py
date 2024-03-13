@@ -1,6 +1,7 @@
 from time import sleep
 from prefect import task
 import paramiko
+from luts import valid_vars
 
 
 @task
@@ -273,6 +274,12 @@ def wait_for_jobs_completion(ssh, job_ids):
             sleep(10)
 
     print("Jobs completed!")
+
+@task
+def validate_vars(vars):
+    var_list = vars.split()
+    assert all(x in valid_vars for x in var_list), "Variables not valid."
+
 
 #TODO: implement regridding/tests.slurm from here
 #TODO: create QC functions for regridding pipeline and call them from here

@@ -3,7 +3,7 @@
 # use this list to validate variables
 # these were copied from the transfers/config.py in the cmip6-utils repo and include the WRF variables
 
-variables = [
+valid_vars = [
     'clt',
     'evspsbl',
     'hfls',
