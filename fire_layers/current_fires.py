@@ -8,8 +8,6 @@ ssh_port = 22
 
 @flow(log_prints=True)
 def current_fires(
-    branch_name,
-    admin_password,
     working_directory,
     script_name,
 ):
@@ -27,8 +25,6 @@ if __name__ == "__main__":
         name="current_fires",
         tags=["current_fires"],
         parameters={
-            "branch_name": "main",
-            "admin_password": "GET THIS FROM BITWARDEN",
             "working_directory": "/tmp",
             "script_name": "get_current_fires.py",
         },
