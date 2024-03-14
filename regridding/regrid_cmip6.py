@@ -19,14 +19,20 @@ def regrid_cmip6(
     slurm_email,
     no_clobber,
     generate_batch_files,
+    vars,
 ):
-    
+    vars = regridding_functions.validate_vars(vars)
+
     # build additional parameters from prefect inputs
     conda_init_script = f"{scratch_directory}/cmip6-utils/regridding/conda_init.sh"
     regrid_script = f"{scratch_directory}/cmip6-utils/regridding/regrid.py"
     slurm_script = f"{scratch_directory}/cmip6-utils/regridding/slurm.py"
-    generate_batch_files_script = f"{scratch_directory}/cmip6-utils/regridding/generate_batch_files.py"
-    run_generate_batch_files_script = f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
+    generate_batch_files_script = (
+        f"{scratch_directory}/cmip6-utils/regridding/generate_batch_files.py"
+    )
+    run_generate_batch_files_script = (
+        f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
+    )
     output_directory = f"{scratch_directory}/cmip6_regridding"
     regrid_dir = f"{output_directory}/regrid"
     regrid_batch_dir = f"{output_directory}/regrid_batch"
@@ -46,30 +52,44 @@ def regrid_cmip6(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        regridding_functions.clone_github_repository(ssh, branch_name, scratch_directory)
+        regridding_functions.clone_github_repository(
+            ssh, branch_name, scratch_directory
+        )
 
         regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
-        regridding_functions.install_conda_environment(ssh, "cmip6-utils", f"{scratch_directory}/cmip6-utils/environment.yml")
+        regridding_functions.install_conda_environment(
+            ssh, "cmip6-utils", f"{scratch_directory}/cmip6-utils/environment.yml"
+        )
 
         if generate_batch_files == True:
-            
-            regridding_functions.run_generate_batch_files(ssh, conda_init_script, generate_batch_files_script, run_generate_batch_files_script, cmip6_directory, regrid_batch_dir, slurm_email)
+            regridding_functions.run_generate_batch_files(
+                ssh,
+                conda_init_script,
+                generate_batch_files_script,
+                run_generate_batch_files_script,
+                cmip6_directory,
+                regrid_batch_dir,
+                slurm_email,
+                vars,
+            )
 
             job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
             regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        regridding_functions.create_and_run_slurm_scripts(ssh, 
-                                                          slurm_script, 
-                                                          slurm_dir,
-                                                          regrid_dir,
-                                                          regrid_batch_dir,
-                                                          slurm_email,
-                                                          conda_init_script,
-                                                          regrid_script,
-                                                          target_grid_fp,
-                                                          no_clobber)
+        regridding_functions.create_and_run_slurm_scripts(
+            ssh,
+            slurm_script,
+            slurm_dir,
+            regrid_dir,
+            regrid_batch_dir,
+            slurm_email,
+            conda_init_script,
+            regrid_script,
+            target_grid_fp,
+            no_clobber,
+        )
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
@@ -84,7 +104,7 @@ def regrid_cmip6(
 
 
 if __name__ == "__main__":
-    # prefect parameter inputs 
+    # prefect parameter inputs
     ssh_username = "snapdata"
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
@@ -93,6 +113,7 @@ if __name__ == "__main__":
     slurm_email = "uaf-snap-sys-team@alaska.edu"
     no_clobber = False
     generate_batch_files = True
+    vars = "all"
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -106,5 +127,6 @@ if __name__ == "__main__":
             "slurm_email": slurm_email,
             "no_clobber": no_clobber,
             "generate_batch_files": generate_batch_files,
+            "vars": vars,
         },
     )
