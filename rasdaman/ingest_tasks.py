@@ -97,7 +97,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
         # Check if the Conda environment already exists
         conda_env_exists = (
             subprocess.run(
-                f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env list | grep {conda_env_name}",
+                f". $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env list | grep {conda_env_name}",
                 shell=True,
             ).returncode
             == 0
@@ -108,7 +108,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
             # Install the Conda environment from the environment file
             subprocess.run(
-                f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
+                f". $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
                 shell=True,
                 check=True,
             )
@@ -133,7 +133,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
         # Check if the Conda environment already exists
         conda_env_exists = (
             subprocess.run(
-                f"source /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env list | grep {conda_env_name}",
+                f". /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env list | grep {conda_env_name}",
                 shell=True,
             ).returncode
             == 0
@@ -144,7 +144,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
             # Install the Conda environment from the environment file
             subprocess.run(
-                f"source /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
+                f". /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
                 shell=True,
                 check=True,
             )
@@ -233,9 +233,11 @@ def merge_data(data_directory):
     # Run the merge script
     merge_script = f"{data_directory}/merge.py"
     result = subprocess.run(
-        ["python", merge_script],
+        f". /opt/miniconda3/bin/activate && conda activate rasdaman && python {merge_script}",
         capture_output=True,
+        cwd=data_directory,
         text=True,
+        shell=True,
     )
     if result.returncode != 0:
         raise Exception(f"Error running merge.py script. Error: {result.stderr}")
