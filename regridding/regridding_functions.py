@@ -277,30 +277,41 @@ def wait_for_jobs_completion(ssh, job_ids):
 
     print("Jobs completed!")
 
-#TODO: implement regridding/tests.slurm from here
-#TODO: create QC functions for regridding pipeline and call them from here
     
+@task
+def qc(ssh, output_directory, vars):
+    """
+    Task to run the quality control (QC) script to check the output of the regridding pipeline.
 
-# @task
-# def tests(ssh, working_directory, input_dir):
-#     """
-#     Task to run the tests to check the output of the regridding pipeline.
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - working_directory: Directory to where all of the processing takes place
+    """
+    conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory to where all of the processing takes place
-#     """
+    qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
+    output_dir = f"{working_directory}/output/"
 
-    
-# @task
-# def qc(ssh, working_directory, input_dir):
-#     """
-#     Task to run the quality control (QC) script to check the output of the regridding pipeline.
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
+    )
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory to where all of the processing takes place
-#     """
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
+
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
+
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running QC script. Error: {error_output}")
+
+    print("QC script run successfully")
 
 
 # @task
