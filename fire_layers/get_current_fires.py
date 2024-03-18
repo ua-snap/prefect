@@ -1,5 +1,6 @@
 import os
 import requests
+from datetime import datetime, timezone
 import json
 import argparse
 from osgeo import ogr
@@ -8,7 +9,8 @@ active_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAn
 active_fires_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=GENERALCAUSE%2COBJECTID%2CNAME%2CLASTUPDATEDATETIME%2CLATITUDE%2CLONGITUDE%2CPRESCRIBEDFIRE%2CDISCOVERYDATETIME%2CESTIMATEDTOTALACRES%2CSUMMARY%2CIRWINID&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
 inactive_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires_Perimeters/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=OBJECTID%2CNAME%2CACRES%2CIRWINID%2CPRESCRIBED&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
 inactive_fires_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=GENERALCAUSE%2COBJECTID%2CNAME%2CLASTUPDATEDATETIME%2CLATITUDE%2CLONGITUDE%2CDISCOVERYDATETIME%2CESTIMATEDTOTALACRES%2CSUMMARY%2COUTDATE%2CIRWINID&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
-
+todays_lightning = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Lightning/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=geojson"
+yesterdays_lightning = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Lightning/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=geojson"
 data_dir = "./data/debug"  # Directory to look for local data files
 
 if not os.path.exists(data_dir):
@@ -38,6 +40,45 @@ def get_fire_geojson():
         return fetch_fire_geojson()
     except:
         print("Failed to get the data")
+
+
+def fetch_recent_lightning_geojson():
+    if os.getenv("DEBUG") == "True":
+        print("Fetching recent lightning data from local files...")
+        lightning_strikes = load_local_data(f"{data_dir}/lightning.geojson")
+    else:
+        print("Fetching recent lightning data from the web...")
+        try:
+            todays_lightning = fetch_data(todays_lightning)
+            yesterdays_lightning = fetch_data(yesterdays_lightning)
+            lightning_strikes = (
+                todays_lightning["features"] + yesterdays_lightning["features"]
+            )
+        except:
+            print(
+                "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
+            )
+            exit(0)
+
+    return process_lightning_geojson(lightning_strikes)
+
+
+def process_lightning_geojson(lightning_strikes):
+    def parse_updated_time(t):
+        seconds_ago = datetime.now(timezone.utc).timestamp() - (t / 1000)
+        hours_difference = seconds_ago / 3600
+        return hours_difference
+
+    lightning_features = list()
+
+    # Start by adding a few fields to each batch
+    for feature in lightning_strikes["features"]:
+        feature["properties"]["hoursago"] = parse_updated_time(
+            feature["properties"]["UTCDATETIME"]
+        )
+        lightning_features.append(feature)
+
+    return lightning_features
 
 
 def fetch_fire_geojson():
@@ -72,18 +113,12 @@ def fetch_fire_geojson():
 def process_fire_geojson(
     activeFirePerimeters, activeFires, inactiveFirePerimeters, inactiveFires
 ):
-    stripped_features = []
+    stripped_features = list()
 
     # Function that formats the size of the fire into the desired format
     def parse_acres(a):
         return round(float(a), 2)
 
-    # Function that formats the update time into the desired format
-    def parse_updated_time(t):
-        # No-op for now, you can implement this if needed
-        return t
-
-    # Start by adding a few fields to each batch
     for features in [
         activeFirePerimeters["features"],
         inactiveFirePerimeters["features"],
@@ -107,12 +142,14 @@ def process_fire_geojson(
             feature["properties"]["acres"] = parse_acres(
                 feature["properties"]["ESTIMATEDTOTALACRES"]
             )
-            feature["properties"]["updated"] = parse_updated_time(
-                feature["properties"]["LASTUPDATEDATETIME"]
-            )
-            feature["properties"]["discovered"] = parse_updated_time(
-                feature["properties"]["DISCOVERYDATETIME"]
-            )
+            feature["properties"]["updated"] = feature["properties"][
+                "LASTUPDATEDATETIME"
+            ]
+
+            feature["properties"]["discovered"] = feature["properties"][
+                "DISCOVERYDATETIME"
+            ]
+
             # GENERALCAUSE is not always present in the data and it is also too long a field name for a shapefile
             if (
                 "GENERALCAUSE" not in feature["properties"]
@@ -166,32 +203,43 @@ def process_fire_geojson(
     return stripped_features
 
 
-def convert_geojson_to_shapefile(geojson_features, out_shapefile):
+def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="fire"):
     # Create a new Shapefile
     driver = ogr.GetDriverByName("ESRI Shapefile")
     datasource = driver.CreateDataSource(out_shapefile)
 
-    # Create separate layers for points and polygons
-    point_layer = datasource.CreateLayer("fire_points", geom_type=ogr.wkbPoint)
-    polygon_layer = datasource.CreateLayer("fire_polygons", geom_type=ogr.wkbPolygon)
+    if feature_type == "fire":
+        # Create separate layers for points and polygons
+        point_layer = datasource.CreateLayer("fire_points", geom_type=ogr.wkbPoint)
+        polygon_layer = datasource.CreateLayer(
+            "fire_polygons", geom_type=ogr.wkbPolygon
+        )
 
-    # Define fields for both layers
-    point_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
-    point_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
-    point_layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
-    point_layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
-    point_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
-    point_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
-    point_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+        # Define fields for both layers
+        point_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
+        point_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
+        point_layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
+        point_layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
+        point_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
+        point_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
+        point_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
 
-    polygon_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
-    polygon_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
-    polygon_layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
-    polygon_layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
-    polygon_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
-    polygon_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
-    polygon_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
+        polygon_layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+    elif feature_type == "lightning":
+        # Create a single layer for lightning points
+        point_layer = datasource.CreateLayer("lightning_points", geom_type=ogr.wkbPoint)
 
+        # Define fields for the layer
+        point_layer.CreateField(ogr.FieldDefn("amplitude", ogr.OFTReal))
+        point_layer.CreateField(ogr.FieldDefn("hoursago", ogr.OFTReal))
+
+    print(geojson_features)
     # Create features and add them to the respective layers
     for feature in geojson_features:
         geom_type = feature["geometry"]["type"]
@@ -207,14 +255,19 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile):
         feat = ogr.Feature(layer.GetLayerDefn())
         feat.SetGeometry(geom)
         try:
-            feat.SetField("NAME", feature["properties"]["NAME"])
-            feat.SetField("acres", feature["properties"]["acres"])
-            feat.SetField("active", feature["properties"]["active"])
-            feat.SetField("OUTDATE", feature["properties"]["OUTDATE"])
-            feat.SetField("updated", feature["properties"]["updated"])
-            feat.SetField("discovered", feature["properties"]["discovered"])
-            feat.SetField("CAUSE", feature["properties"]["CAUSE"])
-            layer.CreateFeature(feat)
+            if feature_type == "fire":
+                feat.SetField("NAME", feature["properties"]["NAME"])
+                feat.SetField("acres", feature["properties"]["acres"])
+                feat.SetField("active", feature["properties"]["active"])
+                feat.SetField("OUTDATE", feature["properties"]["OUTDATE"])
+                feat.SetField("updated", feature["properties"]["updated"])
+                feat.SetField("discovered", feature["properties"]["discovered"])
+                feat.SetField("CAUSE", feature["properties"]["CAUSE"])
+                layer.CreateFeature(feat)
+            elif feature_type == "lightning":
+                feat.SetField("amplitude", feature["properties"]["amplitude"])
+                feat.SetField("hoursago", feature["properties"]["hoursago"])
+                layer.CreateFeature(feat)
         except Exception as e:
             print(f"Error adding feature to the layer: {e}")
 
@@ -223,16 +276,23 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Fetch fire data and process it.")
+    parser = argparse.ArgumentParser(
+        description="Fetch Alaska Wildfire map fire & lightning data and process it."
+    )
     parser.add_argument(
         "--out-dir",
         type=str,
         default="./data",
-        help="Directory to output GeoTIFF files to.",
+        help="Directory to output shapefiles to.",
     )
     args = parser.parse_args()
 
+    # Creates fire shapefiles
     out_shapefile = os.path.join(args.out_dir, "fires.shp")
-
     fire_geojson = fetch_fire_geojson()
-    convert_geojson_to_shapefile(fire_geojson, out_shapefile)
+    convert_geojson_to_shapefile(fire_geojson, out_shapefile, "fire")
+
+    # Creates lightning shapefile
+    out_shapefile = os.path.join(args.out_dir, "lightning.shp")
+    lightning_geojson = fetch_recent_lightning_geojson()
+    convert_geojson_to_shapefile(lightning_geojson, out_shapefile, "lightning")
