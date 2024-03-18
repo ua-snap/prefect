@@ -3,81 +3,6 @@ import subprocess
 
 
 @task
-def check_for_admin_pass(target_directory, admin_password):
-    file_path = f"{target_directory}/.adminpass"
-    admin_pass = f'export admin_pass="{admin_password}"\n'
-    # Check if the file exists locally
-    file_exists = (
-        subprocess.run(
-            f"test -f {file_path} && echo 'true' || echo 'false'",
-            shell=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        == "true"
-    )
-
-    if file_exists:
-        # Read the content of the local file
-        with open(file_path, "r") as file:
-            content = file.read()
-
-        # Does the admin password match the supplied admin_password variable?
-        if admin_pass in content:
-            return True
-
-    # Only gets here if the file doesn't exist or the password is wrong
-    with open(file_path, "w") as file:
-        file.write(admin_pass)
-        return True
-
-
-@task
-def clone_github_repository(branch, destination_directory):
-    target_directory = f"{destination_directory}/smokey-bear"
-    directory_exists = (
-        subprocess.run(
-            f"if [ -d '{target_directory}' ]; then echo 'true'; else echo 'false'; fi",
-            shell=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        == "true"
-    )
-
-    if directory_exists:
-        # Directory exists, check the current branch
-        current_branch = subprocess.run(
-            f"cd {target_directory} && git branch --show-current",
-            shell=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-
-        if current_branch != branch:
-            print(f"Change repository branch to branch {branch}...")
-            # If the current branch is different from the desired branch, switch to the correct branch
-            subprocess.run(
-                f"cd {target_directory} && git checkout {branch}", shell=True
-            )
-
-        print(f"Pulling the GitHub repository on branch {branch}...")
-
-        # Run the Git pull command to pull the repository
-        subprocess.run(
-            f"cd {target_directory} && git pull origin {branch}", shell=True, check=True
-        )
-    else:
-        print(f"Cloning the GitHub repository on branch {branch}...")
-        # Run the Git clone command to clone the repository
-        subprocess.run(
-            f"cd {destination_directory} && git clone -b {branch} https://github.com/ua-snap/smokey-bear",
-            shell=True,
-            check=True,
-        )
-
-
-@task
 def install_conda_environment(conda_env_name, conda_env_file, local_install=False):
     """
     Task to check for a Python Conda environment and install it if it doesn't exist.
@@ -165,13 +90,14 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
 
 @task
-def execute_local_script(script_path):
+def execute_local_script(script_path, output_path, debug=False):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f"sudo {script_path}",
+        f"sudo {script_path} --out-dir {output_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env={"DEBUG": debug},
     )
     stdout, stderr = process.communicate()
     exit_code = process.returncode
