@@ -33,6 +33,7 @@ def regrid_cmip6(
     run_generate_batch_files_script = (
         f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
     )
+    qc_script = f"{scratch_directory}/cmip6-utils/regridding/qc.py"
     output_directory = f"{scratch_directory}/cmip6_regridding"
     regrid_dir = f"{output_directory}/regrid"
     regrid_batch_dir = f"{output_directory}/regrid_batch"
@@ -95,7 +96,7 @@ def regrid_cmip6(
 
         regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        regridding_functions.qc(ssh, output_directory, vars)
+        regridding_functions.qc(ssh, output_directory, conda_init_script, qc_script, vars)
 
         #regridding_functions.visual_qc_nb(ssh, working_directory, input_dir)
 

@@ -302,28 +302,19 @@ def validate_vars(vars):
         return vars
 
 
-# TODO: implement regridding/tests.slurm from here
-# TODO: create QC functions for regridding pipeline and call them from here
-
-
-# @task
-# def tests(ssh, working_directory, input_dir):
-#     """
-#     Task to run the tests to check the output of the regridding pipeline.
+@task
+def qc(ssh, output_directory, conda_init_script, qc_script, vars):
+    """
+    Task to run the QC to check the output of the regridding pipeline.
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - working_directory: Directory to where all of the processing takes place
+    - output_directory: Directory to regridded file output
     """
-    conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
-
-    qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
-    output_dir = f"{working_directory}/output/"
-
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
+        f"python {qc_script} --output_directory {output_directory} --vars {vars}"
     )
 
     # Collect output from QC script above and print it
