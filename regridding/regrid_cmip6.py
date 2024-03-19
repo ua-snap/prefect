@@ -105,19 +105,6 @@ def regrid_cmip6(
 
         regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        # regridding_functions.qc(
-        #     ssh, output_directory, conda_init_script, qc_script, vars
-        # )
-
-        # regridding_functions.visual_qc_nb(
-        #     ssh,
-        #     output_directory,
-        #     cmip6_directory,
-        #     conda_init_script,
-        #     repo_regridding_dir,
-        #     visual_qc_notebook,
-        # )
-
     finally:
         ssh.close()
 
