@@ -24,7 +24,7 @@ def regrid_cmip6(
     vars = regridding_functions.validate_vars(vars)
 
     # build additional parameters from prefect inputs
-    repo_regridding_dir = f"{scratch_directory}/cmip6-utils/regridding"
+    repo_regridding_directory = f"{scratch_directory}/cmip6-utils/regridding"
     conda_init_script = f"{scratch_directory}/cmip6-utils/regridding/conda_init.sh"
     regrid_script = f"{scratch_directory}/cmip6-utils/regridding/regrid.py"
     slurm_script = f"{scratch_directory}/cmip6-utils/regridding/slurm.py"
@@ -34,6 +34,7 @@ def regrid_cmip6(
     run_generate_batch_files_script = (
         f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
     )
+    run_qc_script = f"{scratch_directory}/cmip6-utils/regridding/run_qc.py"
     qc_script = f"{scratch_directory}/cmip6-utils/regridding/qc.py"
     visual_qc_notebook = f"{scratch_directory}/cmip6-utils/regridding/qc.ipynb"
     output_directory = f"{scratch_directory}/cmip6_regridding"
@@ -98,18 +99,24 @@ def regrid_cmip6(
 
         regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        regridding_functions.qc(
-            ssh, output_directory, conda_init_script, qc_script, vars
-        )
+        regridding_functions.run_qc(ssh, output_directory, cmip6_directory, repo_regridding_directory, conda_init_script, run_qc_script, qc_script, visual_qc_notebook, vars, slurm_email)
 
-        regridding_functions.visual_qc_nb(
-            ssh,
-            output_directory,
-            cmip6_directory,
-            conda_init_script,
-            repo_regridding_dir,
-            visual_qc_notebook,
-        )
+        job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
+
+        regridding_functions.wait_for_jobs_completion(ssh, job_ids)
+
+        # regridding_functions.qc(
+        #     ssh, output_directory, conda_init_script, qc_script, vars
+        # )
+
+        # regridding_functions.visual_qc_nb(
+        #     ssh,
+        #     output_directory,
+        #     cmip6_directory,
+        #     conda_init_script,
+        #     repo_regridding_dir,
+        #     visual_qc_notebook,
+        # )
 
     finally:
         ssh.close()

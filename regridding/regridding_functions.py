@@ -307,28 +307,86 @@ def validate_vars(vars):
         return vars
 
 
+# @task
+# def qc(ssh, output_directory, conda_init_script, qc_script, vars):
+#     """
+#     Task to run the QC script to check the output of the regridding pipeline.
+
+#     Parameters:
+#     - ssh: Paramiko SSHClient object
+#     - output_directory: Directory to regridded file output
+#     - conda_init_script: Script to initialize conda
+#     - qc_script: Script to run QC functions
+#     - vars: a string of validated variable ids, separated by white space (e.g., 'pr tas ta')
+#     """
+#     stdin, stdout, stderr = ssh.exec_command(
+#         f"source {conda_init_script}\n"
+#         f"conda activate cmip6-utils\n"
+#         f"python {qc_script} --output_directory {output_directory} --vars '{vars}'"
+#     )
+
+#     # Collect output from QC script above and print it
+#     lines = stdout.readlines()
+#     for line in lines:
+#         print(line)
+
+#     # Wait for the command to finish and get the exit status
+#     exit_status = stdout.channel.recv_exit_status()
+
+#     # Check the exit status for errors
+#     if exit_status != 0:
+#         error_output = stderr.read().decode("utf-8")
+#         raise Exception(f"Error running QC script. Error: {error_output}")
+
+#     print("QC script run successfully")
+
+
+# @task
+# def visual_qc_nb(
+#     ssh,
+#     output_directory,
+#     cmip6_directory,
+#     conda_init_script,
+#     repo_regridding_dir,
+#     visual_qc_notebook,
+# ):
+#     """
+#     Task to run the visual quality control (QC) notebook to check the regridding output.
+
+#     Parameters:
+#     - ssh: Paramiko SSHClient object
+#     - output_directory: Directory to regridded file output
+#     - cmip6_directory: Directory containing CMIP6 input data
+#     - conda_init_script: Script to initialize conda
+#     - visual_qc_notebook: Notebook with QC functions
+#     """
+#     output_nb = f"{output_directory}/qc/visual_qc_out.ipynb"
+
+#     stdin, stdout, stderr = ssh.exec_command(
+#         f"source {conda_init_script}\n"
+#         f"conda activate cmip6-utils\n"
+#         f"cd {repo_regridding_dir}\n"
+#         f"papermill {visual_qc_nb} {output_nb} -r output_directory '{output_directory}' -r cmip6_directory '{cmip6_directory}'\n"
+#         f"jupyter nbconvert --to html {output_nb}"
+#     )
+
+#     # Wait for the command to finish and get the exit status
+#     exit_status = stdout.channel.recv_exit_status()
+
+#     # Check the exit status for errors
+#     if exit_status != 0:
+#         error_output = stderr.read().decode("utf-8")
+#         raise Exception(f"Error running Visual QC script. Error: {error_output}")
+
+#     print(f"Visual QC notebook created successfully. See {output_nb} for results.")
+
+
 @task
-def qc(ssh, output_directory, conda_init_script, qc_script, vars):
-    """
-    Task to run the QC script to check the output of the regridding pipeline.
+def run_qc(ssh, output_directory, cmip6_directory, repo_regridding_directory, conda_init_script, run_qc_script, qc_script, visual_qc_notebook, vars, slurm_email):
 
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - output_directory: Directory to regridded file output
-    - conda_init_script: Script to initialize conda
-    - qc_script: Script to run QC functions
-    - vars: a string of validated variable ids, separated by white space (e.g., 'pr tas ta')
-    """
-    stdin, stdout, stderr = ssh.exec_command(
-        f"source {conda_init_script}\n"
-        f"conda activate cmip6-utils\n"
-        f"python {qc_script} --output_directory {output_directory} --vars '{vars}'"
+    stdin_, stdout, stderr = ssh.exec_command(
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --slurm_email '{slurm_email}' --vars '{vars}'"
     )
-
-    # Collect output from QC script above and print it
-    lines = stdout.readlines()
-    for line in lines:
-        print(line)
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -336,46 +394,6 @@ def qc(ssh, output_directory, conda_init_script, qc_script, vars):
     # Check the exit status for errors
     if exit_status != 0:
         error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error running QC script. Error: {error_output}")
+        raise Exception(f"Error submitting QC scripts. Error: {error_output}")
 
-    print("QC script run successfully")
-
-
-@task
-def visual_qc_nb(
-    ssh,
-    output_directory,
-    cmip6_directory,
-    conda_init_script,
-    repo_regridding_dir,
-    visual_qc_notebook,
-):
-    """
-    Task to run the visual quality control (QC) notebook to check the regridding output.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - output_directory: Directory to regridded file output
-    - cmip6_directory: Directory containing CMIP6 input data
-    - conda_init_script: Script to initialize conda
-    - visual_qc_notebook: Notebook with QC functions
-    """
-    output_nb = f"{output_directory}/qc/visual_qc_out.ipynb"
-
-    stdin, stdout, stderr = ssh.exec_command(
-        f"source {conda_init_script}\n"
-        f"conda activate cmip6-utils\n"
-        f"cd {repo_regridding_dir}\n"
-        f"papermill {visual_qc_nb} {output_nb} -r output_directory '{output_directory}' -r cmip6_directory '{cmip6_directory}'\n"
-        f"jupyter nbconvert --to html {output_nb}"
-    )
-
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
-
-    # Check the exit status for errors
-    if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error running Visual QC script. Error: {error_output}")
-
-    print(f"Visual QC notebook created successfully. See {output_nb} for results.")
+    print("QC jobs submitted!")
