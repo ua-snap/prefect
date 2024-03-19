@@ -9,6 +9,9 @@ active_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAn
 active_fires_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=GENERALCAUSE%2COBJECTID%2CNAME%2CLASTUPDATEDATETIME%2CLATITUDE%2CLONGITUDE%2CPRESCRIBEDFIRE%2CDISCOVERYDATETIME%2CESTIMATEDTOTALACRES%2CSUMMARY%2CIRWINID&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
 inactive_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires_Perimeters/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=OBJECTID%2CNAME%2CACRES%2CIRWINID%2CPRESCRIBED&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
 inactive_fires_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=GENERALCAUSE%2COBJECTID%2CNAME%2CLASTUPDATEDATETIME%2CLATITUDE%2CLONGITUDE%2CDISCOVERYDATETIME%2CESTIMATEDTOTALACRES%2CSUMMARY%2COUTDATE%2CIRWINID&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
+viirs_12hr_url = "https://fire.gina.alaska.edu/arcgis/rest/services/afs/VIIRS_iBand_FireHeatPoints/MapServer/1/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&havingClause=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=xyFootprint&resultOffset=&resultRecordCount=&returnTrueCurves=false&returnExceededLimitFeatures=false&quantizationParameters=&returnCentroid=false&sqlFormat=none&resultType=&featureEncoding=esriDefault&datumTransformation=&f=geojson"
+viirs_24hr_url = "https://fire.gina.alaska.edu/arcgis/rest/services/afs/VIIRS_iBand_FireHeatPoints/MapServer/2/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&havingClause=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=xyFootprint&resultOffset=&resultRecordCount=&returnTrueCurves=false&returnExceededLimitFeatures=false&quantizationParameters=&returnCentroid=false&sqlFormat=none&resultType=&featureEncoding=esriDefault&datumTransformation=&f=geojson"
+viirs_48hr_url = "https://fire.gina.alaska.edu/arcgis/rest/services/afs/VIIRS_iBand_FireHeatPoints/MapServer/3/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&havingClause=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=xyFootprint&resultOffset=&resultRecordCount=&returnTrueCurves=false&returnExceededLimitFeatures=false&quantizationParameters=&returnCentroid=false&sqlFormat=none&resultType=&featureEncoding=esriDefault&datumTransformation=&f=geojson"
 todays_lightning = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Lightning/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=geojson"
 yesterdays_lightning = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Lightning/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=geojson"
 data_dir = "./data/debug"  # Directory to look for local data files
@@ -41,6 +44,7 @@ def fetch_recent_lightning_geojson():
     if os.getenv("DEBUG") == "True":
         print("Fetching recent lightning data from local files...")
         lightning_strikes = load_local_data(f"{data_dir}/lightning.geojson")
+        lightning_strikes = lightning_strikes["features"]
     else:
         print("Fetching recent lightning data from the web...")
         try:
@@ -53,7 +57,7 @@ def fetch_recent_lightning_geojson():
             print(
                 "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
             )
-            exit(0)
+            exit(1)
 
     return process_lightning_geojson(lightning_strikes)
 
@@ -67,13 +71,35 @@ def process_lightning_geojson(lightning_strikes):
     lightning_features = list()
 
     # Start by adding a few fields to each batch
-    for feature in lightning_strikes["features"]:
+    for feature in lightning_strikes:
         feature["properties"]["hoursago"] = parse_updated_time(
             feature["properties"]["UTCDATETIME"]
         )
         lightning_features.append(feature)
 
     return lightning_features
+
+
+def fetch_viirs_hotspots_geojson():
+    if os.getenv("DEBUG") == "True":
+        print("Fetching VIIRS hotspot data from local files...")
+        viirs_data = load_local_data(f"{data_dir}/viirs.geojson")
+        viirs_data = viirs_data["features"]
+    else:
+        print("Fetching VIIRS hotspot data from the web...")
+        try:
+            viirs_12hr = fetch_data(viirs_12hr_url)
+            viirs_24hr = fetch_data(viirs_24hr_url)
+            viirs_48hr = fetch_data(viirs_48hr_url)
+            viirs_data = (
+                viirs_12hr["features"] + viirs_24hr["features"] + viirs_48hr["features"]
+            )
+        except:
+            print(
+                "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
+            )
+            exit(1)
+    return viirs_data
 
 
 def fetch_fire_geojson():
@@ -98,7 +124,7 @@ def fetch_fire_geojson():
             print(
                 "Failed to fetch fire data from the web. Leaving previous shapefiles intact."
             )
-            exit(0)
+            exit(1)
 
     return process_fire_geojson(
         active_fire_perimeters, active_fires, inactive_fire_perimeters, inactive_fires
@@ -233,6 +259,9 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
         # Define fields for the layer
         point_layer.CreateField(ogr.FieldDefn("amplitude", ogr.OFTReal))
         point_layer.CreateField(ogr.FieldDefn("hoursago", ogr.OFTReal))
+    elif feature_type == "viirs":
+        # Create a single layer for VIIRS points
+        point_layer = datasource.CreateLayer("viirs_hotspots", geom_type=ogr.wkbPoint)
 
     # Create features and add them to the respective layers
     for feature in geojson_features:
@@ -257,11 +286,12 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
                 feat.SetField("updated", feature["properties"]["updated"])
                 feat.SetField("discovered", feature["properties"]["discovered"])
                 feat.SetField("CAUSE", feature["properties"]["CAUSE"])
-                layer.CreateFeature(feat)
+
             elif feature_type == "lightning":
                 feat.SetField("amplitude", feature["properties"]["amplitude"])
                 feat.SetField("hoursago", feature["properties"]["hoursago"])
-                layer.CreateFeature(feat)
+
+            layer.CreateFeature(feat)
         except Exception as e:
             print(f"Error adding feature to the layer: {e}")
 
@@ -290,3 +320,8 @@ if __name__ == "__main__":
     out_shapefile = os.path.join(args.out_dir, "lightning.shp")
     lightning_geojson = fetch_recent_lightning_geojson()
     convert_geojson_to_shapefile(lightning_geojson, out_shapefile, "lightning")
+
+    # Creates VIIRS hotspot shapefile
+    out_shapefile = os.path.join(args.out_dir, "viirs_hotspots.shp")
+    viirs_hotspot_geojson = fetch_viirs_hotspots_geojson()
+    convert_geojson_to_shapefile(viirs_hotspot_geojson, out_shapefile, "viirs")
