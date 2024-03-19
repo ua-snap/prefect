@@ -30,11 +30,6 @@ def load_local_data(file_path):
         return json.load(f)
 
 
-def save_local_data(data, file_path):
-    with open(file_path, "w") as f:
-        json.dump(data, f)
-
-
 def get_fire_geojson():
     try:
         return fetch_fire_geojson()
@@ -239,7 +234,6 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
         point_layer.CreateField(ogr.FieldDefn("amplitude", ogr.OFTReal))
         point_layer.CreateField(ogr.FieldDefn("hoursago", ogr.OFTReal))
 
-    print(geojson_features)
     # Create features and add them to the respective layers
     for feature in geojson_features:
         geom_type = feature["geometry"]["type"]
