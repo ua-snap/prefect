@@ -288,6 +288,11 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 @task
 def validate_vars(vars):
+    """
+    Task to validate strings of variables. Variables are checked against the lists in luts.py.
+    Parameters:
+    - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
+    """
     if vars == "all":
         return (" ").join(all_vars)
     elif vars == "land":
@@ -305,16 +310,19 @@ def validate_vars(vars):
 @task
 def qc(ssh, output_directory, conda_init_script, qc_script, vars):
     """
-    Task to run the QC to check the output of the regridding pipeline.
+    Task to run the QC script to check the output of the regridding pipeline.
 
     Parameters:
     - ssh: Paramiko SSHClient object
     - output_directory: Directory to regridded file output
+    - conda_init_script: Script to initialize conda
+    - qc_script: Script to run QC functions
+    - vars: a string of validated variable ids, separated by white space (e.g., 'pr tas ta')
     """
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"python {qc_script} --output_directory {output_directory} --vars {vars}"
+        f"python {qc_script} --output_directory {output_directory} --vars '{vars}'"
     )
 
     # Collect output from QC script above and print it
@@ -333,13 +341,41 @@ def qc(ssh, output_directory, conda_init_script, qc_script, vars):
     print("QC script run successfully")
 
 
-# @task
-# def visual_qc_nb(ssh, working_directory, input_directory):
-#     """
-#     Task to run the visual quality control (QC) notebook to check the output of the regriddig pipeline.
+@task
+def visual_qc_nb(
+    ssh,
+    output_directory,
+    cmip6_directory,
+    conda_init_script,
+    repo_regridding_dir,
+    visual_qc_notebook,
+):
+    """
+    Task to run the visual quality control (QC) notebook to check the regridding output.
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory where all of the processing takes place
-#     - input_directory: Directory containing source input data collection
-#     """
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - output_directory: Directory to regridded file output
+    - cmip6_directory: Directory containing CMIP6 input data
+    - conda_init_script: Script to initialize conda
+    - visual_qc_notebook: Notebook with QC functions
+    """
+    output_nb = f"{output_directory}/qc/visual_qc_out.ipynb"
+
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"cd {repo_regridding_dir}\n"
+        f"papermill {visual_qc_nb} {output_nb} -r working_directory '{output_directory}' -r input_directory '{cmip6_directory}'\n"
+        f"jupyter nbconvert --to html {output_nb}"
+    )
+
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
+
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running Visual QC script. Error: {error_output}")
+
+    print(f"Visual QC notebook created successfully. See {output_nb} for results.")
