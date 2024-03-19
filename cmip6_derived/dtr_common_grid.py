@@ -248,7 +248,7 @@ def qc_nb(ssh, working_dir, input_dir):
     - input_dir: Directory containing source input data collection
     """
 
-    conda_init_script = f"{working_dir}/cmip6-utils/indicators/conda_init.sh"
+    conda_init_script = f"{working_dir}/cmip6-utils/regridding/conda_init.sh"
     repo_derived_dir = f"{working_dir}/cmip6-utils/derived"
     output_nb = f"{working_dir}/dtr_processing/qc/dtr_qc_out.ipynb"
 
