@@ -90,10 +90,12 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
 
 @task
-def execute_local_script(script_path, output_path, conda_env_name, debug=False):
+def execute_local_script(
+    script_path, output_path, conda_env_name="fire_map", debug="False"
+):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f"source /opt/miniconda3/bin/activate {conda_env_name}; sudo python {script_path} --out-dir {output_path}",
+        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

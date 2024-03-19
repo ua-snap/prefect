@@ -17,7 +17,7 @@ def current_fire_layers(
     fire_layer_tasks.execute_local_script(
         f"{working_directory}/fire_layers/{script_name}",
         shapefile_output_directory,
-        debug,
+        debug=debug,
     )
 
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         name="current_fire_layers",
         tags=["current_fire_layers"],
         parameters={
-            "debug": False,
+            "debug": "False",
             "working_directory": "/usr/local/prefect",
             "script_name": "get_current_fire_layers.py",
             "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
