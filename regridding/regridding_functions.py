@@ -216,9 +216,12 @@ def create_and_run_slurm_scripts(
     - no_clobber: Do not overwrite regidded files if they exist
     """
 
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --no_clobber '{no_clobber}'"
-    )
+    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}'"
+
+    if no_clobber:
+        cmd += " --no_clobber"
+
+    stdin_, stdout, stderr = ssh.exec_command(cmd)
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
