@@ -366,7 +366,7 @@ def visual_qc_nb(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
         f"cd {repo_regridding_dir}\n"
-        f"papermill {visual_qc_nb} {output_nb} -r working_directory '{output_directory}' -r input_directory '{cmip6_directory}'\n"
+        f"papermill {visual_qc_nb} {output_nb} -r output_directory '{output_directory}' -r cmip6_directory '{cmip6_directory}'\n"
         f"jupyter nbconvert --to html {output_nb}"
     )
 
