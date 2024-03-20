@@ -6,7 +6,9 @@ import argparse
 from osgeo import ogr
 
 script_dir = os.path.dirname(__file__)
+data_dir = os.path.join(script_dir, "data", "debug")
 
+# All of the URLs used to generate the layers
 active_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires_Perimeters/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=OBJECTID%2CNAME%2CACRES%2CIRWINID%2CPRESCRIBED&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
 active_fires_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=GENERALCAUSE%2COBJECTID%2CNAME%2CLASTUPDATEDATETIME%2CLATITUDE%2CLONGITUDE%2CPRESCRIBEDFIRE%2CDISCOVERYDATETIME%2CESTIMATEDTOTALACRES%2CSUMMARY%2CIRWINID&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
 inactive_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires_Perimeters/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=OBJECTID%2CNAME%2CACRES%2CIRWINID%2CPRESCRIBED&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
@@ -16,7 +18,10 @@ viirs_24hr_url = "https://fire.gina.alaska.edu/arcgis/rest/services/afs/VIIRS_iB
 viirs_48hr_url = "https://fire.gina.alaska.edu/arcgis/rest/services/afs/VIIRS_iBand_FireHeatPoints/MapServer/3/query?where=1%3D1&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&distance=&units=esriSRUnit_Foot&relationParam=&outFields=&returnGeometry=true&maxAllowableOffset=&geometryPrecision=&outSR=&havingClause=&gdbVersion=&historicMoment=&returnDistinctValues=false&returnIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&multipatchOption=xyFootprint&resultOffset=&resultRecordCount=&returnTrueCurves=false&returnExceededLimitFeatures=false&quantizationParameters=&returnCentroid=false&sqlFormat=none&resultType=&featureEncoding=esriDefault&datumTransformation=&f=geojson"
 todays_lightning = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Lightning/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=geojson"
 yesterdays_lightning = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Lightning/MapServer/1/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=*&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentsOnly=false&datumTransformation=&parameterValues=&rangeValues=&f=geojson"
-data_dir = os.path.join(script_dir, "data", "debug")
+
+fire_layers_update_failed = False
+lightning_layer_update_failed = False
+viirs_layer_update_failed = False
 
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
@@ -33,13 +38,6 @@ def fetch_data(url):
 def load_local_data(file_path):
     with open(file_path, "r") as f:
         return json.load(f)
-
-
-def get_fire_geojson():
-    try:
-        return fetch_fire_geojson()
-    except:
-        print("Failed to get the data")
 
 
 def fetch_recent_lightning_geojson():
@@ -59,7 +57,8 @@ def fetch_recent_lightning_geojson():
             print(
                 "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
             )
-            exit(1)
+            lightning_layer_update_failed = True
+            return
 
     return process_lightning_geojson(lightning_strikes)
 
@@ -100,7 +99,8 @@ def fetch_viirs_hotspots_geojson():
             print(
                 "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
             )
-            exit(1)
+            viirs_layer_update_failed = True
+            return
     return viirs_data
 
 
@@ -126,7 +126,8 @@ def fetch_fire_geojson():
             print(
                 "Failed to fetch fire data from the web. Leaving previous shapefiles intact."
             )
-            exit(1)
+            fire_layers_update_failed = True
+            return
 
     return process_fire_geojson(
         active_fire_perimeters, active_fires, inactive_fire_perimeters, inactive_fires
@@ -304,12 +305,12 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
 if __name__ == "__main__":
     # TODO Need a way to pass in the working directory to work with Prefect
     parser = argparse.ArgumentParser(
-        description="Fetch Alaska Wildfire map fire & lightning data and process it."
+        description="Fetch Alaska Wildfire map fire, heat spot, and lightning data + process it."
     )
     parser.add_argument(
         "--out-dir",
         type=str,
-        default="./data",
+        default=f"{script_dir}/data",
         help="Directory to output shapefiles to.",
     )
     args = parser.parse_args()
@@ -317,14 +318,29 @@ if __name__ == "__main__":
     # Creates fire shapefiles
     out_shapefile = os.path.join(args.out_dir, "fires.shp")
     fire_geojson = fetch_fire_geojson()
-    convert_geojson_to_shapefile(fire_geojson, out_shapefile, "fire")
+    if fire_layers_update_failed is False:
+        convert_geojson_to_shapefile(fire_geojson, out_shapefile, "fire")
 
     # Creates lightning shapefile
     out_shapefile = os.path.join(args.out_dir, "lightning.shp")
     lightning_geojson = fetch_recent_lightning_geojson()
-    convert_geojson_to_shapefile(lightning_geojson, out_shapefile, "lightning")
+    if lightning_layer_update_failed is False:
+        convert_geojson_to_shapefile(lightning_geojson, out_shapefile, "lightning")
 
     # Creates VIIRS hotspot shapefile
     out_shapefile = os.path.join(args.out_dir, "viirs_hotspots.shp")
     viirs_hotspot_geojson = fetch_viirs_hotspots_geojson()
-    convert_geojson_to_shapefile(viirs_hotspot_geojson, out_shapefile, "viirs")
+    if viirs_layer_update_failed is False:
+        convert_geojson_to_shapefile(viirs_hotspot_geojson, out_shapefile, "viirs")
+
+    if (
+        fire_layers_update_failed
+        and lightning_layer_update_failed
+        and viirs_layer_update_failed
+    ):
+        print(
+            "Failed to update any of the layers. Check for issues with pipeline and data sources."
+        )
+
+        # Exit the script with a non-zero exit code so that the Prefect flow fails
+        exit(1)
