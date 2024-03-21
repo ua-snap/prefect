@@ -1,7 +1,10 @@
-from time import sleep
-from prefect import task
+"""Prefect script for processing Daily Temperature Range (tasmax - tasmin) for regridded CMIP6 data"""
+
+from prefect import flow, task
 import paramiko
-from luts import *
+from pathlib import Path
+from time import sleep
+from config import prod_models, prod_scenarios
 
 
 @task
@@ -77,9 +80,8 @@ def clone_github_repository(ssh, branch, destination_directory):
 
         # Check the exit status for errors
         if exit_status != 0:
-            raise Exception(
-                f"Error cloning the GitHub repository. Exit status: {exit_status}"
-            )
+            print(stderr)
+
     else:
         print(f"Cloning the GitHub repository on branch {branch}...")
         # Run the Git clone command to clone the repository
@@ -162,66 +164,33 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 
 @task
-def run_generate_batch_files(
+def create_and_run_slurm_script(
     ssh,
-    conda_init_script,
-    generate_batch_files_script,
-    run_generate_batch_files_script,
-    cmip6_directory,
-    regrid_batch_dir,
-    slurm_email,
-    vars,
-):
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --vars '{vars}'"
-    )
-
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
-
-    # Check the exit status for errors
-    if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error generating batch files. Error: {error_output}")
-
-    print("Generate batch files job submitted!")
-
-
-@task
-def create_and_run_slurm_scripts(
-    ssh,
-    slurm_script,
-    slurm_dir,
-    regrid_dir,
-    regrid_batch_dir,
-    slurm_email,
-    conda_init_script,
-    regrid_script,
-    target_grid_fp,
-    no_clobber,
+    models,
+    scenarios,
+    input_dir,
+    working_dir,
+    partition,
+    ncpus,
 ):
     """
-    Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
+    Task to create and run a Slurm script to run the indicator calculation scripts.
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - slurm_script: Directory to regridding slurm.py script
-    - slurm_dir: Directory to save slurm sbatch files
-    - regrid_dir: Path to directory where regridded files are written
-    - regrid_batch_dir: Directory of batch files
-    - slurm_email: Email address to send slurm emails to
-    - conda_init_script: Script to initialize conda during slurm jobs
-    - regrid_script: Location of regrid.py script in the repo
-    - target_grid_fp: Path to file used as the regridding target
-    - no_clobber: Do not overwrite regidded files if they exist
+    - models: Space-separated list of models to calculate indicators for
+    - scenarios: Space-separated list of scenarios to calculate indicators for
+    - input_dir: Directory containing the input data to be adjusted
+    - working_dir: Directory to where all of the processing takes place
+    - parition: slurm partition
+    - ncpus: number of cpus to use
     """
 
-    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}'"
+    slurm_script = f"{working_dir}/cmip6-utils/derived/slurm_dtr.py"
 
-    if no_clobber:
-        cmd += " --no_clobber"
-
-    stdin_, stdout, stderr = ssh.exec_command(cmd)
+    stdin, stdout, stderr = ssh.exec_command(
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_dir}' --partition '{partition}' --ncpus '{ncpus}'"
+    )
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -232,29 +201,11 @@ def create_and_run_slurm_scripts(
         raise Exception(
             f"Error creating or running Slurm scripts. Error: {error_output}"
         )
+    else:
+        job_ids = eval(stdout.read().decode("utf-8"))
 
-    print("Regridding jobs submitted!")
-
-
-@task
-def get_job_ids(ssh, username):
-    """
-    Task to get a list of job IDs for a specified user from the Slurm queue via SSH.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - username: Username to get job IDs for
-    """
-
-    stdin_, stdout, stderr_ = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
-    )
-
-    # Get a list of job IDs for the specified user
-    job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
-
-    # Prints the list of job IDs to the log for debugging purposes
-    print(job_ids)
+    print("Slurm scripts created and run successfully")
+    print(f"Job IDs: {job_ids}")
     return job_ids
 
 
@@ -271,7 +222,7 @@ def wait_for_jobs_completion(ssh, job_ids):
     while job_ids:
         # Check the status of each job in the list
         for job_id in job_ids.copy():
-            stdin_, stdout, stderr_ = ssh.exec_command(
+            stdin, stdout, stderr = ssh.exec_command(
                 f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
             )
 
@@ -283,36 +234,36 @@ def wait_for_jobs_completion(ssh, job_ids):
             # Sleep for a while before checking again
             sleep(10)
 
-    print("Jobs completed!")
+    print("All DTR jobs completed.")
 
 
 @task
-def validate_vars(vars):
+def qc_nb(ssh, working_dir, input_dir):
     """
-    Task to validate strings of variables. Variables are checked against the lists in luts.py.
+    Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
+
     Parameters:
-    - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
+    - ssh: Paramiko SSHClient object
+    - working_dir: Directory where all of the processing takes place
+    - input_dir: Directory containing source input data collection
     """
-    if vars == "all":
-        return (" ").join(all_vars)
-    elif vars == "land":
-        return (" ").join(land_vars)
-    elif vars == "sea":
-        return (" ").join(sea_vars)
-    elif vars == "global":
-        return (" ").join(global_vars)
-    else:
-        var_list = vars.split()
-        assert all(x in all_vars for x in var_list), "Variables not valid."
-        return vars
 
+    conda_init_script = f"{working_dir}/cmip6-utils/regridding/conda_init.sh"
+    repo_derived_dir = f"{working_dir}/cmip6-utils/derived"
+    output_nb = f"{working_dir}/dtr_processing/qc/dtr_qc_out.ipynb"
 
-@task
-def run_qc(ssh, output_directory, cmip6_directory, repo_regridding_directory, conda_init_script, run_qc_script, qc_script, visual_qc_notebook, vars, slurm_email):
-
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --slurm_email '{slurm_email}' --vars '{vars}'"
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"cd {repo_derived_dir}\n"
+        f"papermill dtr_qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}'\n"
+        f"jupyter nbconvert --to html {output_nb}"
     )
+
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -320,6 +271,90 @@ def run_qc(ssh, output_directory, cmip6_directory, repo_regridding_directory, co
     # Check the exit status for errors
     if exit_status != 0:
         error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error submitting QC scripts. Error: {error_output}")
+        raise Exception(f"Error running Visual QC script. Error: {error_output}")
 
-    print("QC jobs submitted!")
+    print(f"QC notebook created successfully. See {output_nb} for results.")
+
+
+# Define your SSH parameters
+ssh_host = "chinook04.rcs.alaska.edu"
+ssh_port = 22
+
+
+@flow(log_prints=True)
+def run_dtr_processing(
+    ssh_username,
+    ssh_private_key_path,
+    branch_name,
+    models,
+    scenarios,
+    input_dir,
+    working_dir,
+    partition,
+    ncpus,
+):
+    # Create an SSH client
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        # Load the private key for key-based authentication
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+
+        # Connect to the SSH server using key-based authentication
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        clone_github_repository(ssh, branch_name, working_dir)
+
+        check_for_nfs_mount(ssh, "/import/beegfs")
+
+        install_conda_environment(
+            ssh, "cmip6-utils", f"{working_dir}/cmip6-utils/environment.yml"
+        )
+
+        job_ids = create_and_run_slurm_script(
+            ssh,
+            models=models,
+            scenarios=scenarios,
+            input_dir=input_dir,
+            working_dir=working_dir,
+            partition=partition,
+            ncpus=ncpus,
+        )
+
+        wait_for_jobs_completion(ssh, job_ids)
+
+        qc_nb(ssh, working_dir, input_dir)
+
+    finally:
+        ssh.close()
+
+
+if __name__ == "__main__":
+    ssh_username = "snapdata"
+    ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
+    # change after testing
+    branch_name = "main"
+    working_dir = Path(f"/import/beegfs/CMIP6/snapdata/")
+    models = " ".join(prod_models)
+    scenarios = " ".join(prod_scenarios)
+    input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
+    # change after testing
+    partition = "t2small"
+    ncpus = "24"
+
+    run_dtr_processing.serve(
+        name="dtr-processing",
+        tags=["CMIP6", "dtr", "regrid"],
+        parameters={
+            "ssh_username": ssh_username,
+            "ssh_private_key_path": ssh_private_key_path,
+            "branch_name": branch_name,
+            "models": models,
+            "scenarios": scenarios,
+            "input_dir": input_dir,
+            "working_dir": working_dir,
+            "partition": partition,
+            "ncpus": ncpus,
+        },
+    )
