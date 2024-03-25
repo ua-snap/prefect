@@ -8,14 +8,15 @@ from smokey_bear.snow_cover_layer import snow_cover_layer
 def update_wildfire_layers(debug, working_directory, shapefile_output_directory):
     current_fire_layers(
         debug,
+        home_directory,
         working_directory,
         "get_current_fire_layers.py",
         shapefile_output_directory,
     )
 
-    smokey_bear_layer(working_directory, "update_smokey_bear.sh")
+    smokey_bear_layer(home_directory, working_directory, "update_smokey_bear.sh")
 
-    snow_cover_layer(working_directory, "update_snow_cover.sh")
+    snow_cover_layer(home_directory, working_directory, "update_snow_cover.sh")
 
 
 if __name__ == "__main__":
@@ -24,6 +25,7 @@ if __name__ == "__main__":
         tags=["wildfire_map"],
         parameters={
             "debug": "False",
+            "home_directory": "/home/prefect",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
         },
