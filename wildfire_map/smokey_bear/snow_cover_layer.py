@@ -2,10 +2,6 @@ from prefect import flow
 from prefect.blocks.system import Secret
 import smokey_bear_tasks
 
-# Define your SSH parameters
-ssh_host = "gs.mapventure.org"
-ssh_port = 22
-
 
 @flow(log_prints=True)
 def snow_cover_layer(

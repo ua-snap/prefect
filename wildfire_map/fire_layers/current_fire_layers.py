@@ -1,10 +1,6 @@
 from prefect import flow
 import fire_layer_tasks
 
-# Define your SSH parameters
-ssh_host = "gs.mapventure.org"
-ssh_port = 22
-
 
 @flow(log_prints=True)
 def current_fire_layers(
