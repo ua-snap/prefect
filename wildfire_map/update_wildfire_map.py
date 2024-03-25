@@ -26,7 +26,7 @@ if __name__ == "__main__":
         tags=["wildfire_map"],
         parameters={
             "debug": "False",
-            "home_directory": "/home/prefect",
+            "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
         },

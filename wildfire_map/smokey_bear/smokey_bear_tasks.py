@@ -1,3 +1,4 @@
+import os
 from prefect import task
 import subprocess
 
@@ -6,30 +7,23 @@ import subprocess
 def check_for_admin_pass(target_directory, admin_password):
     file_path = f"{target_directory}/.adminpass"
     admin_pass = f'export admin_pass="{admin_password}"\n'
-    # Check if the file exists locally
-    file_exists = (
-        subprocess.run(
-            f"test -f {file_path} && echo 'true' || echo 'false'",
-            shell=True,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
-        == "true"
-    )
 
-    if file_exists:
-        # Read the content of the local file
-        with open(file_path, "r") as file:
-            content = file.read()
-
-        # Does the admin password match the supplied admin_password variable?
-        if admin_pass in content:
+    if not os.path.exists(file_path):
+        # Only gets here if the file doesn't exist or the password is wrong
+        with open(file_path, "w") as file:
+            file.write(admin_pass)
             return True
+    # Read the content of the local file
+    with open(file_path, "r") as file:
+        content = file.read()
 
-    # Only gets here if the file doesn't exist or the password is wrong
-    with open(file_path, "w") as file:
-        file.write(admin_pass)
+    # Does the admin password match the supplied admin_password variable?
+    if admin_pass in content:
         return True
+    else:
+        with open(file_path, "w") as file:
+            file.write(admin_pass)
+            return True
 
 
 @task(name="Install Smokey Bear Conda Environment")
@@ -123,7 +117,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 def execute_local_script(script_path):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f"{script_path}",
+        f"sudo {script_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
