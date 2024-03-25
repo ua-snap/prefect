@@ -12,7 +12,7 @@ def snow_cover_layer(
     # This is a encrypted secret block on the Prefect server that contains the password
     admin_password = Secret.load("smokey-bear-admin-password")
 
-    check_for_admin_pass(f"{home_directory}/smokey_bear/", admin_password.get())
+    check_for_admin_pass(f"{home_directory}", admin_password.get())
 
     install_conda_environment(
         "smokeybear", f"{working_directory}/smokey_bear/environment.yml"
