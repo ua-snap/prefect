@@ -10,7 +10,6 @@ def update_wildfire_layers(
 ):
     current_fire_layers(
         debug,
-        home_directory,
         working_directory,
         "get_current_fire_layers.py",
         shapefile_output_directory,
