@@ -5,7 +5,9 @@ from smokey_bear.snow_cover_layer import snow_cover_layer
 
 
 @flow(log_prints=True)
-def update_wildfire_layers(debug, working_directory, shapefile_output_directory):
+def update_wildfire_layers(
+    debug, home_directory, working_directory, shapefile_output_directory
+):
     current_fire_layers(
         debug,
         home_directory,
