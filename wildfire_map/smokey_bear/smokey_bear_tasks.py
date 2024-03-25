@@ -32,7 +32,7 @@ def check_for_admin_pass(target_directory, admin_password):
         return True
 
 
-@task
+@task(name="Install Smokey Bear Conda Environment")
 def install_conda_environment(conda_env_name, conda_env_file, local_install=False):
     """
     Task to check for a Python Conda environment and install it if it doesn't exist.
@@ -119,7 +119,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
             print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-@task
+@task(name="Execute Smokey Bear Local Script")
 def execute_local_script(script_path):
     # Execute the script on the local machine
     process = subprocess.Popen(

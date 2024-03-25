@@ -2,7 +2,7 @@ from prefect import task
 import subprocess
 
 
-@task
+@task(name="Install Fire Layers Conda Environment")
 def install_conda_environment(conda_env_name, conda_env_file, local_install=False):
     """
     Task to check for a Python Conda environment and install it if it doesn't exist.
@@ -89,7 +89,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
             print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-@task
+@task(name="Execute Fire Layers Local Script")
 def execute_local_script(
     script_path, output_path, conda_env_name="fire_map", debug="False"
 ):
