@@ -123,7 +123,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 def execute_local_script(script_path):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f"sudo {script_path}",
+        f"{script_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
