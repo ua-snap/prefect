@@ -1,0 +1,57 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -155.541,
+                    61.673
+                ]
+            },
+            "properties": {
+                "observed_aktime": "03/19/2024 01:50"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -145.692202,
+                    65.506131
+                ]
+            },
+            "properties": {
+                "observed_aktime": "03/19/2024 02:40"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -148.154748,
+                    64.160925
+                ]
+            },
+            "properties": {
+                "observed_aktime": "03/19/2024 02:40"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -143.229655,
+                    60.922424
+                ]
+            },
+            "properties": {
+                "observed_aktime": "03/19/2024 02:40"
+            }
+        }
+    ]
+}
