@@ -1,0 +1,1061 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 9378822,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -143.58899197313244,
+          63.784602543335346
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9378822,
+        "NAME": "Billy Creek",
+        "LASTUPDATEDATETIME": 1690162288000,
+        "LATITUDE": 63.784600000000005,
+        "LONGITUDE": -143.588967,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1687750596000,
+        "ESTIMATEDTOTALACRES": 507.90000000000003,
+        "SUMMARY": "H-2PA did a recon over the fire and found no heats or smoke. ",
+        "IRWINID": "{7DF3FBCA-CA97-45CD-B738-C69D63DA3F0C}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9382888,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.50280413607274,
+          65.18555686904746
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9382888,
+        "NAME": "Thanksgiving Ditch",
+        "LASTUPDATEDATETIME": 1689292356000,
+        "LATITUDE": 65.185555600000001,
+        "LONGITUDE": -150.50277779999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1687450440000,
+        "ESTIMATEDTOTALACRES": 16.399999999999999,
+        "SUMMARY": "No smoke showing from detection flight. No fire growth from last report. ",
+        "IRWINID": "{2697EC0D-983A-49AB-BB25-1FB0F2022A66}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593918,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -144.95609345437518,
+          64.273805283778287
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593918,
+        "NAME": "Central Creek",
+        "LASTUPDATEDATETIME": 1694211246000,
+        "LATITUDE": 64.273803000000001,
+        "LONGITUDE": -144.95606799999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690254626000,
+        "ESTIMATEDTOTALACRES": 889.10000000000002,
+        "SUMMARY": "Helicopter 230 flew a reconnaissance mission of the Delta area and determined the Central Creek fire to have grown significantly, reaching 880 acres. They found one smoke on the southeast corner. ",
+        "IRWINID": "{D2F1BC92-3319-4AF2-9CD2-A515EE24808A}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9600667,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -152.42888674069519,
+          64.515584284995626
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9600667,
+        "NAME": "Chitanana",
+        "LASTUPDATEDATETIME": 1693336032000,
+        "LATITUDE": 64.515583300000003,
+        "LONGITUDE": -152.42886110000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690328160000,
+        "ESTIMATEDTOTALACRES": 66.700000000000003,
+        "SUMMARY": "Updated acres.\r\n",
+        "IRWINID": "{60FF2FEA-9598-48D8-97A1-9407D2C5E762}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593012,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -152.47991450059837,
+          64.474167679320246
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593012,
+        "NAME": "Cosna",
+        "LASTUPDATEDATETIME": 1693335914000,
+        "LATITUDE": 64.474166699999998,
+        "LONGITUDE": -152.47988889999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690244640000,
+        "ESTIMATEDTOTALACRES": 410.90000000000003,
+        "SUMMARY": "Updated acres.",
+        "IRWINID": "{4F528518-1A46-4609-A7F0-43E6E1598606}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593156,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.46752642588061,
+          65.275806868889816
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593156,
+        "NAME": "Rock",
+        "LASTUPDATEDATETIME": 1692320826000,
+        "LATITUDE": 65.275805599999998,
+        "LONGITUDE": -150.4675,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690247880000,
+        "ESTIMATEDTOTALACRES": 402.90000000000003,
+        "SUMMARY": "Updated acreage. ",
+        "IRWINID": "{ED402936-4179-42FE-B50A-094B5E3A5DBB}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593269,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -151.19233192327073,
+          65.189806749165086
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593269,
+        "NAME": "Jordan",
+        "LASTUPDATEDATETIME": 1695339981000,
+        "LATITUDE": 65.1898056,
+        "LONGITUDE": -151.1923056,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690248900000,
+        "ESTIMATEDTOTALACRES": 1640,
+        "SUMMARY": "Updated acreage.",
+        "IRWINID": "{AAF51EA9-5F2A-4E1A-B88D-909B73BA00D8}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9598582,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -152.58602546250478,
+          64.327500972046622
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9598582,
+        "NAME": "Titna",
+        "LASTUPDATEDATETIME": 1693406100000,
+        "LATITUDE": 64.327500000000001,
+        "LONGITUDE": -152.58600000000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690305900000,
+        "ESTIMATEDTOTALACRES": 585.30000000000007,
+        "SUMMARY": "Updated acres.",
+        "IRWINID": "{4B5C64EF-E5EF-4BD7-876B-60F4FB4D2C41}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9608079,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -149.37002562042443,
+          64.413334517076606
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9608079,
+        "NAME": "Teklanika River",
+        "LASTUPDATEDATETIME": 1694445480000,
+        "LATITUDE": 64.413332999999994,
+        "LONGITUDE": -149.37,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690358534000,
+        "ESTIMATEDTOTALACRES": 8858,
+        "SUMMARY": "The Yukon Crew was demobilized from the fire. ",
+        "IRWINID": "{B2560E9B-57C6-4F13-8B6C-EAEEBB055DE2}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9691235,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -142.351524467768,
+          63.255141678897772
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9691235,
+        "NAME": "Willow Lake",
+        "LASTUPDATEDATETIME": 1692193080000,
+        "LATITUDE": 63.255138899999999,
+        "LONGITUDE": -142.35150000000002,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1691102297000,
+        "ESTIMATEDTOTALACRES": 0.80000000000000004,
+        "SUMMARY": "Helicopter 2PA was able to do a recon of fire 333 and found no smoke and no heat. \r\n",
+        "IRWINID": "{E32EA1CB-D54B-4495-93E9-00C0E2561C4E}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9592640,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -145.93891438335635,
+          64.280002114732312
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9592640,
+        "NAME": "Pogo Mine Road",
+        "LASTUPDATEDATETIME": 1694788260000,
+        "LATITUDE": 64.280000000000001,
+        "LONGITUDE": -145.93888889999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690241620000,
+        "ESTIMATEDTOTALACRES": 48792.099999999999,
+        "SUMMARY": "Helicopter 230 assisted with sling missions.",
+        "IRWINID": "{855551C9-A7F2-449B-8717-4B54378BFD1B}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9617284,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -141.20002497132165,
+          63.919030743419555
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9617284,
+        "NAME": "Divide Mountain",
+        "LASTUPDATEDATETIME": 1691067240000,
+        "LATITUDE": 63.919027800000002,
+        "LONGITUDE": -141.20000000000002,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690494355000,
+        "ESTIMATEDTOTALACRES": 1,
+        "SUMMARY": "No Night Report",
+        "IRWINID": "{6F2C1827-EB98-48A0-BA06-2061A259264C}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9313461,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -148.93402342085238,
+          61.729951763331783
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9313461,
+        "NAME": "Jonesville Coal Seam",
+        "LASTUPDATEDATETIME": 1686368545000,
+        "LATITUDE": 61.729949999999995,
+        "LONGITUDE": -148.934,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1686329423000,
+        "ESTIMATEDTOTALACRES": 0.10000000000000001,
+        "SUMMARY": "The Matsu Area Duty Officer was notified early in the morning about heavy smoke in the area of Jonesville road in Sutton. Firefighters responded to the area but were unable to locate anything. Additional intel in the morning lead to the discovery of an active coal seam that had spread into the wildland. Resources on scene extinguished the fire and put in a scratch line and hose lay around coal seam. The coal seam was continuing to put out a significant amount of heat and will be monitored throught the summer.",
+        "IRWINID": "{4233B460-B26B-469F-829E-04137C53B3ED}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9599564,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.48735931644379,
+          64.855140194677105
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9599564,
+        "NAME": "Mooseheart",
+        "LASTUPDATEDATETIME": 1693335998000,
+        "LATITUDE": 64.8551389,
+        "LONGITUDE": -150.48733329999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690316520000,
+        "ESTIMATEDTOTALACRES": 340.60000000000002,
+        "SUMMARY": "Updated acres. ",
+        "IRWINID": "{E77D4ED2-9C28-404A-A1C3-558D855C480B}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9600582,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -151.35613684040422,
+          64.584945564022235
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9600582,
+        "NAME": "Zitziana",
+        "LASTUPDATEDATETIME": 1693248827000,
+        "LATITUDE": 64.584944399999998,
+        "LONGITUDE": -151.35611109999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690327200000,
+        "ESTIMATEDTOTALACRES": 3.7000000000000002,
+        "SUMMARY": "updated acres. ",
+        "IRWINID": "{4D10C9D0-355D-458E-B118-208720322E80}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9680182,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -149.25619235348341,
+          64.448001534348009
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9680182,
+        "NAME": "Shores Landing",
+        "LASTUPDATEDATETIME": 1695946320000,
+        "LATITUDE": 64.448000000000008,
+        "LONGITUDE": -149.25616669999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1691014841000,
+        "ESTIMATEDTOTALACRES": 3786.2000000000003,
+        "SUMMARY": "H-169 flew over the fire today and found some sources of heat. There are no concerns of these threatening anything. Resources will continue to keep checking on the fire.",
+        "IRWINID": "{B384AAD4-6DF3-4615-A90A-4869E30E840F}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9339765,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.65213746996773,
+          65.223362340494333
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9339765,
+        "NAME": "Orum",
+        "LASTUPDATEDATETIME": 1692385494000,
+        "LATITUDE": 65.223361100000005,
+        "LONGITUDE": -150.65211110000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1687049760000,
+        "ESTIMATEDTOTALACRES": 58.300000000000004,
+        "SUMMARY": "Acreage updated due to better GIS mapping.",
+        "IRWINID": "{8B3F3688-62E9-47C8-9D30-548786A306F4}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593099,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.20335946293096,
+          65.307784312584204
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593099,
+        "NAME": "Trout",
+        "LASTUPDATEDATETIME": 1691011482000,
+        "LATITUDE": 65.307783000000001,
+        "LONGITUDE": -150.20333299999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690247460000,
+        "ESTIMATEDTOTALACRES": 3.2000000000000002,
+        "SUMMARY": "Perimeter updated.",
+        "IRWINID": "{8E56E57E-B8EC-4120-B5B8-094FBF36AD2B}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9594430,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -145.76402556181765,
+          64.369835139631277
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9594430,
+        "NAME": "Hicks Lake",
+        "LASTUPDATEDATETIME": 1690261517000,
+        "LATITUDE": 64.369833,
+        "LONGITUDE": -145.76400000000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690259874000,
+        "ESTIMATEDTOTALACRES": 2,
+        "SUMMARY": "H-230 spotted a 2 acre wildfire burning in an old burn scar. No action was taken and will be monitored.",
+        "IRWINID": "{69F9127C-92EC-4F1A-A811-3B5BAF6DFFC0}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9594431,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -145.77613155283098,
+          64.359747138126551
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9594431,
+        "NAME": "Keystone Creek",
+        "LASTUPDATEDATETIME": 1690263311000,
+        "LATITUDE": 64.359745000000004,
+        "LONGITUDE": -145.776106,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690260541000,
+        "ESTIMATEDTOTALACRES": 54,
+        "SUMMARY": "H-230 spotted a 3 acre wildfire burning in brush in an old burn scar. No action was taken and will be monitored.",
+        "IRWINID": "{014F0CE6-A00B-4866-91A0-A9A163E3F40C}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9606814,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -144.85344237796764,
+          64.520474487861307
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9606814,
+        "NAME": "Glacier Creek",
+        "LASTUPDATEDATETIME": 1694211148000,
+        "LATITUDE": 64.5204722,
+        "LONGITUDE": -144.8534167,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690391524000,
+        "ESTIMATEDTOTALACRES": 168.40000000000001,
+        "SUMMARY": "Helicopter 230 flew a reconnaissance mission of the Delta area and found one smoke on the eastern edge of the Glacier Creek fire. They assessed its current size to be 168 acres. ",
+        "IRWINID": "{9BBABF4A-3470-4EA0-8350-04BD60CC1153}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9619942,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -149.50852538062068,
+          64.151001510710302
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9619942,
+        "NAME": "Birch Creek",
+        "LASTUPDATEDATETIME": 1690810920000,
+        "LATITUDE": 64.150999999999996,
+        "LONGITUDE": -149.5085,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690520981000,
+        "ESTIMATEDTOTALACRES": 7603.3000000000002,
+        "SUMMARY": "Fairbanks Helicopter 930 reported the fire while flying a recon over fire 257. ",
+        "IRWINID": "{CD35A989-065A-4543-B5B5-B8B4CDE72D27}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9620093,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -149.67197528674458,
+          64.04821848959871
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9620093,
+        "NAME": "Rock Creek",
+        "LASTUPDATEDATETIME": 1694182440000,
+        "LATITUDE": 64.048216999999994,
+        "LONGITUDE": -149.67194999999998,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690522116000,
+        "ESTIMATEDTOTALACRES": 33893.400000000001,
+        "SUMMARY": "Updated acreage base on satellite imagery.",
+        "IRWINID": "{8548B339-339E-41C6-88BD-7E79BA125A16}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9628189,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -145.12002498373192,
+          63.738613385097686
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9628189,
+        "NAME": "Mount Hayes",
+        "LASTUPDATEDATETIME": 1694356380000,
+        "LATITUDE": 63.7386111,
+        "LONGITUDE": -145.12,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690588721000,
+        "ESTIMATEDTOTALACRES": 6720,
+        "SUMMARY": "Coastal Suppression Module was reassigned to incident 191. ",
+        "IRWINID": "{11A01BFC-6A12-4812-95F2-D2EEAAAC5389}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9269295,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -141.2458315961531,
+          65.028197284577544
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9269295,
+        "NAME": "Windfall Mountain Coal Seam",
+        "LASTUPDATEDATETIME": 1692832617000,
+        "LATITUDE": 65.028194400000004,
+        "LONGITUDE": -141.24580560000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1683588600000,
+        "ESTIMATEDTOTALACRES": 0.10000000000000001,
+        "SUMMARY": "Fire was recently observed with agency aircraft, 11N. Active fire and smoke was observed at coal seam, with most activity on the North side.",
+        "IRWINID": "{5E947109-64B0-4F11-8B51-60179A8013C3}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9404496,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -146.46644260626488,
+          64.726307497829154
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Miscellaneous",
+        "OBJECTID": 9404496,
+        "NAME": "Emory",
+        "LASTUPDATEDATETIME": 1696368287000,
+        "LATITUDE": 64.726305499999995,
+        "LONGITUDE": -146.4664167,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1688144100000,
+        "ESTIMATEDTOTALACRES": 47.100000000000001,
+        "SUMMARY": "Updated acreage. ",
+        "IRWINID": "{0367C99A-FEE3-4CB4-BDFD-08CF10F8847E}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593041,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -149.30862645303344,
+          65.284401469774167
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593041,
+        "NAME": "Moose",
+        "LASTUPDATEDATETIME": 1692320788000,
+        "LATITUDE": 65.284400000000005,
+        "LONGITUDE": -149.30860000000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690246500000,
+        "ESTIMATEDTOTALACRES": 12.300000000000001,
+        "SUMMARY": "Updated acreage and point of origin due to better mapping. ",
+        "IRWINID": "{3C7D8C55-E60E-4954-A63C-04180A9C7AB7}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9617045,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.1065530360386,
+          63.998362518757219
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9617045,
+        "NAME": "Clear Creek",
+        "LASTUPDATEDATETIME": 1693950068000,
+        "LATITUDE": 63.998361099999997,
+        "LONGITUDE": -150.10652780000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690496160000,
+        "ESTIMATEDTOTALACRES": 53288.900000000001,
+        "SUMMARY": "Perimeter updated from better remote sensing data. ",
+        "IRWINID": "{E2E34865-EF55-44E1-9A6E-2B3FE513F1F6}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9705264,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -142.26740753166294,
+          63.336869789262607
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9705264,
+        "NAME": "Ladue River",
+        "LASTUPDATEDATETIME": 1691214361000,
+        "LATITUDE": 63.336866999999998,
+        "LONGITUDE": -142.267383,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1691205441000,
+        "ESTIMATEDTOTALACRES": 85,
+        "SUMMARY": "Forestry personnel at a lookout reported a smoke.  Helicopter 123SH responded and found a 5 acre fire smoldering and creeping in mixed hardwoods.  The fire plotted in Limited and will be monitored.",
+        "IRWINID": "{36F83104-69FB-4112-B105-347ABEF24BCA}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593070,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -146.37724769276733,
+          64.499724026590698
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593070,
+        "NAME": "McCoy Creek",
+        "LASTUPDATEDATETIME": 1694830033000,
+        "LATITUDE": 64.499721999999991,
+        "LONGITUDE": -146.37722199999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690247013000,
+        "ESTIMATEDTOTALACRES": 13792,
+        "SUMMARY": "All remaining resources were demobilized off of this incident. ",
+        "IRWINID": "{898F7757-4733-4704-90F5-ED6DA976AB9D}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9628052,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -148.83102646547604,
+          65.292751552322599
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9628052,
+        "NAME": "Vigor",
+        "LASTUPDATEDATETIME": 1692066706000,
+        "LATITUDE": 65.292749999999998,
+        "LONGITUDE": -148.83100000000002,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690588920000,
+        "ESTIMATEDTOTALACRES": 5.7999999999999998,
+        "SUMMARY": "N-9011N flew over the fire while on a detection route. No smoke showing over fire 298. ",
+        "IRWINID": "{8B0CFAF5-58DB-4537-AC49-7F5631B9E4E2}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9993278,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -143.06833457846869,
+          63.347732653439252
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Miscellaneous",
+        "OBJECTID": 9993278,
+        "NAME": "Sundog Trail",
+        "LASTUPDATEDATETIME": 1693103184000,
+        "LATITUDE": 63.347729999999999,
+        "LONGITUDE": -143.06831,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1693095710000,
+        "ESTIMATEDTOTALACRES": 0.10000000000000001,
+        "SUMMARY": "Tok 74 found a tree with active flames in the powerlines near Fox and Fireweed Bed and Breakfast. Once the power was cut, he was able to extinguish the flame and control the fire. ",
+        "IRWINID": "{FC13F789-AA97-48DF-B279-0233DBF32C2E}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9627676,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -147.74641533820039,
+          65.162223749363264
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9627676,
+        "NAME": "Lost Horse Creek",
+        "LASTUPDATEDATETIME": 1693496760000,
+        "LATITUDE": 65.162222,
+        "LONGITUDE": -147.74638899999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690585157000,
+        "ESTIMATEDTOTALACRES": 9322,
+        "SUMMARY": "\r\n\r\n",
+        "IRWINID": "{8C1F7537-BD65-4716-AF58-1882BAB236FF}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9625122,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -149.66552528663516,
+          64.048001490714938
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9625122,
+        "NAME": "Sushana River",
+        "LASTUPDATEDATETIME": 1691239980000,
+        "LATITUDE": 64.048000000000002,
+        "LONGITUDE": -149.66550000000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690503440000,
+        "ESTIMATEDTOTALACRES": 15,
+        "SUMMARY": "No Night Report",
+        "IRWINID": "{2D681C67-9178-45C7-B30D-4AA1BDE603A0}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9640032,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -145.41069253764167,
+          64.352135201359744
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9640032,
+        "NAME": "Corda Creek",
+        "LASTUPDATEDATETIME": 1694211049000,
+        "LATITUDE": 64.352132999999995,
+        "LONGITUDE": -145.41066699999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690692307000,
+        "ESTIMATEDTOTALACRES": 41.600000000000001,
+        "SUMMARY": "Helicopter 230 flew a reconnaissance mission of the Delta area and found multiple smokes on the north and south edges of the Corda Creek fire. There was no open flame, just smoldering. The fire is roughly 10% active.",
+        "IRWINID": "{A822D8AD-BFFA-43C2-863B-2ADD365AFD55}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9269296,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -141.63924828678353,
+          65.097336113257782
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9269296,
+        "NAME": "Trout Creek Coal Seam",
+        "LASTUPDATEDATETIME": 1692832671000,
+        "LATITUDE": 65.097333300000003,
+        "LONGITUDE": -141.63922220000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1683588600000,
+        "ESTIMATEDTOTALACRES": 0.10000000000000001,
+        "SUMMARY": "No fire activity and no smoke observed from recent agency flight with 11N.",
+        "IRWINID": "{D98B7EB5-E6A9-4532-9859-1D0815E567C2}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9593494,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -151.57385980300847,
+          65.382667769101246
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9593494,
+        "NAME": "Morelock",
+        "LASTUPDATEDATETIME": 1692385985000,
+        "LATITUDE": 65.382666700000001,
+        "LONGITUDE": -151.57383329999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690251420000,
+        "ESTIMATEDTOTALACRES": 133.59999999999999,
+        "SUMMARY": "Acreage updated due to better GIS mapping.",
+        "IRWINID": "{3DA9305E-1C4C-4E86-9578-F67CC80C6D2D}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9726885,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.24713639568785,
+          64.068279190012717
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9726885,
+        "NAME": "Chitsia",
+        "LASTUPDATEDATETIME": 1692209865000,
+        "LATITUDE": 64.068277800000004,
+        "LONGITUDE": -150.24711110000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1691365440000,
+        "ESTIMATEDTOTALACRES": 200.59999999999999,
+        "SUMMARY": "Updated Acreage due to better mapping. ",
+        "IRWINID": "{9C765B9C-1AA9-4892-BAF4-29A798FD24D8}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9609091,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -144.12724696699448,
+          63.754446453267107
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9609091,
+        "NAME": "Sand Lake",
+        "LASTUPDATEDATETIME": 1693507710000,
+        "LATITUDE": 63.754443999999999,
+        "LONGITUDE": -144.12722199999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690416497000,
+        "ESTIMATEDTOTALACRES": 129.69999999999999,
+        "SUMMARY": "All personnel are off the fire and it was called controlled 8/29 at 2010 hours. ",
+        "IRWINID": "{C7F5F28A-5AEF-45B5-80D8-DAED81E46E6A}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 10506289,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -141.61252415594336,
+          62.921669918385
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": null,
+        "OBJECTID": 10506289,
+        "NAME": "Tenmile Creek",
+        "LASTUPDATEDATETIME": 1696115680000,
+        "LATITUDE": 62.921666999999999,
+        "LONGITUDE": -141.61250000000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1696022874000,
+        "ESTIMATEDTOTALACRES": 0.10000000000000001,
+        "SUMMARY": "Resources were able to reach the incident location via boat. The fire was determined to be .03 acres in size, caused by humans, but the exact method is still under investigation. The fire was smoldering upon arrival, but resources were able to contain and control it  before departing the scene. ",
+        "IRWINID": "{813441D3-235E-4675-9202-B62166B48997}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9598438,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -146.40002531107109,
+          64.079946447267631
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9598438,
+        "NAME": "Delta",
+        "LASTUPDATEDATETIME": 1695243792000,
+        "LATITUDE": 64.079944400000002,
+        "LONGITUDE": -146.40000000000001,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690304100000,
+        "ESTIMATEDTOTALACRES": 57230.200000000004,
+        "SUMMARY": "updated acreage. ",
+        "IRWINID": "{DBEF0978-C56B-41E9-AF43-C8CAF1F2885B}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9607322,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -150.32791562125755,
+          65.567112372937444
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9607322,
+        "NAME": "Susie",
+        "LASTUPDATEDATETIME": 1692367200000,
+        "LATITUDE": 65.567111100000005,
+        "LONGITUDE": -150.3278889,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690399140000,
+        "ESTIMATEDTOTALACRES": 2.2000000000000002,
+        "SUMMARY": "Updated acreage. ",
+        "IRWINID": "{18B53E43-2736-4615-8A55-CB1E918A8F6C}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9635068,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -146.02213627030278,
+          63.928641020625271
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9635068,
+        "NAME": "Ponds",
+        "LASTUPDATEDATETIME": 1696368479000,
+        "LATITUDE": 63.928638900000003,
+        "LONGITUDE": -146.02211109999999,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690649400000,
+        "ESTIMATEDTOTALACRES": 17107.799999999999,
+        "SUMMARY": "Updated acreage. ",
+        "IRWINID": "{94C21C18-28C5-4DE1-8D4E-D92BDF6C5DD1}"
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 9608584,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -146.18983139557244,
+          64.613390952233246
+        ]
+      },
+      "properties": {
+        "GENERALCAUSE": "Lightning",
+        "OBJECTID": 9608584,
+        "NAME": "Tractor",
+        "LASTUPDATEDATETIME": 1696368417000,
+        "LATITUDE": 64.613388900000004,
+        "LONGITUDE": -146.1898056,
+        "PRESCRIBEDFIRE": "N",
+        "DISCOVERYDATETIME": 1690411560000,
+        "ESTIMATEDTOTALACRES": 74.299999999999997,
+        "SUMMARY": "Updated acreage. ",
+        "IRWINID": "{3EFFA783-7653-4060-8307-00AEFE8E8CBE}"
+      }
+    }
+  ]
+}
