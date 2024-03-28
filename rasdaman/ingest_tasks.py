@@ -1,5 +1,6 @@
 from prefect import task
 import subprocess
+import zipfile
 
 
 @task
@@ -33,37 +34,10 @@ def copy_data_from_nfs_mount(source_directory, destination_directory):
 
 
 @task
-def unzip_files(data_directory, unzipped_directory=None):
-    # Unzip files
-    check_files_exist_command = [
-        "ls",
-        data_directory,
-        "|",
-        "grep",
-        "-E",
-        "(\.zip$|\.png$)",
-        "|",
-        "wc",
-        "-l",
-    ]
-    result = subprocess.run(check_files_exist_command, capture_output=True, text=True)
-    file_count = int(result.stdout.strip())
+def unzip_files(data_directory, zip_file):
 
-    if file_count == 0:
-        unzip_command = ["unzip", f"{data_directory}/*.zip", "-d", data_directory]
-        result = subprocess.run(unzip_command, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise Exception(
-                f"Failed to unzip files in {data_directory}. Error: {result.stderr}"
-            )
-
-        if unzipped_directory:
-            move_command = ["mv", f"{unzipped_directory}/*", data_directory]
-            result = subprocess.run(move_command, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(
-                    f"Failed to move unzipped files to {unzipped_directory}. Error: {result.stderr}"
-                )
+    with zipfile.ZipFile(f"{data_directory}/{zip_file}", "r") as zip_ref:
+        zip_ref.extractall(data_directory)
 
 
 @task
