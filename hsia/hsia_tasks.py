@@ -28,8 +28,14 @@ def copy_data_from_nfs_mount(source_file, destination_directory):
         # Ensure destination directory exists
         os.makedirs(destination_directory, exist_ok=True)
 
+        # Extract file name from source file path
+        file_name = os.path.basename(source_file)
+
+        # Construct destination file path
+        destination_file = os.path.join(destination_directory, file_name)
+
         # Copy data from source directory to destination directory
-        shutil.copyfile(source_file, destination_directory)
+        shutil.copyfile(source_file, destination_file)
 
     except Exception as e:
         raise Exception(
