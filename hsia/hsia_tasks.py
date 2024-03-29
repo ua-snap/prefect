@@ -23,17 +23,17 @@ def check_for_nfs_mount(nfs_directory="/CKAN_Data"):
 
 
 @task
-def copy_data_from_nfs_mount(source_directory, destination_directory):
+def copy_data_from_nfs_mount(source_file, destination_directory):
     try:
         # Ensure destination directory exists
         os.makedirs(destination_directory, exist_ok=True)
 
         # Copy data from source directory to destination directory
-        shutil.copytree(source_directory, destination_directory)
+        shutil.copyfile(source_file, destination_directory)
 
     except Exception as e:
         raise Exception(
-            f"Failed to copy data from NFS mount at {source_directory}. Error: {str(e)}"
+            f"Failed to copy data from NFS mount at {source_file}. Error: {str(e)}"
         )
 
 
