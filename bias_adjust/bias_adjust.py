@@ -240,40 +240,43 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 
 @task
-def qc(ssh, working_directory, input_dir):
+def qc_nb(ssh, working_dir, input_dir):
     """
-    Task to run the quality control (QC) script to check the output of the indicator calculations.
+    Task to run the visual quality control (QC) notebook to check the output of the bias adjustment.
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - working_directory: Directory to where all of the processing takes place
+    - working_dir: Directory where all of the processing takes place
+    - input_dir: Directory containing source input data collection
     """
 
-    # conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
+    conda_init_script = f"{working_dir}/cmip6-utils/regridding/conda_init.sh"
+    repo_biasadjust_dir = f"{working_dir}/cmip6-utils/bias_adjust"
+    # would be ideal if we could pull the output_dir from the slurm script execution
+    output_nb = f"{working_dir}/bias_adjust/qc/qc.ipynb"
 
-    # qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
-    # output_dir = f"{working_directory}/output/"
+    stdin, stdout, stderr = ssh.exec_command(
+        f"source {conda_init_script}\n"
+        f"conda activate cmip6-utils\n"
+        f"cd {repo_biasadjust_dir}\n"
+        f"papermill qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}'\n"
+        f"jupyter nbconvert --to html {output_nb}"
+    )
 
-    # stdin, stdout, stderr = ssh.exec_command(
-    #     f"source {conda_init_script}\n"
-    #     f"conda activate cmip6-utils\n"
-    #     f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
-    # )
+    # Collect output from QC script above and print it
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
 
-    # # Collect output from QC script above and print it
-    # lines = stdout.readlines()
-    # for line in lines:
-    #     print(line)
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
 
-    # # Wait for the command to finish and get the exit status
-    # exit_status = stdout.channel.recv_exit_status()
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error running Visual QC script. Error: {error_output}")
 
-    # # Check the exit status for errors
-    # if exit_status != 0:
-    #     error_output = stderr.read().decode("utf-8")
-    #     raise Exception(f"Error running QC script. Error: {error_output}")
-
-    print("QC script run successfully")
+    print(f"QC notebook created successfully. See {output_nb} for results.")
 
 
 # Define your SSH parameters
@@ -328,7 +331,7 @@ def run_bias_adjustment(
 
         wait_for_jobs_completion(ssh, job_ids)
 
-        qc(ssh, working_dir, input_dir)
+        qc_nb(ssh, working_dir, input_dir)
 
     finally:
         ssh.close()
