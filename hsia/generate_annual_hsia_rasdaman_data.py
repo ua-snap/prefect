@@ -33,16 +33,28 @@ def hsia(
 
         hsia_tasks.download_new_nsidc_data(year)
 
-        hsia_tasks.update_rasdaman_data(
+        hsia_tasks.generate_annual_sea_ice_geotiffs(
             year,
             env_path,
             tif_directory,
         )
+
+        hsia_tasks.tar_directory(
+            f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs",
+            f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs.tgz",
+        )
+
+        hsia_tasks.copy_tarfile_to_nfs_mount(
+            f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs.tgz",
+            source_tar_file,
+        )
+
     except Exception as e:
         print(f"Error: {e}")
 
 
 if __name__ == "__main__":
+
     hsia.serve(
         name="Update Annual Sea Ice GeoTIFFs for ingest into Rasdaman",
         tags=["hsia", "sea ice"],

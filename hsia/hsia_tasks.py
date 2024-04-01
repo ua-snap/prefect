@@ -196,7 +196,26 @@ def generate_annual_sea_ice_geotiffs(year, env_path, output_directory):
         sic.to_gtiff_3572(output_filename)
 
     dat_path = os.path.join("/tmp/nsidc_raw", str(year))
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
+    output_path = os.path.join(dat_path, "output")
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
     l = glob.glob(os.path.join(dat_path, "*.bin"))
-    _ = [seaicegen(fn, output_directory) for fn in l]
+    _ = [seaicegen(fn, output_path) for fn in l]
+    _ = [
+        shutil.move(fn, output_directory)
+        for fn in glob.glob(os.path.join(output_path, "*.tif"))
+    ]
+
+
+@task
+def tar_directory(directory, output_file):
+    with tarfile.open(output_file, "w:gz") as tar:
+        print("Creating new tar file of Sea Ice data...")
+        tar.add(directory, arcname=os.path.basename(directory))
+    return output_file
+
+
+@task
+def copy_tarfile_to_nfs_mount(tar_file, source_directory):
+    print("Copying tar file to NFS mount...")
+    shutil.copyfile(tar_file, source_directory)
