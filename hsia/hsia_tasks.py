@@ -115,21 +115,6 @@ def clone_github_repository(repo_name, branch, destination_directory):
 
 
 @task
-def run_ingest(ingest_directory, ingest_file="ingest.json"):
-    # Run the ingest command
-    command = ["/opt/rasdaman/bin/wcst_import.sh", "-c", "0", ingest_file]
-    env = {"LUTS_PATH": f"{ingest_directory}/luts.py"}
-    result = subprocess.run(
-        command, cwd=ingest_directory, env=env, capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        raise Exception(f"Error running the command. Error: {result.stderr}")
-
-    print("Command Output:")
-    print(result.stdout)
-
-
-@task
 def check_for_netrc_file(netrc_home, netrc_contents):
     # Check for .netrc file
     result = subprocess.run(
@@ -201,10 +186,13 @@ def generate_annual_sea_ice_geotiffs(year, env_path, output_directory):
         os.makedirs(output_path)
     l = glob.glob(os.path.join(dat_path, "*.bin"))
     _ = [seaicegen(fn, output_path) for fn in l]
-    _ = [
+    for fn in glob.glob(os.path.join(output_path, "*.tif")):
+        destination_file = os.path.join(output_directory, os.path.basename(fn))
+
+        if os.path.exists(destination_file) and not os.path.isdir(destination_file):
+            os.remove(destination_file)
+
         shutil.move(fn, output_directory)
-        for fn in glob.glob(os.path.join(output_path, "*.tif"))
-    ]
 
 
 @task
