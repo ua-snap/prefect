@@ -32,6 +32,6 @@ if __name__ == "__main__":
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/hsiaa/",
-            "source_directory": "/workspace/Shared/Tech_Projects/Sea_Ice_atlas/final_products/",
+            "source_directory": "/workspace/Shared/Tech_Projects/Sea_Ice_Atlas/final_products/",
         },
     )
