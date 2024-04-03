@@ -18,8 +18,6 @@ def hsia(
 
         hsia_tasks.check_for_netrc_file(home_directory, nsidc_credentials.get())
 
-        hsia_tasks.clone_github_repository("hsia", "main", working_directory)
-
         hsia_tasks.check_for_nfs_mount("/workspace/Shared")
 
         hsia_tasks.copy_data_from_nfs_mount(
@@ -28,7 +26,7 @@ def hsia(
 
         hsia_tasks.untar_file(
             f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs.tgz",
-            working_directory,
+            f"{working_directory}/hsia/",
         )
 
         hsia_tasks.download_new_nsidc_data(year)
