@@ -60,8 +60,8 @@ if __name__ == "__main__":
             "year": 2022,
             "home_directory": "/home/snapdata/",
             "env_path": "/home/snapdata/.conda/envs/rasdaman/share/",  # This is the path to the environment's shared libraries (GDAL & proj4)
-            "working_directory": "/opt/rasdaman/user_data/snapdata/",
+            "working_directory": "/home/snapdata/",
             "source_tar_file": "/workspace/Shared/Tech_Projects/Sea_Ice_Atlas/final_products/rasdaman_hsia_arctic_production_tifs.tgz",
-            "tif_directory": "/opt/rasdaman/user_data/snapdata/hsia/rasdaman_hsia_arctic_production_tifs/",
+            "tif_directory": "/home/snapdata/hsia/rasdaman_hsia_arctic_production_tifs/",
         },
     )
