@@ -308,7 +308,18 @@ def validate_vars(vars):
 
 
 @task
-def run_qc(ssh, output_directory, cmip6_directory, repo_regridding_directory, conda_init_script, run_qc_script, qc_script, visual_qc_notebook, vars, slurm_email):
+def run_qc(
+    ssh,
+    output_directory,
+    cmip6_directory,
+    repo_regridding_directory,
+    conda_init_script,
+    run_qc_script,
+    qc_script,
+    visual_qc_notebook,
+    vars,
+    slurm_email,
+):
 
     stdin_, stdout, stderr = ssh.exec_command(
         f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --slurm_email '{slurm_email}' --vars '{vars}'"

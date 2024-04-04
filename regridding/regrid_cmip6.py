@@ -99,7 +99,18 @@ def regrid_cmip6(
 
         regridding_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        regridding_functions.run_qc(ssh, output_directory, cmip6_directory, repo_regridding_directory, conda_init_script, run_qc_script, qc_script, visual_qc_notebook, vars, slurm_email)
+        regridding_functions.run_qc(
+            ssh,
+            output_directory,
+            cmip6_directory,
+            repo_regridding_directory,
+            conda_init_script,
+            run_qc_script,
+            qc_script,
+            visual_qc_notebook,
+            vars,
+            slurm_email,
+        )
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
 
