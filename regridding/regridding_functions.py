@@ -288,6 +288,11 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 @task
 def validate_vars(vars):
+    """
+    Task to validate strings of variables. Variables are checked against the lists in luts.py.
+    Parameters:
+    - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
+    """
     if vars == "all":
         return (" ").join(all_vars)
     elif vars == "land":
@@ -302,39 +307,30 @@ def validate_vars(vars):
         return vars
 
 
-# TODO: implement regridding/tests.slurm from here
-# TODO: create QC functions for regridding pipeline and call them from here
+@task
+def run_qc(
+    ssh,
+    output_directory,
+    cmip6_directory,
+    repo_regridding_directory,
+    conda_init_script,
+    run_qc_script,
+    qc_script,
+    visual_qc_notebook,
+    vars,
+    slurm_email,
+):
 
+    stdin_, stdout, stderr = ssh.exec_command(
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --slurm_email '{slurm_email}' --vars '{vars}'"
+    )
 
-# @task
-# def tests(ssh, working_directory, input_dir):
-#     """
-#     Task to run the tests to check the output of the regridding pipeline.
+    # Wait for the command to finish and get the exit status
+    exit_status = stdout.channel.recv_exit_status()
 
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory to where all of the processing takes place
-#     """
+    # Check the exit status for errors
+    if exit_status != 0:
+        error_output = stderr.read().decode("utf-8")
+        raise Exception(f"Error submitting QC scripts. Error: {error_output}")
 
-
-# @task
-# def qc(ssh, working_directory, input_dir):
-#     """
-#     Task to run the quality control (QC) script to check the output of the regridding pipeline.
-
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory to where all of the processing takes place
-#     """
-
-
-# @task
-# def visual_qc_nb(ssh, working_directory, input_directory):
-#     """
-#     Task to run the visual quality control (QC) notebook to check the output of the regriddig pipeline.
-
-#     Parameters:
-#     - ssh: Paramiko SSHClient object
-#     - working_directory: Directory where all of the processing takes place
-#     - input_directory: Directory containing source input data collection
-#     """
+    print("QC jobs submitted!")
