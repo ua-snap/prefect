@@ -288,11 +288,14 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 @task
 def validate_vars(vars):
+<<<<<<< HEAD
     """
     Task to validate strings of variables. Variables are checked against the lists in luts.py.
     Parameters:
     - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
     """
+=======
+>>>>>>> 9e8ba53 (Adds the Historical Sea Ice Atlas Rasdaman GeoTIFF creation and Rasdaman ingest to Prefect (#32))
     if vars == "all":
         return (" ").join(all_vars)
     elif vars == "land":
@@ -307,6 +310,7 @@ def validate_vars(vars):
         return vars
 
 
+<<<<<<< HEAD
 @task
 def run_qc(
     ssh,
@@ -334,3 +338,41 @@ def run_qc(
         raise Exception(f"Error submitting QC scripts. Error: {error_output}")
 
     print("QC jobs submitted!")
+=======
+# TODO: implement regridding/tests.slurm from here
+# TODO: create QC functions for regridding pipeline and call them from here
+
+
+# @task
+# def tests(ssh, working_directory, input_dir):
+#     """
+#     Task to run the tests to check the output of the regridding pipeline.
+
+#     Parameters:
+#     - ssh: Paramiko SSHClient object
+#     - working_directory: Directory to where all of the processing takes place
+#     """
+
+
+# @task
+# def qc(ssh, working_directory, input_dir):
+#     """
+#     Task to run the quality control (QC) script to check the output of the regridding pipeline.
+
+#     Parameters:
+#     - ssh: Paramiko SSHClient object
+#     - working_directory: Directory to where all of the processing takes place
+#     """
+
+
+# @task
+# def visual_qc_nb(ssh, working_directory, input_directory):
+#     """
+#     Task to run the visual quality control (QC) notebook to check the output of the regriddig pipeline.
+
+#     Parameters:
+#     - ssh: Paramiko SSHClient object
+#     - working_directory: Directory where all of the processing takes place
+#     - input_directory: Directory containing source input data collection
+#     """
+>>>>>>> 9e8ba53 (Adds the Historical Sea Ice Atlas Rasdaman GeoTIFF creation and Rasdaman ingest to Prefect (#32))

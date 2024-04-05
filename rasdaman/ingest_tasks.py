@@ -1,3 +1,5 @@
+import os
+import tarfile
 from prefect import task
 import subprocess
 import zipfile
@@ -38,6 +40,17 @@ def unzip_files(data_directory, zip_file):
 
     with zipfile.ZipFile(f"{data_directory}/{zip_file}", "r") as zip_ref:
         zip_ref.extractall(data_directory)
+
+
+@task
+def untar_file(tar_file, data_directory):
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
+    if not os.path.exists(tar_file):
+        raise Exception(f"Tar file {tar_file} does not exist")
+
+    with tarfile.open(tar_file, "r:gz") as tar:
+        tar.extractall(data_directory)
 
 
 @task
