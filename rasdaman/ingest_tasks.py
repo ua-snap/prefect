@@ -142,3 +142,21 @@ def run_ingest(ssh, ingest_directory, ingest_file="ingest.json"):
     # Print the command output
     print("Command Output:")
     print(command_output)
+
+
+@task
+def merge_data(data_directory):
+    # Run the merge script
+    merge_script = f"{data_directory}/merge.py"
+    result = subprocess.run(
+        f". /opt/miniconda3/bin/activate && conda activate rasdaman && python {merge_script}",
+        capture_output=True,
+        cwd=data_directory,
+        text=True,
+        shell=True,
+    )
+    if result.returncode != 0:
+        raise Exception(f"Error running merge.py script. Error: {result.stderr}")
+
+    print("Merge Script Output:")
+    print(result.stdout)
