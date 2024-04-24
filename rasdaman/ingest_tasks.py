@@ -119,7 +119,7 @@ def run_ingest(ingest_directory, ingest_file="ingest.json"):
     command = [
         "/opt/rasdaman/bin/wcst_import.sh",
         "-i",
-        "/etc/profile.d/rasadmin.sh",
+        "/opt/rasdaman/etc/.rasadmin",
         "-c",
         "0",
         ingest_file,
