@@ -116,7 +116,14 @@ def clone_github_repository(branch, destination_directory):
 @task
 def run_ingest(ingest_directory, ingest_file="ingest.json"):
     # Run the ingest command
-    command = ["/opt/rasdaman/bin/wcst_import.sh", "-c", "0", ingest_file]
+    command = [
+        "/opt/rasdaman/bin/wcst_import.sh",
+        "-i",
+        "/etc/profile.d/rasadmin.sh",
+        "-c",
+        "0",
+        ingest_file,
+    ]
     env = {"LUTS_PATH": f"{ingest_directory}/luts.py"}
     result = subprocess.run(
         command, cwd=ingest_directory, env=env, capture_output=True, text=True
