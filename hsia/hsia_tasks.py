@@ -4,9 +4,6 @@ import glob
 import netrc
 import subprocess
 import tarfile
-import numpy as np
-import pandas as pd
-import geopandas as gpd
 from urllib.parse import urlparse
 from prefect import task
 from seaice.seaice import SeaIceRaw
