@@ -171,7 +171,6 @@ def execute_local_script(
     errors = stderr.decode("utf-8")
 
     if exit_code == 0:
-        print(f"Processing output: {errors}")
         print(f"Final output of the script {script_path}: {output}")
         print(f"Script {script_path} executed successfully.")
     else:
