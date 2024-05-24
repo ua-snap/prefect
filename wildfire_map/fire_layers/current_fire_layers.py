@@ -20,7 +20,7 @@ def current_fire_layers(
 if __name__ == "__main__":
     current_fire_layers.serve(
         name="Update Current Fire Layers (Fire Points / Polygons, Lightning, and MODIS Hotspots)",
-        tags=["current_fire_layers"],
+        tags=["current_fire_layers", "wildfire_map"],
         parameters={
             "debug": "False",
             "working_directory": "/usr/local/prefect/wildfire_map",
