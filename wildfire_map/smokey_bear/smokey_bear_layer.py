@@ -24,7 +24,7 @@ def smokey_bear_layer(
 if __name__ == "__main__":
     smokey_bear_layer.serve(
         name="Update Smokey Bear Layer",
-        tags=["smokey_bear_layer"],
+        tags=["smokey_bear_layer", "wildfire_map"],
         parameters={
             "home_directory": "/home/prefect",
             "working_directory": "/usr/local/prefect/wildfire_map",
