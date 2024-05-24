@@ -159,7 +159,7 @@ def execute_local_script(
 ):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path} --tiff-dir {tiff_dir} --delete-temp-files True",
+        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path} --tiff-dir {tiff_dir} --delete-temp-files",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
