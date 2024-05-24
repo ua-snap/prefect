@@ -51,7 +51,7 @@ def clone_github_repository(branch, destination_directory):
             "clone",
             "-b",
             branch,
-            "https://github.com/ua-snap/AQIForecast",
+            "git@github.com:ua-snap/AQIForecast.git",
         ]
         result = subprocess.run(
             git_clone_command, cwd=destination_directory, capture_output=True, text=True
@@ -159,7 +159,7 @@ def execute_local_script(
 ):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path} --tiff-dir {tiff_dir}",
+        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path} --tiff-dir {tiff_dir} --delete-temp-files True",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
