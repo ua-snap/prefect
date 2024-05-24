@@ -40,7 +40,7 @@ if __name__ == "__main__":
             "debug": "False",
             "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
-            "aqi_forecast_netcdf_path": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output",
+            "aqi_forecast_netcdf_path": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output/",
             "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
         },
     )
