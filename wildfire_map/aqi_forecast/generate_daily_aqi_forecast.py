@@ -27,7 +27,7 @@ if __name__ == "__main__":
         parameters={
             "working_directory": "/usr/local/prefect/wildfire_map/aqi_forecast",
             "script_name": "A_B_combined.py",
-            "netcdf_output_directory": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output",
+            "netcdf_output_directory": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output/",
             "tiff_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
         },
     )
