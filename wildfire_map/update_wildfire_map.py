@@ -3,6 +3,7 @@ from fire_layers.current_fire_layers import current_fire_layers
 from smokey_bear.smokey_bear_layer import smokey_bear_layer
 from smokey_bear.snow_cover_layer import snow_cover_layer
 from aqi_forecast.generate_daily_aqi_forecast import generate_daily_aqi_forecast
+from purple_air.get_daily_purple_air import purple_air
 
 
 @flow(log_prints=True)
@@ -12,6 +13,7 @@ def update_wildfire_layers(
     working_directory,
     aqi_forecast_netcdf_path,
     shapefile_output_directory,
+    purple_air_shapefile_output_directory,
 ):
     current_fire_layers(
         debug,
@@ -31,6 +33,12 @@ def update_wildfire_layers(
         shapefile_output_directory,
     )
 
+    purple_air(
+        working_directory,
+        "get_purple_air.py",
+        purple_air_shapefile_output_directory,
+    )
+
 
 if __name__ == "__main__":
     update_wildfire_layers.serve(
@@ -42,5 +50,6 @@ if __name__ == "__main__":
             "working_directory": "/usr/local/prefect/wildfire_map",
             "aqi_forecast_netcdf_path": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output/",
             "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
+            "purple_air_shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/purple_air/",
         },
     )
