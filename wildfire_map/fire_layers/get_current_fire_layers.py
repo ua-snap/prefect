@@ -278,7 +278,7 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
 
         if geom_type == "Point":
             layer = point_layer
-        elif geom_type == "Polygon":
+        elif geom_type in ["Polygon", "MultiPolygon"]:
             layer = polygon_layer
         else:
             continue  # Skip unsupported geometries
