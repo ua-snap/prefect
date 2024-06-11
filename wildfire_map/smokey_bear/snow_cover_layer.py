@@ -24,7 +24,7 @@ def snow_cover_layer(
 if __name__ == "__main__":
     snow_cover_layer.serve(
         name="Update Snow Cover Layer",
-        tags=["snow_cover_layer"],
+        tags=["snow_cover_layer", "wildfire_map"],
         parameters={
             "home_directory": "/home/prefect",
             "working_directory": "/usr/local/prefect/wildfire_map",

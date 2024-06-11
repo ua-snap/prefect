@@ -2,11 +2,18 @@ from prefect import flow
 from fire_layers.current_fire_layers import current_fire_layers
 from smokey_bear.smokey_bear_layer import smokey_bear_layer
 from smokey_bear.snow_cover_layer import snow_cover_layer
+from aqi_forecast.generate_daily_aqi_forecast import generate_daily_aqi_forecast
+from purple_air.get_daily_purple_air import purple_air
 
 
 @flow(log_prints=True)
 def update_wildfire_layers(
-    debug, home_directory, working_directory, shapefile_output_directory
+    debug,
+    home_directory,
+    working_directory,
+    aqi_forecast_netcdf_path,
+    shapefile_output_directory,
+    purple_air_shapefile_output_directory,
 ):
     current_fire_layers(
         debug,
@@ -19,6 +26,19 @@ def update_wildfire_layers(
 
     snow_cover_layer(home_directory, working_directory, "update_snow_cover.sh")
 
+    generate_daily_aqi_forecast(
+        working_directory,
+        "A_B_combined.py",
+        aqi_forecast_netcdf_path,
+        shapefile_output_directory,
+    )
+
+    purple_air(
+        working_directory,
+        "get_purple_air.py",
+        purple_air_shapefile_output_directory,
+    )
+
 
 if __name__ == "__main__":
     update_wildfire_layers.serve(
@@ -28,6 +48,8 @@ if __name__ == "__main__":
             "debug": "False",
             "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
+            "aqi_forecast_netcdf_path": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output/",
             "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers",
+            "purple_air_shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/purple_air/",
         },
     )
