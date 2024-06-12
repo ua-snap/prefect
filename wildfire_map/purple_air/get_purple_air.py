@@ -8,12 +8,45 @@ from datetime import datetime, timedelta
 script_dir = os.path.dirname(__file__)
 
 
+def calculate_aqi(pm25_concentration):
+    """
+    Calculate the AQI value for a given PM2.5 concentration.
+    The AQI is calculated based on the following breakpoints for PM2.5 concentration:
+    - Good: 0 - 12.0
+    - Moderate: 12.1 - 35.4
+    - Unhealthy for Sensitive Groups: 35.5 - 55.4
+    - Unhealthy: 55.5 - 150.4
+    - Very Unhealthy: 150.5 - 250.4
+    - Hazardous: 250.5 - 350.4
+    - Very Hazardous: 350.5 - 500.4
+    - Max AQI: 500
+
+    Taken from this document: https://www.airnow.gov/sites/default/files/2020-05/aqi-technical-assistance-document-sept2018.pdf
+    """
+    if pm25_concentration <= 12.0:
+        return ((50 - 0) / (12.0 - 0)) * (pm25_concentration - 0) + 0
+    elif pm25_concentration <= 35.4:
+        return ((100 - 51) / (35.4 - 12.1)) * (pm25_concentration - 12.1) + 51
+    elif pm25_concentration <= 55.4:
+        return ((150 - 101) / (55.4 - 35.5)) * (pm25_concentration - 35.5) + 101
+    elif pm25_concentration <= 150.4:
+        return ((200 - 151) / (150.4 - 55.5)) * (pm25_concentration - 55.5) + 151
+    elif pm25_concentration <= 250.4:
+        return ((300 - 201) / (250.4 - 150.5)) * (pm25_concentration - 150.5) + 201
+    elif pm25_concentration <= 350.4:
+        return ((400 - 301) / (350.4 - 250.5)) * (pm25_concentration - 250.5) + 301
+    elif pm25_concentration <= 500.4:
+        return ((500 - 401) / (500.4 - 350.5)) * (pm25_concentration - 350.5) + 401
+    else:
+        return 500  # Max AQI
+
+
 def fetch_purple_air_data():
     one_week_ago = int((datetime.now() - timedelta(days=7)).timestamp())
 
     api_url = "https://map.purpleair.com/v1/sensors"
     query_params = {
-        "fields": "last_seen,location_type,latitude,longitude,pm2.5,pm2.5_10minute,pm2.5_30minute,pm2.5_60minute,pm2.5_6hour,pm2.5_24hour,pm2.5_1week",
+        "fields": "last_seen,latitude,longitude,pm2.5_24hour",
         "modified_since": one_week_ago,
         "nwlat": 70,
         "selat": 54.56,
@@ -32,19 +65,13 @@ def fetch_purple_air_data():
 def create_shapefile(data, output_path):
     records = []
     for sensor in data["data"]:
-        lon = sensor[4]
-        lat = sensor[3]
+        lon = sensor[3]
+        lat = sensor[2]
 
         properties = {
             "lastupdate": sensor[1],
-            "type": sensor[2],
-            "pm2_5": sensor[5],
-            "pm2_5_10m": sensor[6],
-            "pm2_5_30m": sensor[7],
-            "pm2_5_60m": sensor[8],
-            "pm2_5_6hr": sensor[9],
-            "pm2_5_24hr": sensor[10],
-            "pm2_5_1wk": sensor[11],
+            "pm2_5_24hr": round(sensor[4]),
+            "aqi_24hr": round(calculate_aqi(sensor[4])),
         }
 
         point = Point(lon, lat)
