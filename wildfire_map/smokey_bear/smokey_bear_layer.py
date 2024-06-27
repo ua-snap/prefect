@@ -1,6 +1,7 @@
 from prefect import flow
 from prefect.blocks.system import Secret
 from .smokey_bear_tasks import *
+from datetime import datetime
 
 
 @flow(log_prints=True)
@@ -9,16 +10,24 @@ def smokey_bear_layer(
     working_directory,
     script_name,
 ):
-    # This is a encrypted secret block on the Prefect server that contains the password
-    admin_password = Secret.load("smokey-bear-admin-password")
+    try:
+        # This is a encrypted secret block on the Prefect server that contains the password
+        admin_password = Secret.load("smokey-bear-admin-password")
 
-    check_for_admin_pass(f"{home_directory}", admin_password.get())
+        check_for_admin_pass(f"{home_directory}", admin_password.get())
 
-    install_conda_environment(
-        "smokeybear", f"{working_directory}/smokey_bear/environment.yml"
-    )
+        install_conda_environment(
+            "smokeybear", f"{working_directory}/smokey_bear/environment.yml"
+        )
 
-    execute_local_script(f"{working_directory}/smokey_bear/{script_name}")
+        execute_local_script(f"{working_directory}/smokey_bear/{script_name}")
+        return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
+    except Exception as e:
+        return {
+            "updated": datetime.now().strftime("%Y%m%d%H"),
+            "succeeded": False,
+            "error": str(e),
+        }
 
 
 if __name__ == "__main__":
