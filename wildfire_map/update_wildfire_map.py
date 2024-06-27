@@ -1,10 +1,12 @@
 from prefect import flow
+from prefect_aws import AwsCredentials
 from fire_layers.current_fire_layers import current_fire_layers
 from smokey_bear.smokey_bear_layer import smokey_bear_layer
 from smokey_bear.snow_cover_layer import snow_cover_layer
 from aqi_forecast.generate_daily_aqi_forecast import generate_daily_aqi_forecast
 from purple_air.get_daily_purple_air import purple_air
 from datetime import datetime
+import json
 
 
 @flow(log_prints=True)
@@ -16,6 +18,8 @@ def update_wildfire_layers(
     shapefile_output_directory,
     purple_air_shapefile_output_directory,
 ):
+    aws_credentials = AwsCredentials.load("akwildfires-status-updater")
+
     status = {"updated": datetime.now().strftime("%Y%m%d%H"), "layers": {}}
 
     status["layers"]["wildfires"] = current_fire_layers(
@@ -45,6 +49,17 @@ def update_wildfire_layers(
         "get_purple_air.py",
         purple_air_shapefile_output_directory,
     )
+
+    s3_client = aws_credentials.get_boto3_session().client("s3")
+    bucket_name = "alaskawildfires.org"
+    key = "status.json"
+
+    # Save status to status.json locally
+    with open("status.json", "w") as f:
+        json.dump(status, f, indent=4)
+
+    # Upload status.json to S3 bucket
+    s3_client.upload_file("status.json", bucket_name, key)
 
 
 if __name__ == "__main__":
