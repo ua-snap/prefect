@@ -1,5 +1,6 @@
 from prefect import flow
 from .aqi_forecast_tasks import *
+from datetime import datetime
 
 
 @flow(log_prints=True)
@@ -9,15 +10,23 @@ def generate_daily_aqi_forecast(
     netcdf_output_directory,
     tiff_output_directory,
 ):
-    github_repo_dir = clone_github_repository("main", f"{working_directory}")
+    try:
+        github_repo_dir = clone_github_repository("main", f"{working_directory}")
 
-    install_conda_environment("aqi_forecasts", f"{github_repo_dir}/environment.yml")
+        install_conda_environment("aqi_forecasts", f"{github_repo_dir}/environment.yml")
 
-    execute_local_script(
-        f"{github_repo_dir}/{script_name}",
-        netcdf_output_directory,
-        tiff_output_directory,
-    )
+        execute_local_script(
+            f"{github_repo_dir}/{script_name}",
+            netcdf_output_directory,
+            tiff_output_directory,
+        )
+        return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
+    except Exception as e:
+        return {
+            "updated": datetime.now().strftime("%Y%m%d%H"),
+            "succeeded": False,
+            "error": str(e),
+        }
 
 
 if __name__ == "__main__":

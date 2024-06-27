@@ -1,20 +1,29 @@
 from prefect import flow
 from .fire_layer_tasks import *
+from datetime import datetime
 
 
 @flow(log_prints=True)
 def current_fire_layers(
     debug, working_directory, script_name, shapefile_output_directory
 ):
-    install_conda_environment(
-        "fire_map", f"{working_directory}/fire_layers/environment.yml"
-    )
+    try:
+        install_conda_environment(
+            "fire_map", f"{working_directory}/fire_layers/environment.yml"
+        )
 
-    execute_local_script(
-        f"{working_directory}/fire_layers/{script_name}",
-        shapefile_output_directory,
-        debug=debug,
-    )
+        execute_local_script(
+            f"{working_directory}/fire_layers/{script_name}",
+            shapefile_output_directory,
+            debug=debug,
+        )
+        return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
+    except Exception as e:
+        return {
+            "updated": datetime.now().strftime("%Y%m%d%H"),
+            "succeeded": False,
+            "error": str(e),
+        }
 
 
 if __name__ == "__main__":
