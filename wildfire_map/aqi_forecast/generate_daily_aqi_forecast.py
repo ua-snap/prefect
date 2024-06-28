@@ -30,7 +30,9 @@ def generate_daily_aqi_forecast(
     tiff_output_directory,
 ):
     try:
-        github_repo_dir = clone_github_repository("main", f"{working_directory}")
+        github_repo_dir = clone_github_repository(
+            "update_frequency", f"{working_directory}"
+        )
 
         install_conda_environment("aqi_forecasts", f"{github_repo_dir}/environment.yml")
 
