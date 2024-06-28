@@ -22,6 +22,8 @@ def update_wildfire_layers(
     wildfire_status_access_key = Secret.load("wildfire-status-access-key")
     wildfire_secret_access_key = Secret.load("wildfire-secret-access-key")
 
+    aqi_forecast_hour = "00" if 8 <= datetime.now().hour < 20 else "12"
+
     status = {"updated": datetime.now().strftime("%Y%m%d%H"), "layers": {}}
 
     status["layers"]["wildfires"] = current_fire_layers(
@@ -53,6 +55,7 @@ def update_wildfire_layers(
         "A_B_combined.py",
         aqi_forecast_netcdf_path,
         shapefile_output_directory,
+        aqi_forecast_hour,
     )
 
     print("Finished updating AQI forecast")
