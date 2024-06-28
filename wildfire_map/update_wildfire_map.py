@@ -31,13 +31,22 @@ def update_wildfire_layers(
         shapefile_output_directory,
     )
 
+    print("Finished updating wildfire layers")
+    print(status["layers"]["wildfires"])
+
     status["layers"]["fire_danger"] = smokey_bear_layer(
         home_directory, working_directory, "update_smokey_bear.sh"
     )
 
+    print("Finished updating fire danger layer")
+    print(status["layers"]["fire_danger"])
+
     status["layers"]["snow_cover"] = snow_cover_layer(
         home_directory, working_directory, "update_snow_cover.sh"
     )
+
+    print("Finished updating snow cover layer")
+    print(status["layers"]["snow_cover"])
 
     status["layers"]["aqi_forecast"] = generate_daily_aqi_forecast(
         working_directory,
@@ -46,11 +55,17 @@ def update_wildfire_layers(
         shapefile_output_directory,
     )
 
+    print("Finished updating AQI forecast")
+    print(status["layers"]["aqi_forecast"])
+
     status["layers"]["purpleair"] = purple_air(
         working_directory,
         "get_purple_air.py",
         purple_air_shapefile_output_directory,
     )
+
+    print("Finished updating Purple Air layer")
+    print(status["layers"]["purpleair"])
 
     status_json = json.dumps(status)
 
@@ -68,7 +83,10 @@ def update_wildfire_layers(
     key = "status.json"
 
     # Upload the JSON string as a file to the S3 bucket
+    print(f"Uploading status.json to s3://{bucket_name}/{key}")
     s3.put_object(Bucket=bucket_name, Key=key, Body=status_json)
+
+    print("Finished updating wildfire layers")
 
 
 if __name__ == "__main__":
