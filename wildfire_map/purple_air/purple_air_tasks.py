@@ -2,7 +2,7 @@ from prefect import task
 import subprocess
 
 
-@task(name="Install Fire Layers Conda Environment")
+@task(name="Install Purple Air Conda Environment")
 def install_conda_environment(conda_env_name, conda_env_file, local_install=False):
     """
     Task to check for a Python Conda environment and install it if it doesn't exist.
