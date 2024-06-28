@@ -19,7 +19,7 @@ def update_wildfire_layers(
     shapefile_output_directory,
     purple_air_shapefile_output_directory,
 ):
-    wildfire_access_key = Secret.load("wildfire-access-key")
+    wildfire_status_access_key = Secret.load("wildfire-status-access-key")
     wildfire_secret_access_key = Secret.load("wildfire-secret-access-key")
 
     status = {"updated": datetime.now().strftime("%Y%m%d%H"), "layers": {}}
@@ -56,16 +56,16 @@ def update_wildfire_layers(
 
     # Initialize a session using your wildfire credentials
     session = boto3.Session(
-        aws_access_key_id=wildfire_access_key.get(),
+        aws_access_key_id=wildfire_status_access_key.get(),
         aws_secret_access_key=wildfire_secret_access_key.get(),
     )
 
     # Initialize the S3 client
-    s3 = session.client('s3')
+    s3 = session.client("s3")
 
     # Specify the S3 bucket name and the key (path) for the uploaded file
-    bucket_name = 'alaskawildfires.org'
-    key = 'status.json'
+    bucket_name = "alaskawildfires.org"
+    key = "status.json"
 
     # Upload the JSON string as a file to the S3 bucket
     s3.put_object(Bucket=bucket_name, Key=key, Body=status_json)
