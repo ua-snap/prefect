@@ -1,11 +1,12 @@
 from prefect import flow
-from prefect_aws import AwsCredentials
+from prefect.blocks.system import Secret
 from fire_layers.current_fire_layers import current_fire_layers
 from smokey_bear.smokey_bear_layer import smokey_bear_layer
 from smokey_bear.snow_cover_layer import snow_cover_layer
 from aqi_forecast.generate_daily_aqi_forecast import generate_daily_aqi_forecast
 from purple_air.get_daily_purple_air import purple_air
 from datetime import datetime
+import boto3
 import json
 
 
@@ -18,7 +19,8 @@ def update_wildfire_layers(
     shapefile_output_directory,
     purple_air_shapefile_output_directory,
 ):
-    aws_credentials = AwsCredentials.load("akwildfires-status-updater")
+    wildfire_access_key = Secret.load("wildfire-access-key")
+    wildfire_secret_access_key = Secret.load("wildfire-secret-access-key")
 
     status = {"updated": datetime.now().strftime("%Y%m%d%H"), "layers": {}}
 
@@ -50,16 +52,23 @@ def update_wildfire_layers(
         purple_air_shapefile_output_directory,
     )
 
-    s3_client = aws_credentials.get_boto3_session().client("s3")
-    bucket_name = "alaskawildfires.org"
-    key = "status.json"
+    status_json = json.dumps(status)
 
-    # Save status to status.json locally
-    with open("status.json", "w") as f:
-        json.dump(status, f, indent=4)
+    # Initialize a session using your wildfire credentials
+    session = boto3.Session(
+        aws_access_key_id=wildfire_access_key.get(),
+        aws_secret_access_key=wildfire_secret_access_key.get(),
+    )
 
-    # Upload status.json to S3 bucket
-    s3_client.upload_file("status.json", bucket_name, key)
+    # Initialize the S3 client
+    s3 = session.client('s3')
+
+    # Specify the S3 bucket name and the key (path) for the uploaded file
+    bucket_name = 'alaskawildfires.org'
+    key = 'status.json'
+
+    # Upload the JSON string as a file to the S3 bucket
+    s3.put_object(Bucket=bucket_name, Key=key, Body=status_json)
 
 
 if __name__ == "__main__":
