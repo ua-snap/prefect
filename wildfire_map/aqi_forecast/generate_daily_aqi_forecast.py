@@ -28,6 +28,7 @@ def generate_daily_aqi_forecast(
     script_name,
     netcdf_output_directory,
     tiff_output_directory,
+    requested_hour,
 ):
     try:
         github_repo_dir = clone_github_repository(
@@ -40,6 +41,7 @@ def generate_daily_aqi_forecast(
             f"{github_repo_dir}/{script_name}",
             netcdf_output_directory,
             tiff_output_directory,
+            requested_hour,
         )
         return {"updated": get_aqi_forecast_time(), "succeeded": True}
     except Exception as e:
