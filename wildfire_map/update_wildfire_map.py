@@ -87,7 +87,7 @@ def update_wildfire_layers(
 
     # Upload the JSON string as a file to the S3 bucket
     print(f"Uploading status.json to s3://{bucket_name}/{key}")
-    s3.put_object(Bucket=bucket_name, Key=key, Body=status_json)
+    s3.put_object(Bucket=bucket_name, Key=key, Body=status_json, ACL="public-read")
 
     print("Finished updating wildfire layers")
 
