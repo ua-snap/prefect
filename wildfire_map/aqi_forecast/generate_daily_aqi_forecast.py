@@ -1,6 +1,25 @@
 from prefect import flow
 from .aqi_forecast_tasks import *
-from datetime import datetime
+from datetime import datetime, timedelta
+
+
+def get_aqi_forecast_time():
+    current_time = datetime.now()
+    eight_am = current_time.replace(hour=8, minute=0, second=0, microsecond=0)
+    eight_pm = current_time.replace(hour=20, minute=0, second=0, microsecond=0)
+
+    if eight_am <= current_time < eight_pm:
+        adjusted_time = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        adjusted_time = current_time.replace(hour=12, minute=0, second=0, microsecond=0)
+
+        # This will only happen if we happened to update the 12 PM update from the previous day
+        # after 12 AM but before 8 AM on the next day. This shouldn't happen in the automated
+        # workflow, but it's good to have it here just in case.
+        if current_time < eight_am:
+            adjusted_time -= timedelta(days=1)
+
+    return adjusted_time.strftime("%Y%m%d%H")
 
 
 @flow(log_prints=True)
@@ -20,10 +39,10 @@ def generate_daily_aqi_forecast(
             netcdf_output_directory,
             tiff_output_directory,
         )
-        return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
+        return {"updated": get_aqi_forecast_time(), "succeeded": True}
     except Exception as e:
         return {
-            "updated": datetime.now().strftime("%Y%m%d%H"),
+            "updated": get_aqi_forecast_time(),
             "succeeded": False,
             "error": str(e),
         }
