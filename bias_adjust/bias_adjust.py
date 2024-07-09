@@ -240,7 +240,7 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 
 @task
-def qc_nb(ssh, working_dir, input_dir):
+def qc_nb(ssh, working_dir, input_dir, model, scenario, var_id):
     """
     Task to run the visual quality control (QC) notebook to check the output of the bias adjustment.
 
@@ -253,13 +253,17 @@ def qc_nb(ssh, working_dir, input_dir):
     conda_init_script = f"{working_dir}/cmip6-utils/regridding/conda_init.sh"
     repo_biasadjust_dir = f"{working_dir}/cmip6-utils/bias_adjust"
     # would be ideal if we could pull the output_dir from the slurm script execution
-    output_nb = f"{working_dir}/bias_adjust/qc/qc.ipynb"
+
+    output_dir = f"{working_dir}/bias_adjust"
+
+    # TODO: Check if qc directory exists, if not create it.
+    output_nb = f"{output_dir}/qc/{model}_{scenario}_{var_id}.ipynb"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
         f"cd {repo_biasadjust_dir}\n"
-        f"papermill qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}'\n"
+        f"papermill qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}' -r var_id '{var_id}' -r model '{model}' -r scenario '{scenario}' --log-output --log-level INFO\n"
         f"jupyter nbconvert --to html {output_nb}"
     )
 
@@ -331,27 +335,30 @@ def run_bias_adjustment(
 
         wait_for_jobs_completion(ssh, job_ids)
 
-        qc_nb(ssh, working_dir, input_dir)
+        for model in models.split():
+            for scenario in scenarios.split():
+                for var_id in var_ids.split():
+                    qc_nb(ssh, working_dir, input_dir, model, scenario, var_id)
 
     finally:
         ssh.close()
 
 
 if __name__ == "__main__":
-    ssh_username = "kmredilla"
-    ssh_private_key_path = "/Users/kmredilla/.ssh/id_rsa"
+    ssh_username = "crstephenson"
+    ssh_private_key_path = "/Users/crstephenson/.ssh/id_rsa"
     branch_name = "bias_correction"
-    working_dir = Path(f"/import/beegfs/CMIP6/kmredilla/")
+    working_dir = Path(f"/import/beegfs/CMIP6/crstephenson/")
     var_ids = "tasmax"
     models = "GFDL-ESM4"
     scenarios = "ssp585"
     input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
     reference_dir = Path("/beegfs/CMIP6/arctic-cmip6/era5/daily_regrid")
-    partition = "t2small"
+    partition = "debug"
     ncpus = "24"
 
     run_bias_adjustment.serve(
-        name="bias-adjust-kyle-testing",
+        name="bias-adjust-craig-testing",
         tags=["CMIP6 Bias Adjustment"],
         parameters={
             "ssh_username": ssh_username,
