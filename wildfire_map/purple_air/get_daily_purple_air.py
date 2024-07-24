@@ -1,6 +1,6 @@
 from prefect import flow
 from prefect.blocks.system import Secret
-from .purple_air_tasks import *
+from purple_air_tasks import *
 from datetime import datetime
 
 
@@ -34,6 +34,6 @@ if __name__ == "__main__":
         parameters={
             "working_directory": "/usr/local/prefect/wildfire_map",
             "script_name": "get_purple_air.py",
-            "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/purple_air_pm25_10min/",
+            "shapefile_output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/purple_air_10min/",
         },
     )
