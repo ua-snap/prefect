@@ -171,9 +171,11 @@ def run_generate_batch_files(
     regrid_batch_dir,
     vars,
     freqs,
+    models,
+    scenarios,
 ):
     stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -200,6 +202,8 @@ def create_and_run_slurm_scripts(
     no_clobber,
     vars,
     freqs,
+    models,
+    scenarios,
 ):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
@@ -216,7 +220,7 @@ def create_and_run_slurm_scripts(
     - no_clobber: Do not overwrite regidded files if they exist
     """
 
-    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}'"
+    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
 
     if no_clobber:
         cmd += " --no_clobber"
