@@ -16,12 +16,17 @@ def regrid_cmip6(
     branch_name,
     cmip6_directory,
     scratch_directory,
-    slurm_email,
     no_clobber,
     generate_batch_files,
     vars,
+    freqs,
+    models,
+    scenarios,
 ):
     vars = regridding_functions.validate_vars(vars)
+    freqs = regridding_functions.validate_freqs(freqs)
+    models = regridding_functions.validate_models(models)
+    scenarios = regridding_functions.validate_scenarios(scenarios)
 
     # build additional parameters from prefect inputs
     repo_regridding_directory = f"{scratch_directory}/cmip6-utils/regridding"
@@ -74,8 +79,10 @@ def regrid_cmip6(
                 run_generate_batch_files_script,
                 cmip6_directory,
                 regrid_batch_dir,
-                slurm_email,
                 vars,
+                freqs,
+                models,
+                scenarios,
             )
 
             job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
@@ -88,11 +95,14 @@ def regrid_cmip6(
             slurm_dir,
             regrid_dir,
             regrid_batch_dir,
-            slurm_email,
             conda_init_script,
             regrid_script,
             target_grid_fp,
             no_clobber,
+            vars,
+            freqs,
+            models,
+            scenarios,
         )
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
@@ -109,7 +119,9 @@ def regrid_cmip6(
             qc_script,
             visual_qc_notebook,
             vars,
-            slurm_email,
+            freqs,
+            models,
+            scenarios,
         )
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
@@ -127,10 +139,12 @@ if __name__ == "__main__":
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
     scratch_directory = Path(f"/center1/CMIP6/snapdata/")
-    slurm_email = "uaf-snap-sys-team@alaska.edu"
     no_clobber = False
     generate_batch_files = True
     vars = "all"
+    freqs = "all"
+    models = "all"
+    scenarios = "all"
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -141,9 +155,11 @@ if __name__ == "__main__":
             "branch_name": branch_name,
             "cmip6_directory": cmip6_directory,
             "scratch_directory": scratch_directory,
-            "slurm_email": slurm_email,
             "no_clobber": no_clobber,
             "generate_batch_files": generate_batch_files,
             "vars": vars,
+            "freqs": freqs,
+            "models": models,
+            "scenarios": scenarios,
         },
     )

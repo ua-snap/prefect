@@ -59,3 +59,24 @@ sea_vars = [
 ]
 
 global_vars = [i for i in all_vars if i not in land_vars + sea_vars]
+
+# the only two frequencies allowed for regridding are monthly and daily
+all_freqs = ["mon", "day"]
+
+all_models = [
+    "CESM2",
+    "CNRM-CM6-1-HR",
+    "EC-Earth3-Veg",
+    "GFDL-ESM4",
+    "HadGEM3-GC31-LL",
+    "HadGEM3-GC31-MM",
+    "KACE-1-0-G",
+    "MIROC6",
+    "MPI-ESM1-2-HR",
+    "MPI-ESM1-2-LR",
+    "MRI-ESM2-0",
+    "NorESM2-MM",
+    "TaiESM1",
+]
+
+all_scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
