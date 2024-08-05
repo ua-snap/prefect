@@ -117,6 +117,7 @@ def clone_github_repository(branch, destination_directory):
 def run_ingest(ingest_directory, ingest_file="ingest.json"):
     # Run the ingest command
     command = [
+        "source /etc/default/rasdaman",
         "/opt/rasdaman/bin/wcst_import.sh",
         "-i",
         "/opt/rasdaman/etc/.rasadmin",
