@@ -17,7 +17,24 @@ def crrel_gipl_outputs(
 
     ingest_tasks.copy_data_from_nfs_mount(source_directory, destination_directory)
 
-    ingest_tasks.unzip_files(destination_directory)
+    ingest_tasks.unzip_files(destination_directory, "gipl_magt0.5m_cmip5_2021-2120.zip")
+    ingest_tasks.unzip_files(destination_directory, "gipl_magt1m_cmip5_2021-2120.zip")
+    ingest_tasks.unzip_files(destination_directory, "gipl_magt2m_cmip5_2021-2120.zip")
+    ingest_tasks.unzip_files(destination_directory, "gipl_magt3m_cmip5_2021-2120.zip")
+    ingest_tasks.unzip_files(destination_directory, "gipl_magt4m_cmip5_2021-2120.zip")
+    ingest_tasks.unzip_files(destination_directory, "gipl_magt5m_cmip5_2021-2120.zip")
+    ingest_tasks.unzip_files(
+        destination_directory, "gipl_magtsurface_cmip5_2021-2120.zip"
+    )
+    ingest_tasks.unzip_files(
+        destination_directory, "gipl_permafrostbase_cmip5_2021-2120.zip"
+    )
+    ingest_tasks.unzip_files(
+        destination_directory, "gipl_permafrosttop_cmip5_2021-2120.zip"
+    )
+    ingest_tasks.unzip_files(
+        destination_directory, "gipl_talikthickness_cmip5_2021-2120.zip"
+    )
 
     ingest_tasks.run_ingest(ingest_directory)
 
