@@ -239,50 +239,6 @@ def wait_for_jobs_completion(ssh, job_ids):
     print("All indicator jobs completed!")
 
 
-@task
-def qc_nb(ssh, working_dir, input_dir, model, scenario, var_id):
-    """
-    Task to run the visual quality control (QC) notebook to check the output of the bias adjustment.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - working_dir: Directory where all of the processing takes place
-    - input_dir: Directory containing source input data collection
-    """
-
-    conda_init_script = f"{working_dir}/cmip6-utils/regridding/conda_init.sh"
-    repo_biasadjust_dir = f"{working_dir}/cmip6-utils/bias_adjust"
-    # would be ideal if we could pull the output_dir from the slurm script execution
-
-    output_dir = f"{working_dir}/bias_adjust"
-
-    # TODO: Check if qc directory exists, if not create it.
-    output_nb = f"{output_dir}/qc/{model}_{scenario}_{var_id}.ipynb"
-
-    stdin, stdout, stderr = ssh.exec_command(
-        f"source {conda_init_script}\n"
-        f"conda activate cmip6-utils\n"
-        f"cd {repo_biasadjust_dir}\n"
-        f"papermill qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}' -r var_id '{var_id}' -r model '{model}' -r scenario '{scenario}' --log-output --log-level INFO\n"
-        f"jupyter nbconvert --to html {output_nb}"
-    )
-
-    # Collect output from QC script above and print it
-    lines = stdout.readlines()
-    for line in lines:
-        print(line)
-
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
-
-    # Check the exit status for errors
-    if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error running Visual QC script. Error: {error_output}")
-
-    print(f"QC notebook created successfully. See {output_nb} for results.")
-
-
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
@@ -313,7 +269,7 @@ def run_bias_adjustment(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        clone_github_repository(ssh, branch_name, working_dir)
+        # clone_github_repository(ssh, branch_name, working_dir)
 
         check_for_nfs_mount(ssh, "/import/beegfs")
 
@@ -334,11 +290,6 @@ def run_bias_adjustment(
         )
 
         wait_for_jobs_completion(ssh, job_ids)
-
-        for model in models.split():
-            for scenario in scenarios.split():
-                for var_id in var_ids.split():
-                    qc_nb(ssh, working_dir, input_dir, model, scenario, var_id)
 
     finally:
         ssh.close()
