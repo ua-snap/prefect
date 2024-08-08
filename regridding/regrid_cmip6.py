@@ -22,6 +22,7 @@ def regrid_cmip6(
     freqs,
     models,
     scenarios,
+    conda_env_name,
 ):
     vars = regridding_functions.validate_vars(vars)
     freqs = regridding_functions.validate_freqs(freqs)
@@ -68,13 +69,14 @@ def regrid_cmip6(
         regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
         regridding_functions.install_conda_environment(
-            ssh, "cmip6-utils", f"{scratch_directory}/cmip6-utils/environment.yml"
+            ssh, conda_env_name, f"{scratch_directory}/cmip6-utils/environment.yml"
         )
 
         if generate_batch_files == True:
             regridding_functions.run_generate_batch_files(
                 ssh,
                 conda_init_script,
+                conda_env_name,
                 generate_batch_files_script,
                 run_generate_batch_files_script,
                 cmip6_directory,
@@ -96,6 +98,7 @@ def regrid_cmip6(
             regrid_dir,
             regrid_batch_dir,
             conda_init_script,
+            conda_env_name,
             regrid_script,
             target_grid_fp,
             no_clobber,
@@ -115,6 +118,7 @@ def regrid_cmip6(
             cmip6_directory,
             repo_regridding_directory,
             conda_init_script,
+            conda_env_name,
             run_qc_script,
             qc_script,
             visual_qc_notebook,
@@ -145,6 +149,7 @@ if __name__ == "__main__":
     freqs = "all"
     models = "all"
     scenarios = "all"
+    conda_env_name = "cmip6-utils"
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -161,5 +166,6 @@ if __name__ == "__main__":
             "freqs": freqs,
             "models": models,
             "scenarios": scenarios,
+            "conda_env_name": conda_env_name,
         },
     )

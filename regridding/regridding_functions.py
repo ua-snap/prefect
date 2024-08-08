@@ -165,6 +165,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 def run_generate_batch_files(
     ssh,
     conda_init_script,
+    conda_env_name,
     generate_batch_files_script,
     run_generate_batch_files_script,
     cmip6_directory,
@@ -174,8 +175,23 @@ def run_generate_batch_files(
     models,
     scenarios,
 ):
+    """
+    Task to create and submit slurm script to generate the batch files for the regridding.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - slurm_script: Directory to regridding slurm.py script
+    - slurm_dir: Directory to save slurm sbatch files
+    - regrid_dir: Path to directory where regridded files are written
+    - regrid_batch_dir: Directory of batch files
+    - conda_init_script: Script to initialize conda during slurm jobs
+    - conda_env_name: Name of the Conda environment to activate
+    - regrid_script: Location of regrid.py script in the repo
+    - target_grid_fp: Path to file used as the regridding target
+    - no_clobber: Do not overwrite regidded files if they exist
+    """
     stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -197,6 +213,7 @@ def create_and_run_slurm_scripts(
     regrid_dir,
     regrid_batch_dir,
     conda_init_script,
+    conda_env_name,
     regrid_script,
     target_grid_fp,
     no_clobber,
@@ -215,12 +232,13 @@ def create_and_run_slurm_scripts(
     - regrid_dir: Path to directory where regridded files are written
     - regrid_batch_dir: Directory of batch files
     - conda_init_script: Script to initialize conda during slurm jobs
+    - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
     - no_clobber: Do not overwrite regidded files if they exist
     """
 
-    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
 
     if no_clobber:
         cmd += " --no_clobber"
@@ -362,6 +380,7 @@ def run_qc(
     cmip6_directory,
     repo_regridding_directory,
     conda_init_script,
+    conda_env_name,
     run_qc_script,
     qc_script,
     visual_qc_notebook,
@@ -372,7 +391,7 @@ def run_qc(
 ):
 
     stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     # Wait for the command to finish and get the exit status
