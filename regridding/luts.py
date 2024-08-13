@@ -4,44 +4,44 @@
 # these were copied from the transfers/config.py in the cmip6-utils repo and include the WRF variables
 
 all_vars = [
-    "clt",
-    "evspsbl",
-    "hfls",
-    "hfss",
-    "hus",
-    "huss",
-    "mrro",
-    "mrsol",
-    "mrsos",
-    "orog",
-    "pr",
-    "prsn",
-    "ps",
-    "psl",
-    "rlds",
-    "rls",
-    "rsds",
-    "rss",
-    "sfcWind",
-    "sfcWindmax",
-    "sftlf",
-    "sftof",
-    "siconc",
-    "sithick",
-    "snd",
-    "snw",
-    "ta",
-    "tas",
-    "tasmax",
-    "tasmin",
-    "tos",
-    "ts",
-    "tsl",
-    "ua",
-    "uas",
-    "va",
-    "vas",
-    "zg",
+    "clt",  # cloud area fraction
+    "evspsbl",  # evaporation including sublimation and transpiration
+    "hfls",  # surface upward latent heat flux
+    "hfss",  # surface upward sensible heat flux
+    "hus",  # specific humidity
+    "huss",  # near surface specific humidity
+    "mrro",  # total runoff
+    "mrsol",  # moisture in upper portion of soil column
+    "mrsos",  # total water content of soil layer
+    "orog",  # surface altitude
+    "pr",  # precipitation
+    "prsn",  # snowfall flux
+    "ps",  # surface air pressure
+    "psl",  # sea level pressure
+    "rlds",  # surface downwelling longwave flux in air
+    "rls",  # surface net downward longwave flux
+    "rsds",  # surface downwelling shortwave flux_in_air
+    "rss",  # surface net downward shortwave flux
+    "sfcWind",  # surface wind speed
+    "sfcWindmax",  # maximum surface wind speed
+    "sftlf",  # percentage of the grid cell occupied by land including lakes
+    "sftof",  # sea area percentage
+    "siconc",  # sea ice concentration
+    "sithick",  # sea ice thickness
+    "snd",  # surface snow thickness
+    "snw",  # surface snow amount
+    "ta",  # air temperature
+    "tas",  # near surface air temperature
+    "tasmax",  # maximum near surface air temperature
+    "tasmin",  # minimum near surface air temperature
+    "tos",  # sea surface temperature
+    "ts",  # surface temperature
+    "tsl",  # soil temperature
+    "ua",  # eastward wind
+    "uas",  # near surface eastward wind
+    "va",  # northward wind
+    "vas",  # near surface northwawrd wind
+    "zg",  # geopotential height at 500hPa
 ]
 
 land_vars = [
