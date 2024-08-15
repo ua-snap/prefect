@@ -188,7 +188,7 @@ def run_generate_batch_files(
     - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
-    - no_clobber: Do not overwrite regidded files if they exist
+    - no_clobber: Do not overwrite regridded files if they exist
     """
     stdin_, stdout, stderr = ssh.exec_command(
         f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
@@ -235,7 +235,7 @@ def create_and_run_slurm_scripts(
     - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
-    - no_clobber: Do not overwrite regidded files if they exist
+    - no_clobber: Do not overwrite regridded files if they exist
     """
 
     cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
