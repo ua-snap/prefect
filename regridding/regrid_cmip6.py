@@ -16,12 +16,18 @@ def regrid_cmip6(
     branch_name,
     cmip6_directory,
     scratch_directory,
-    slurm_email,
     no_clobber,
     generate_batch_files,
     vars,
+    freqs,
+    models,
+    scenarios,
+    conda_env_name,
 ):
     vars = regridding_functions.validate_vars(vars)
+    freqs = regridding_functions.validate_freqs(freqs)
+    models = regridding_functions.validate_models(models)
+    scenarios = regridding_functions.validate_scenarios(scenarios)
 
     # build additional parameters from prefect inputs
     repo_regridding_directory = f"{scratch_directory}/cmip6-utils/regridding"
@@ -63,19 +69,22 @@ def regrid_cmip6(
         regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
 
         regridding_functions.install_conda_environment(
-            ssh, "cmip6-utils", f"{scratch_directory}/cmip6-utils/environment.yml"
+            ssh, conda_env_name, f"{scratch_directory}/cmip6-utils/environment.yml"
         )
 
         if generate_batch_files == True:
             regridding_functions.run_generate_batch_files(
                 ssh,
                 conda_init_script,
+                conda_env_name,
                 generate_batch_files_script,
                 run_generate_batch_files_script,
                 cmip6_directory,
                 regrid_batch_dir,
-                slurm_email,
                 vars,
+                freqs,
+                models,
+                scenarios,
             )
 
             job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
@@ -88,11 +97,15 @@ def regrid_cmip6(
             slurm_dir,
             regrid_dir,
             regrid_batch_dir,
-            slurm_email,
             conda_init_script,
+            conda_env_name,
             regrid_script,
             target_grid_fp,
             no_clobber,
+            vars,
+            freqs,
+            models,
+            scenarios,
         )
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
@@ -105,11 +118,14 @@ def regrid_cmip6(
             cmip6_directory,
             repo_regridding_directory,
             conda_init_script,
+            conda_env_name,
             run_qc_script,
             qc_script,
             visual_qc_notebook,
             vars,
-            slurm_email,
+            freqs,
+            models,
+            scenarios,
         )
 
         job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
@@ -127,10 +143,13 @@ if __name__ == "__main__":
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
     scratch_directory = Path(f"/center1/CMIP6/snapdata/")
-    slurm_email = "uaf-snap-sys-team@alaska.edu"
     no_clobber = False
     generate_batch_files = True
     vars = "all"
+    freqs = "all"
+    models = "all"
+    scenarios = "all"
+    conda_env_name = "cmip6-utils"
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -141,9 +160,12 @@ if __name__ == "__main__":
             "branch_name": branch_name,
             "cmip6_directory": cmip6_directory,
             "scratch_directory": scratch_directory,
-            "slurm_email": slurm_email,
             "no_clobber": no_clobber,
             "generate_batch_files": generate_batch_files,
             "vars": vars,
+            "freqs": freqs,
+            "models": models,
+            "scenarios": scenarios,
+            "conda_env_name": conda_env_name,
         },
     )

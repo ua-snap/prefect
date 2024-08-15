@@ -14,7 +14,7 @@ def check_for_nfs_mount(ssh, nfs_directory="/import/beegfs"):
     - nfs_directory: Path to the NFS directory to check for
     """
 
-    stdin, stdout, stderr = ssh.exec_command(f"df -h | grep {nfs_directory}")
+    stdin_, stdout, stderr_ = ssh.exec_command(f"df -h | grep {nfs_directory}")
 
     nfs_mounted = bool(stdout.read())
 
@@ -34,7 +34,7 @@ def clone_github_repository(ssh, branch, destination_directory):
     """
 
     target_directory = f"{destination_directory}/cmip6-utils"
-    stdin, stdout, stderr = ssh.exec_command(
+    stdin_, stdout, stderr = ssh.exec_command(
         f"if [ -d '{target_directory}' ]; then echo 'true'; else echo 'false'; fi"
     )
 
@@ -46,31 +46,31 @@ def clone_github_repository(ssh, branch, destination_directory):
             get_current_branch_command = (
                 f"cd {target_directory} && git pull && git branch --show-current"
             )
-            stdin, stdout, stderr = ssh.exec_command(get_current_branch_command)
+            stdin_, stdout, stderr = ssh.exec_command(get_current_branch_command)
             current_branch = stdout.read().decode("utf-8").strip()
         except:
             # If the current branch cannot be determined, assume it's the wrong branch
             set_branch_to_main = f"cd {target_directory} && git checkout main"
-            stdin, stdout, stderr = ssh.exec_command(set_branch_to_main)
+            stdin_, stdout, stderr = ssh.exec_command(set_branch_to_main)
 
             # Get the current branch again# Directory exists, check the current branch
             get_current_branch_command = (
                 f"cd {target_directory} && git pull && git branch --show-current"
             )
-            stdin, stdout, stderr = ssh.exec_command(get_current_branch_command)
+            stdin_, stdout, stderr = ssh.exec_command(get_current_branch_command)
             current_branch = stdout.read().decode("utf-8").strip()
 
         if current_branch != branch:
             print(f"Change repository branch to branch {branch}...")
             # If the current branch is different from the desired branch, switch to the correct branch
             switch_branch_command = f"cd {target_directory} && git checkout {branch}"
-            stdin, stdout, stderr = ssh.exec_command(switch_branch_command)
+            stdin_, stdout, stderr = ssh.exec_command(switch_branch_command)
 
         print(f"Pulling the GitHub repository on branch {branch}...")
 
         # Run the Git pull command to pull the repository
         git_pull_command = f"cd {target_directory} && git pull origin {branch}"
-        stdin, stdout, stderr = ssh.exec_command(git_pull_command)
+        stdin_, stdout, stderr = ssh.exec_command(git_pull_command)
 
         # Wait for the Git command to finish and get the exit status
         exit_status = stdout.channel.recv_exit_status()
@@ -84,7 +84,7 @@ def clone_github_repository(ssh, branch, destination_directory):
         print(f"Cloning the GitHub repository on branch {branch}...")
         # Run the Git clone command to clone the repository
         git_command = f"cd {destination_directory} && git clone -b {branch} https://github.com/ua-snap/cmip6-utils.git"
-        stdin, stdout, stderr = ssh.exec_command(git_command)
+        stdin_, stdout, stderr = ssh.exec_command(git_command)
 
         # Wait for the Git command to finish and get the exit status
         exit_status = stdout.channel.recv_exit_status()
@@ -111,7 +111,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
     """
 
     # Check if the Miniconda directory exists in the user's home directory
-    stdin, stdout, stderr = ssh.exec_command(
+    stdin_, stdout, stderr = ssh.exec_command(
         "test -d $HOME/miniconda3 && echo 1 || echo 0"
     )
 
@@ -122,7 +122,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
         print("Miniconda directory not found. Installing Miniconda...")
         # Download and install Miniconda
         install_miniconda_cmd = "wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && bash miniconda.sh -b -p $HOME/miniconda3"
-        stdin, stdout, stderr = ssh.exec_command(install_miniconda_cmd)
+        stdin_, stdout, stderr = ssh.exec_command(install_miniconda_cmd)
 
         # Wait for the command to finish and get the exit status
         exit_status = stdout.channel.recv_exit_status()
@@ -134,7 +134,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
         print("Miniconda installed successfully")
 
     # Check if the Conda environment already exists
-    stdin, stdout, stderr = ssh.exec_command(
+    stdin_, stdout, stderr = ssh.exec_command(
         f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env list | grep {conda_env_name}"
     )
 
@@ -145,7 +145,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
         # Install the Conda environment from the environment file
         install_cmd = f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}"
-        stdin, stdout, stderr = ssh.exec_command(install_cmd)
+        stdin_, stdout, stderr = ssh.exec_command(install_cmd)
 
         # Wait for the command to finish and get the exit status
         exit_status = stdout.channel.recv_exit_status()
@@ -165,15 +165,33 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 def run_generate_batch_files(
     ssh,
     conda_init_script,
+    conda_env_name,
     generate_batch_files_script,
     run_generate_batch_files_script,
     cmip6_directory,
     regrid_batch_dir,
-    slurm_email,
     vars,
+    freqs,
+    models,
+    scenarios,
 ):
+    """
+    Task to create and submit slurm script to generate the batch files for the regridding.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - slurm_script: Directory to regridding slurm.py script
+    - slurm_dir: Directory to save slurm sbatch files
+    - regrid_dir: Path to directory where regridded files are written
+    - regrid_batch_dir: Directory of batch files
+    - conda_init_script: Script to initialize conda during slurm jobs
+    - conda_env_name: Name of the Conda environment to activate
+    - regrid_script: Location of regrid.py script in the repo
+    - target_grid_fp: Path to file used as the regridding target
+    - no_clobber: Do not overwrite regridded files if they exist
+    """
     stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --vars '{vars}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -194,11 +212,15 @@ def create_and_run_slurm_scripts(
     slurm_dir,
     regrid_dir,
     regrid_batch_dir,
-    slurm_email,
     conda_init_script,
+    conda_env_name,
     regrid_script,
     target_grid_fp,
     no_clobber,
+    vars,
+    freqs,
+    models,
+    scenarios,
 ):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
@@ -209,14 +231,14 @@ def create_and_run_slurm_scripts(
     - slurm_dir: Directory to save slurm sbatch files
     - regrid_dir: Path to directory where regridded files are written
     - regrid_batch_dir: Directory of batch files
-    - slurm_email: Email address to send slurm emails to
     - conda_init_script: Script to initialize conda during slurm jobs
+    - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
-    - no_clobber: Do not overwrite regidded files if they exist
+    - no_clobber: Do not overwrite regridded files if they exist
     """
 
-    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --slurm_email '{slurm_email}' --conda_init_script '{conda_init_script}' --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}'"
+    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
 
     if no_clobber:
         cmd += " --no_clobber"
@@ -308,21 +330,68 @@ def validate_vars(vars):
 
 
 @task
+def validate_freqs(freq_str):
+    """
+    Task to validate frequencies to work on.
+    Parameters:
+    - freqs_str: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
+    """
+
+    if freq_str == "all":
+        return (" ").join(all_freqs)
+    else:
+        freqs = freq_str.split()
+        assert all(x in all_freqs for x in freqs), "Variables not valid."
+        return freq_str
+
+
+@task
+def validate_models(models_str):
+    """Task to validate string of models to work on.
+    Parameters:
+    - models_str: string of models separated by white space (e.g., 'CESM2 GFDL-ESM4')
+    """
+    if models_str == "all":
+        return (" ").join(all_models)
+    else:
+        models = models_str.split()
+        assert all(x in all_models for x in models), "Models not valid."
+        return models_str
+
+
+@task
+def validate_scenarios(scenarios_str):
+    """Task to validate string of scenarios to work on.
+    Parameters:
+    - scenarios_str: string of scenarios separated by white space (e.g., 'historical ssp585')
+    """
+    if scenarios_str == "all":
+        return (" ").join(all_scenarios)
+    else:
+        scenarios = scenarios_str.split()
+        assert all(x in all_scenarios for x in scenarios), "Scenarios not valid."
+        return scenarios_str
+
+
+@task
 def run_qc(
     ssh,
     output_directory,
     cmip6_directory,
     repo_regridding_directory,
     conda_init_script,
+    conda_env_name,
     run_qc_script,
     qc_script,
     visual_qc_notebook,
     vars,
-    slurm_email,
+    freqs,
+    models,
+    scenarios,
 ):
 
     stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --slurm_email '{slurm_email}' --vars '{vars}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     # Wait for the command to finish and get the exit status
