@@ -2,6 +2,15 @@
 
 The `regrid_cmip6` flow is used for generating SNAP's production CMIP6 dataset. This is simply standardizing all raw CMIP6 outputs mirrored from the [Earth System Grid Federation](https://esgf.llnl.gov/) onto a common spatial grid, including file structure (how data are named and grouped into files) and calendar (365-day, with no leap years). We use the same grid used by NCAR-CESM2, TaiESM1, and NorESM2-MM, as this was the most common grid among the models in SNAP's 12-model ensemble. This grid is a "finite-volume grid with 0.9x1.25 degree lat/lon resolution" (note, the actual latitude resolution in the files is ~0.94°).
 
+## Production config files
+
+You can use the following config files to do "production runs" of the regridding pipeline. 
+In the prefect flow page, do a "custom" run, and copy the contents of the file into the "JSON" box. Make sure to change the `ssh_private_key_path` to your own key. 
+
+`v1_config.json` - This is the "V1" variables from our scoping doc. 
+
+### Variable list
+
 Below is a list of all possible variables that could be included in the a run of the regridding pipeline, for reference:
 
 | CMIP6 variable ID | Full variable name |
