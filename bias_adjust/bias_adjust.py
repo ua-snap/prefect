@@ -161,7 +161,19 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
         print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-@task
+@task()
+def slurm_bias_adjust(**kwargs):
+    job_ids = create_and_run_slurm_script(**kwargs)
+    return job_ids
+
+
+@task()
+def slurm_bias_adjust_qc(**kwargs):
+    kwargs["qc"] = True
+    job_ids = create_and_run_slurm_script(**kwargs)
+    return job_ids
+
+
 def create_and_run_slurm_script(
     ssh,
     var_ids,
@@ -172,6 +184,7 @@ def create_and_run_slurm_script(
     working_dir,
     partition,
     ncpus,
+    qc=False,
 ):
     """
     Task to create and run a Slurm script to run the indicator calculation scripts.
@@ -186,13 +199,18 @@ def create_and_run_slurm_script(
     - working_dir: Directory to where all of the processing takes place
     - parition: slurm partition
     - ncpus: number of cpus to use
+    - qc: boolean flag to indicate if this is a QC run
     """
 
     slurm_script = f"{working_dir}/cmip6-utils/bias_adjust/slurm.py"
 
-    stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --var_ids '{var_ids}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --reference_dir '{reference_dir}' --working_dir '{working_dir}' --partition '{partition}' --ncpus '{ncpus}'"
-    )
+    env_vars = "export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin"
+    slurm_command = f"python {slurm_script} --var_ids '{var_ids}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --reference_dir '{reference_dir}' --working_dir '{working_dir}' --partition '{partition}' --ncpus '{ncpus}'"
+
+    if qc:
+        slurm_command += " --qc"
+
+    stdin, stdout, stderr = ssh.exec_command(f"{env_vars} && {slurm_command}")
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -269,7 +287,7 @@ def run_bias_adjustment(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        # clone_github_repository(ssh, branch_name, working_dir)
+        clone_github_repository(ssh, branch_name, working_dir)
 
         check_for_nfs_mount(ssh, "/import/beegfs")
 
@@ -277,18 +295,23 @@ def run_bias_adjustment(
             ssh, "cmip6-utils", f"{working_dir}/cmip6-utils/environment.yml"
         )
 
-        job_ids = create_and_run_slurm_script(
-            ssh,
-            var_ids=var_ids,
-            models=models,
-            scenarios=scenarios,
-            input_dir=input_dir,
-            reference_dir=reference_dir,
-            working_dir=working_dir,
-            partition=partition,
-            ncpus=ncpus,
-        )
+        kwargs = {
+            "ssh": ssh,
+            "var_ids": var_ids,
+            "models": models,
+            "scenarios": scenarios,
+            "input_dir": input_dir,
+            "reference_dir": reference_dir,
+            "working_dir": working_dir,
+            "partition": partition,
+            "ncpus": ncpus,
+        }
 
+        job_ids = slurm_bias_adjust(**kwargs)
+        wait_for_jobs_completion(ssh, job_ids)
+
+        # Create & run Slurm script for QC using same parameters.
+        job_ids = slurm_bias_adjust_qc(**kwargs)
         wait_for_jobs_completion(ssh, job_ids)
 
     finally:
@@ -309,7 +332,7 @@ if __name__ == "__main__":
     ncpus = "24"
 
     run_bias_adjustment.serve(
-        name="bias-adjust-craig-testing",
+        name="bias-adjust",
         tags=["CMIP6 Bias Adjustment"],
         parameters={
             "ssh_username": ssh_username,
