@@ -161,7 +161,19 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
         print(f"Conda environment '{conda_env_name}' already exists.")
 
 
-@task
+@task()
+def slurm_bias_adjust(**kwargs):
+    job_ids = create_and_run_slurm_script(**kwargs)
+    return job_ids
+
+
+@task()
+def slurm_bias_adjust_qc(**kwargs):
+    kwargs["qc"] = True
+    job_ids = create_and_run_slurm_script(**kwargs)
+    return job_ids
+
+
 def create_and_run_slurm_script(
     ssh,
     var_ids,
@@ -172,6 +184,7 @@ def create_and_run_slurm_script(
     working_dir,
     partition,
     ncpus,
+    qc=False,
 ):
     """
     Task to create and run a Slurm script to run the indicator calculation scripts.
@@ -186,13 +199,18 @@ def create_and_run_slurm_script(
     - working_dir: Directory to where all of the processing takes place
     - parition: slurm partition
     - ncpus: number of cpus to use
+    - qc: boolean flag to indicate if this is a QC run
     """
 
     slurm_script = f"{working_dir}/cmip6-utils/bias_adjust/slurm.py"
 
-    stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --var_ids '{var_ids}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --reference_dir '{reference_dir}' --working_dir '{working_dir}' --partition '{partition}' --ncpus '{ncpus}'"
-    )
+    env_vars = "export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin"
+    slurm_command = f"python {slurm_script} --var_ids '{var_ids}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --reference_dir '{reference_dir}' --working_dir '{working_dir}' --partition '{partition}' --ncpus '{ncpus}'"
+
+    if qc:
+        slurm_command += " --qc"
+
+    stdin, stdout, stderr = ssh.exec_command(f"{env_vars} && {slurm_command}")
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -239,46 +257,6 @@ def wait_for_jobs_completion(ssh, job_ids):
     print("All indicator jobs completed!")
 
 
-@task
-def qc_nb(ssh, working_dir, input_dir):
-    """
-    Task to run the visual quality control (QC) notebook to check the output of the bias adjustment.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - working_dir: Directory where all of the processing takes place
-    - input_dir: Directory containing source input data collection
-    """
-
-    conda_init_script = f"{working_dir}/cmip6-utils/regridding/conda_init.sh"
-    repo_biasadjust_dir = f"{working_dir}/cmip6-utils/bias_adjust"
-    # would be ideal if we could pull the output_dir from the slurm script execution
-    output_nb = f"{working_dir}/bias_adjust/qc/qc.ipynb"
-
-    stdin, stdout, stderr = ssh.exec_command(
-        f"source {conda_init_script}\n"
-        f"conda activate cmip6-utils\n"
-        f"cd {repo_biasadjust_dir}\n"
-        f"papermill qc.ipynb {output_nb} -r working_dir '{working_dir}' -r input_dir '{input_dir}'\n"
-        f"jupyter nbconvert --to html {output_nb}"
-    )
-
-    # Collect output from QC script above and print it
-    lines = stdout.readlines()
-    for line in lines:
-        print(line)
-
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
-
-    # Check the exit status for errors
-    if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error running Visual QC script. Error: {error_output}")
-
-    print(f"QC notebook created successfully. See {output_nb} for results.")
-
-
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
@@ -317,41 +295,44 @@ def run_bias_adjustment(
             ssh, "cmip6-utils", f"{working_dir}/cmip6-utils/environment.yml"
         )
 
-        job_ids = create_and_run_slurm_script(
-            ssh,
-            var_ids=var_ids,
-            models=models,
-            scenarios=scenarios,
-            input_dir=input_dir,
-            reference_dir=reference_dir,
-            working_dir=working_dir,
-            partition=partition,
-            ncpus=ncpus,
-        )
+        kwargs = {
+            "ssh": ssh,
+            "var_ids": var_ids,
+            "models": models,
+            "scenarios": scenarios,
+            "input_dir": input_dir,
+            "reference_dir": reference_dir,
+            "working_dir": working_dir,
+            "partition": partition,
+            "ncpus": ncpus,
+        }
 
+        job_ids = slurm_bias_adjust(**kwargs)
         wait_for_jobs_completion(ssh, job_ids)
 
-        qc_nb(ssh, working_dir, input_dir)
+        # Create & run Slurm script for QC using same parameters.
+        job_ids = slurm_bias_adjust_qc(**kwargs)
+        wait_for_jobs_completion(ssh, job_ids)
 
     finally:
         ssh.close()
 
 
 if __name__ == "__main__":
-    ssh_username = "kmredilla"
-    ssh_private_key_path = "/Users/kmredilla/.ssh/id_rsa"
+    ssh_username = "crstephenson"
+    ssh_private_key_path = "/Users/crstephenson/.ssh/id_rsa"
     branch_name = "bias_correction"
-    working_dir = Path(f"/import/beegfs/CMIP6/kmredilla/")
+    working_dir = Path(f"/import/beegfs/CMIP6/crstephenson/")
     var_ids = "tasmax"
     models = "GFDL-ESM4"
     scenarios = "ssp585"
     input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
     reference_dir = Path("/beegfs/CMIP6/arctic-cmip6/era5/daily_regrid")
-    partition = "t2small"
+    partition = "debug"
     ncpus = "24"
 
     run_bias_adjustment.serve(
-        name="bias-adjust-kyle-testing",
+        name="bias-adjust",
         tags=["CMIP6 Bias Adjustment"],
         parameters={
             "ssh_username": ssh_username,
