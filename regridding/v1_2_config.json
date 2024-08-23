@@ -6,7 +6,7 @@
   "scratch_directory": "/beegfs/CMIP6/snapdata",
   "no_clobber": false,
   "generate_batch_files": true,
-  "vars": "tas tasmax tasmin pr sfcWind sfcWindmax",
+  "vars": "clt evspsbl hfls hfss psl rlds rls rsds rss ts uas vas",
   "freqs": "all",
   "models": "all",
   "scenarios": "all",
