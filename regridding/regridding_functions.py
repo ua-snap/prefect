@@ -237,7 +237,7 @@ def create_and_run_slurm_scripts(
     - target_grid_fp: Path to file used as the regridding target
     - no_clobber: Do not overwrite regridded files if they exist
     """
-
+    print("Models in create_and_run_slurm_scripts: ", models)
     cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
 
     if no_clobber:
@@ -382,16 +382,15 @@ def run_qc(
     conda_init_script,
     conda_env_name,
     run_qc_script,
-    qc_script,
-    visual_qc_notebook,
+    qc_notebook,
     vars,
     freqs,
     models,
     scenarios,
 ):
-
+    print(f"Models in run_qc: {models}")
     stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_script '{qc_script}' --visual_qc_notebook '{visual_qc_notebook}' --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_notebook '{qc_notebook}' --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     # Wait for the command to finish and get the exit status
