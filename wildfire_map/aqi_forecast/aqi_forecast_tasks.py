@@ -155,11 +155,12 @@ def execute_local_script(
     script_path,
     output_path,
     tiff_dir,
+    requested_hour="00",
     conda_env_name="aqi_forecasts",
 ):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path} --tiff-dir {tiff_dir} --delete-temp-files",
+        f". /opt/miniconda3/bin/activate {conda_env_name}; python {script_path} --out-dir {output_path} --requested-hour {requested_hour} --tiff-dir {tiff_dir} --delete-temp-files",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

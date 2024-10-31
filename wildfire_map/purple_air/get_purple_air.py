@@ -46,7 +46,7 @@ def fetch_purple_air_data():
 
     api_url = "https://map.purpleair.com/v1/sensors"
     query_params = {
-        "fields": "last_seen,latitude,longitude,pm2.5_24hour",
+        "fields": "last_seen,location_type,latitude,longitude,pm2.5_10minute,pm2.5_24hour",
         "modified_since": one_week_ago,
         "nwlat": 70,
         "selat": 54.56,
@@ -65,13 +65,19 @@ def fetch_purple_air_data():
 def create_shapefile(data, output_path):
     records = []
     for sensor in data["data"]:
-        lon = sensor[3]
-        lat = sensor[2]
+        # If sensor type is indicated as inside, skip it
+        # 0 = outside, 1 = inside
+        if sensor[2] == 1:
+            continue
+        lon = sensor[4]
+        lat = sensor[3]
 
         properties = {
             "lastupdate": sensor[1],
-            "pm2_5_24hr": round(sensor[4]),
-            "aqi_24hr": round(calculate_aqi(sensor[4])),
+            "pm2_5_10m": round(sensor[5]),
+            "aqi_10m": round(calculate_aqi(sensor[5])),
+            "pm2_5_24hr": round(sensor[6]),
+            "aqi_24hr": round(calculate_aqi(sensor[6])),
         }
 
         point = Point(lon, lat)
