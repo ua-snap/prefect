@@ -117,7 +117,7 @@ def clone_github_repository(branch, destination_directory):
 def run_python_script(python_script, data_directory):
     # Run the merge script
     result = subprocess.run(
-        f"python {python_script}",
+        ["python", python_script],
         cwd=data_directory,
         capture_output=True,
         text=True,

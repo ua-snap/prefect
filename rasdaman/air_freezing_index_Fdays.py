@@ -26,7 +26,7 @@ def air_freezing_index_Fdays(
 
 if __name__ == "__main__":
     air_freezing_index_Fdays.serve(
-        name="air_freezing_index_Fdays",
+        name="Rasdaman Coverage: air_freezing_index_Fdays",
         tags=["Freezing Index", "Degree Days"],
         parameters={
             "branch_name": "main",
@@ -34,6 +34,6 @@ if __name__ == "__main__":
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/",
             "source_file": "/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/air_freezing_index.zip",
             "zip_file": "air_freezing_index.zip",
-            "python_script": "/opt/rasdaman/user_data/snap_data/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/merge.py",
+            "python_script": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/merge.py",
         },
     )
