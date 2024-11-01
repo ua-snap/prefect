@@ -21,7 +21,7 @@ def air_freezing_index_Fdays(
 
     ingest_tasks.run_python_script(python_script, ingest_directory)
 
-    ingest_tasks.run_ingest(ingest_directory, "hook_ingest.json")
+    ingest_tasks.run_ingest(ingest_directory)
 
 
 if __name__ == "__main__":
