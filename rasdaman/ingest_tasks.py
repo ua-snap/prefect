@@ -114,6 +114,22 @@ def clone_github_repository(branch, destination_directory):
 
 
 @task
+def run_python_script(python_script, data_directory):
+    # Run the merge script
+    result = subprocess.run(
+        f"python {python_script}",
+        cwd=data_directory,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise Exception(f"Error running the Python script. Error: {result.stderr}")
+
+    print("Python Script Output:")
+    print(result.stdout)
+
+
+@task
 def run_ingest(ingest_directory, ingest_file="ingest.json"):
     # Run the ingest command
     command = [

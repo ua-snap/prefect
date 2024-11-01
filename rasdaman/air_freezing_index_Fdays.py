@@ -1,0 +1,39 @@
+from prefect import flow
+import ingest_tasks
+
+
+@flow(log_prints=True)
+def air_freezing_index_Fdays(
+    branch_name,
+    working_directory,
+    ingest_directory,
+    source_file,
+    zip_file,
+    python_script,
+):
+    ingest_tasks.clone_github_repository(branch_name, working_directory)
+
+    ingest_tasks.check_for_nfs_mount("/workspace/Shared")
+
+    ingest_tasks.copy_data_from_nfs_mount(source_file, ingest_directory)
+
+    ingest_tasks.unzip_files(ingest_directory, zip_file)
+
+    ingest_tasks.run_python_script(python_script, ingest_directory)
+
+    ingest_tasks.run_ingest(ingest_directory, "hook_ingest.json")
+
+
+if __name__ == "__main__":
+    air_freezing_index_Fdays.serve(
+        name="air_freezing_index_Fdays",
+        tags=["Freezing Index", "Degree Days"],
+        parameters={
+            "branch_name": "main",
+            "working_directory": "/opt/rasdaman/user_data/snapdata/",
+            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/",
+            "source_file": "/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/air_freezing_index.zip",
+            "zip_file": "air_freezing_index.zip",
+            "python_script": "/opt/rasdaman/user_data/snap_data/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/merge.py",
+        },
+    )
