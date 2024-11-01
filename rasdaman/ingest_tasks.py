@@ -133,12 +133,7 @@ def run_python_script(python_script, data_directory):
 def run_ingest(ingest_directory, ingest_file="ingest.json"):
     # Run the ingest command
     command = [
-        "source /etc/default/rasdaman",
-        "/opt/rasdaman/bin/wcst_import.sh",
-        "-i",
-        "/opt/rasdaman/etc/.rasadmin",
-        "-c",
-        "0",
+        "/usr/local/bin/add_coverage.sh",
         ingest_file,
     ]
     env = {"LUTS_PATH": f"{ingest_directory}/luts.py"}
