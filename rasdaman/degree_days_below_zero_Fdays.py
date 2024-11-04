@@ -3,7 +3,7 @@ import ingest_tasks
 
 
 @flow(log_prints=True)
-def air_thawing_index_Fdays(
+def degree_days_below_zero_Fdays(
     branch_name,
     working_directory,
     ingest_directory,
@@ -25,15 +25,15 @@ def air_thawing_index_Fdays(
 
 
 if __name__ == "__main__":
-    air_thawing_index_Fdays.serve(
-        name="Rasdaman Coverage: air_thawing_index_Fdays",
-        tags=["Thawing Index", "Degree Days"],
+    degree_days_below_zero_Fdays.serve(
+        name="Rasdaman Coverage: degree_days_below_zero_Fdays",
+        tags=["Heating", "Degree Days"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
-            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_thawing_index_Fdays/",
-            "source_file": "/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/air_thawing_index.zip",
-            "zip_file": "air_thawing_index.zip",
-            "python_script": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_thawing_index_Fdays/merge.py",
+            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/degree_days_below_zero_Fdays/",
+            "source_file": "/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/degree_days_below_zero.zip",
+            "zip_file": "degree_days_below_zero.zip",
+            "python_script": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/degree_days_below_zero_Fdays/merge.py",
         },
     )
