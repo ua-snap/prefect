@@ -5,7 +5,7 @@ import subprocess
 import zipfile
 
 
-@task
+@task(name="Check for NFS Mount")
 def check_for_nfs_mount(nfs_directory="/CKAN_Data"):
     # Check if NFS directory is mounted
     result = subprocess.run(
@@ -15,7 +15,7 @@ def check_for_nfs_mount(nfs_directory="/CKAN_Data"):
         raise Exception(f"NFS directory '{nfs_directory}' is not mounted")
 
 
-@task
+@task(name="Copy Data from NFS Mount")
 def copy_data_from_nfs_mount(source_directory, destination_directory):
     # Copy data from NFS mount
     result = subprocess.run(
@@ -35,14 +35,14 @@ def copy_data_from_nfs_mount(source_directory, destination_directory):
         )
 
 
-@task
+@task(name="Unzip Files")
 def unzip_files(data_directory, zip_file):
 
     with zipfile.ZipFile(f"{data_directory}/{zip_file}", "r") as zip_ref:
         zip_ref.extractall(data_directory)
 
 
-@task
+@task(name="Untar File")
 def untar_file(tar_file, data_directory):
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
@@ -53,7 +53,7 @@ def untar_file(tar_file, data_directory):
         tar.extractall(data_directory)
 
 
-@task
+@task(name="Clone GitHub Repository")
 def clone_github_repository(branch, destination_directory):
     # Clone or pull GitHub repository
     target_directory = f"{destination_directory}/rasdaman-ingest"
@@ -113,16 +113,27 @@ def clone_github_repository(branch, destination_directory):
             )
 
 
-@task
+@task(name="Run Python Script")
+def run_python_script(python_script, data_directory):
+    # Run the merge script
+    result = subprocess.run(
+        ["python", python_script, "--directory", data_directory],
+        cwd=data_directory,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise Exception(f"Error running the Python script. Error: {result.stderr}")
+
+    print("Python Script Output:")
+    print(result.stdout)
+
+
+@task(name="Run Rasdaman Ingest Script")
 def run_ingest(ingest_directory, ingest_file="ingest.json"):
     # Run the ingest command
     command = [
-        "source /etc/default/rasdaman",
-        "/opt/rasdaman/bin/wcst_import.sh",
-        "-i",
-        "/opt/rasdaman/etc/.rasadmin",
-        "-c",
-        "0",
+        "/usr/local/bin/add_coverage.sh",
         ingest_file,
     ]
     env = {"LUTS_PATH": f"{ingest_directory}/luts.py"}
