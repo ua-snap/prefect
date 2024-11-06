@@ -8,13 +8,12 @@ def ardac_beaufort_landfast_sea_ice_mmm(
     working_directory,
     ingest_directory,
     source_file,
-    data_directory,
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")
 
-    ingest_tasks.untar_file(source_file, data_directory)
+    ingest_tasks.untar_file(source_file, ingest_directory)
 
     ingest_tasks.run_ingest(ingest_directory)
 
@@ -28,6 +27,5 @@ if __name__ == "__main__":
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/beaufort_landfast_sea_ice_mmm/",
             "source_file": "/workspace/Shared/Tech_Projects/landfast_sea_ice/Beaufort_MMM.tar.gz",
-            "data_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/beaufort_landfast_sea_ice_mmm/Beaufort_MMM",
         },
     )
