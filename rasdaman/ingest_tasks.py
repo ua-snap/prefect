@@ -17,6 +17,9 @@ def check_for_nfs_mount(nfs_directory="/CKAN_Data"):
 
 @task(name="Copy Data from NFS Mount")
 def copy_data_from_nfs_mount(source_directory, destination_directory):
+    if not os.path.exists(destination_directory):
+        os.makedirs(destination_directory)
+
     # Copy data from NFS mount
     result = subprocess.run(
         [
