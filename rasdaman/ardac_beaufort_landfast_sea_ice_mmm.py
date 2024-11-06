@@ -14,8 +14,6 @@ def ardac_beaufort_landfast_sea_ice_mmm(
 
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")
 
-    ingest_tasks.copy_data_from_nfs_mount(source_file, data_directory)
-
     ingest_tasks.untar_file(source_file, data_directory)
 
     ingest_tasks.run_ingest(ingest_directory)
