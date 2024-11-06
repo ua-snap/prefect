@@ -58,6 +58,9 @@ def untar_file(tar_file, data_directory):
 
 @task(name="Clone GitHub Repository")
 def clone_github_repository(branch, destination_directory):
+    if not os.path.exists(destination_directory):
+        os.makedirs(destination_directory)
+
     # Clone or pull GitHub repository
     target_directory = f"{destination_directory}/rasdaman-ingest"
     result = subprocess.run(
