@@ -23,7 +23,7 @@ if __name__ == "__main__":
         name="Rasdaman Coverage: cmip6_indicators",
         tags=["CMIP6", "Indicators"],
         parameters={
-            "branch_name": "cmip6_indicators",
+            "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_indicators/",
             "source_file": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/cmip6_indicators/cmip6_indicators.nc",
