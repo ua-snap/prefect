@@ -7,14 +7,14 @@ def alfresco_vegetation_mode_statistic(
     branch_name,
     working_directory,
     ingest_directory,
-    source_file,
+    source_directory,
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")
 
     ingest_tasks.copy_data_from_nfs_mount(
-        source_file, f"{ingest_directory}/mode_vegetation_geotiffs/"
+        source_directory, f"{ingest_directory}/mode_vegetation_geotiffs/"
     )
 
     ingest_tasks.run_ingest(ingest_directory)
