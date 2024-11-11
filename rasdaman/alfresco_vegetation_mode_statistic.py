@@ -27,7 +27,7 @@ if __name__ == "__main__":
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
-            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/mode_vegetation_type/*",
-            "source_directory": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/alfresco_vegetation_mode_statistic/",
+            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/mode_vegetation_type/",
+            "source_directory": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/alfresco_vegetation_mode_statistic/*",
         },
     )
