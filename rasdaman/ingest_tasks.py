@@ -16,21 +16,25 @@ def check_for_nfs_mount(nfs_directory="/CKAN_Data"):
 
 
 @task(name="Copy Data from NFS Mount")
-def copy_data_from_nfs_mount(source_directory, destination_directory):
+def copy_data_from_nfs_mount(source_directory, destination_directory, only_files=False):
     if not os.path.exists(destination_directory):
         os.makedirs(destination_directory)
 
-    # Copy data from NFS mount
+    rsync_command = [
+        "rsync",
+        "-av",
+        "--usermap=*:$(id -u -n)",
+    ]
+
+    if only_files:
+        rsync_command.extend(["--include='*/'", "--include='*.*'", "--exclude='*/'"])
+    rsync_command.extend([source_directory, destination_directory])
+
     result = subprocess.run(
-        [
-            "rsync",
-            "-av",
-            "--usermap=*:$(id -u -n)",
-            source_directory,
-            destination_directory,
-        ],
+        rsync_command,
         capture_output=True,
         text=True,
+        shell=True,
     )
     if result.returncode != 0:
         raise Exception(
