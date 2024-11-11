@@ -14,7 +14,9 @@ def alfresco_vegetation_mode_statistic(
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")
 
     ingest_tasks.copy_data_from_nfs_mount(
-        source_directory, f"{ingest_directory}/mode_vegetation_geotiffs/"
+        source_directory,
+        f"{ingest_directory}/mode_vegetation_geotiffs/",
+        only_files=True,
     )
 
     ingest_tasks.run_ingest(ingest_directory)
@@ -28,6 +30,6 @@ if __name__ == "__main__":
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/mode_vegetation_type/",
-            "source_directory": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/alfresco_vegetation_mode_statistic/*",
+            "source_directory": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/alfresco_vegetation_mode_statistic/",
         },
     )
