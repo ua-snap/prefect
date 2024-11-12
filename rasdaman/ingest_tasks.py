@@ -20,13 +20,16 @@ def copy_data_from_nfs_mount(source_directory, destination_directory, only_files
     if not os.path.exists(destination_directory):
         os.makedirs(destination_directory)
 
+    username = os.popen("id -u -n").read().strip()
+
     rsync_command = [
         "rsync",
         "-av",
-        "--usermap=*:$(id -u -n)",
+        f"--usermap=*:{username}",
     ]
 
     if only_files:
+        # Only copy files (no directory structure)
         rsync_command.extend(["--include='*/'", "--include='*.*'", "--exclude='*/'"])
     rsync_command.extend([source_directory, destination_directory])
 
@@ -34,7 +37,7 @@ def copy_data_from_nfs_mount(source_directory, destination_directory, only_files
         rsync_command,
         capture_output=True,
         text=True,
-        shell=True,
+        shell=False,
     )
     if result.returncode != 0:
         raise Exception(
