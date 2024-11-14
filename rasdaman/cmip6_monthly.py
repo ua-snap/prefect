@@ -25,7 +25,7 @@ if __name__ == "__main__":
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_common_grid/monthly",
-            "source_directory": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/cmip6_monthly",
+            "source_directory": "/workspace/Shared/Tech_Projects/rasdaman_production_datasets/cmip6_monthly/",
             "data_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_common_grid/monthly/data",
         },
     )
