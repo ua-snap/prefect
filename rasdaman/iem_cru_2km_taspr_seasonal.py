@@ -20,7 +20,7 @@ def iem_cru_2km_taspr_seasonal(
         only_files=True,
     )
 
-    ingest_tasks.run_ingest(ingest_directory, ingest_file="ar5_seasonal_ingest.json")
+    ingest_tasks.run_ingest(ingest_directory, ingest_file="cru_seasonal_ingest.json")
 
 
 if __name__ == "__main__":
