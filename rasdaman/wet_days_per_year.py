@@ -20,7 +20,7 @@ def wet_days_per_year(
         only_files=True,
     )
 
-    ingest_tasks.run_ingest(ingest_directory, ingest_file="cru_seasonal_baseline_ingest.json")
+    ingest_tasks.run_ingest(ingest_directory)
 
 
 if __name__ == "__main__":
