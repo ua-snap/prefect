@@ -41,7 +41,6 @@ def regrid_cmip6(
         f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
     )
     run_qc_script = f"{scratch_directory}/cmip6-utils/regridding/run_qc.py"
-    qc_script = f"{scratch_directory}/cmip6-utils/regridding/qc.py"
     visual_qc_notebook = f"{scratch_directory}/cmip6-utils/regridding/qc.ipynb"
     output_directory = f"{scratch_directory}/cmip6_regridding"
     regrid_dir = f"{output_directory}/regrid"
@@ -120,7 +119,6 @@ def regrid_cmip6(
             conda_init_script,
             conda_env_name,
             run_qc_script,
-            qc_script,
             visual_qc_notebook,
             vars,
             freqs,
