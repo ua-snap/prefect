@@ -143,12 +143,21 @@ def run_python_script(python_script, data_directory):
 
 
 @task(name="Run Rasdaman Ingest Script")
-def run_ingest(ingest_directory, ingest_file="ingest.json"):
-    # Run the ingest command
-    command = [
-        "/usr/local/bin/add_coverage.sh",
-        ingest_file,
-    ]
+def run_ingest(ingest_directory, ingest_file="ingest.json", conda_env=False):
+    if conda_env:
+        command = [
+            "conda",
+            "run",
+            "-n",
+            conda_env,
+            "/usr/local/bin/add_coverage.sh",
+            ingest_file,
+        ]
+    else:
+        command = [
+            "/usr/local/bin/add_coverage.sh",
+            ingest_file,
+        ]
     env = {"LUTS_PATH": f"{ingest_directory}/luts.py"}
     result = subprocess.run(
         command, cwd=ingest_directory, env=env, capture_output=True, text=True
