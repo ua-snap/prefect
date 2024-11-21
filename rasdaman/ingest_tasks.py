@@ -146,7 +146,7 @@ def run_python_script(python_script, data_directory):
 def run_ingest(ingest_directory, ingest_file="ingest.json", conda_env=False):
     if conda_env:
         command = [
-            "source", 
+            ".", 
             "/opt/miniconda3/bin/activate;",
             "conda",
             "run",
