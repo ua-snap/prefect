@@ -168,4 +168,4 @@ def run_ingest(ingest_directory, ingest_file="ingest.json", conda_env=False):
         raise Exception(f"Error running the command. Error: {result.stderr}")
 
     print("Command Output:")
-    print(result.stdout)""
+    print(result.stdout)
