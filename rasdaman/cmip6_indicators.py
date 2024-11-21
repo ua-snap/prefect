@@ -4,10 +4,10 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def cmip6_indicators(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_file,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_indicators/",
+    source_file="/workspace/Shared/Tech_Projects/rasdaman_production_datasets/cmip6_indicators/cmip6_indicators.nc",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 

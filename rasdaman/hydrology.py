@@ -4,10 +4,10 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def hydrology(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/hydrology/",
+    source_directory="/workspace/Shared/Tech_Projects/Hydrology/netcdf/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 

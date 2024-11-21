@@ -22,8 +22,8 @@ def annual_mean_snowfall(
 
 if __name__ == "__main__":
     annual_mean_snowfall.serve(
-        name="annual_mean_snowfall",
-        tags=["annual_mean_snowfall"],
+        name="Rasdaman Coverage: annual_mean_snowfall",
+        tags=["Snowfall", "Annual Mean"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

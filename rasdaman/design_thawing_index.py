@@ -22,8 +22,8 @@ def design_thawing_index(
 
 if __name__ == "__main__":
     design_thawing_index.serve(
-        name="design_thawing_index",
-        tags=["design_thawing_index"],
+        name="Rasdaman Coverage: design_thawing_index",
+        tags=["Thawing Index", "Design"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

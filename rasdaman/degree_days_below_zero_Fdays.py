@@ -4,12 +4,12 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def degree_days_below_zero_Fdays(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_file,
-    zip_file,
-    python_script,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/degree_days_below_zero_Fdays/",
+    source_file="/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/degree_days_below_zero.zip",
+    zip_file="degree_days_below_zero.zip",
+    python_script="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/degree_days_below_zero_Fdays/merge.py",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 

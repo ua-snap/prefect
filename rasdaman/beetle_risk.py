@@ -4,10 +4,10 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def beetle_risk(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/beetles/",
+    source_directory="/CKAN_Data/Base/Other/Spruce_Beetle_Risk/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
@@ -22,8 +22,8 @@ def beetle_risk(
 
 if __name__ == "__main__":
     beetle_risk.serve(
-        name="beetle_risk",
-        tags=["beetle_risk"],
+        name="Rasdaman Coverage: beetle_risk",
+        tags=["Beetle Risk"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

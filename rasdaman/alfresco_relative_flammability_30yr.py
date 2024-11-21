@@ -4,11 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def alfresco_relative_flammability_30yr(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    data_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/relative_flammability/",
+    source_directory="/workspace/Shared/Tech_Projects/Alaska_IEM/project_data/NCR_ALFRESCO_datasets/alfresco_relative_flammability_30yr/",
+    data_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/relative_flammability/geotiffs/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 

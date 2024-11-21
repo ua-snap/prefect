@@ -4,11 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def ncar12km_indicators_era_summaries(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    data_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/ncar12km_indicators/",
+    source_directory="/workspace/Shared/Tech_Projects/ARDAC/project_data/ncar12km_indicators/",
+    data_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/ncar12km_indicators/geotiffs/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
@@ -26,7 +26,7 @@ def ncar12km_indicators_era_summaries(
 if __name__ == "__main__":
     ncar12km_indicators_era_summaries.serve(
         name="Rasdaman Coverage: ncar12km_indicators_era_summaries",
-        tags=["Arctic-EDS","Precipitation"],
+        tags=["Arctic-EDS", "Precipitation"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

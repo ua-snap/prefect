@@ -22,8 +22,8 @@ def annual_mean_dtr(
 
 if __name__ == "__main__":
     annual_mean_dtr.serve(
-        name="annual_mean_dtr",
-        tags=["annual_mean_dtr"],
+        name="Rasdaman Coverage: annual_mean_dtr",
+        tags=["Annual Mean"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

@@ -4,11 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def iem_ar5_2km_taspr_seasonal(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    data_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/tas_pr_2km/",
+    source_directory="/workspace/Shared/Tech_Projects/IEM/ar5_2km_taspr_decadal_seasonal_iem_domain/",
+    data_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/tas_pr_2km/ar5_seasonal_data/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 

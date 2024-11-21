@@ -142,23 +142,34 @@ def run_python_script(python_script, data_directory):
     print(result.stdout)
 
 
+@task(name="Delete Coverage")
+def delete_coverage(coverage_id):
+    # Delete the coverage
+    result = subprocess.run(
+        ["/usr/local/bin/delete_coverage.sh", coverage_id],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise Exception(f"Error deleting the coverage. Error: {result.stderr}")
+
+    print("Coverage Deletion Output:")
+    print(result.stdout)
+
+
 @task(name="Run Rasdaman Ingest Script")
 def run_ingest(ingest_directory, ingest_file="ingest.json", conda_env=False):
+    command = [
+        "/usr/local/bin/add_coverage.sh",
+        ingest_file,
+    ]
+
     if conda_env:
         command = [
-            ".", 
-            "/opt/miniconda3/bin/activate;",
-            "conda",
-            "run",
-            "-n",
-            conda_env,
-            "/usr/local/bin/add_coverage.sh",
-            ingest_file,
-        ]
-    else:
-        command = [
-            "/usr/local/bin/add_coverage.sh",
-            ingest_file,
+            "bash",
+            "-i",
+            "-c",
+            f"source /opt/miniconda3/bin/activate {conda_env} && {' '.join(command)}",
         ]
     env = {"LUTS_PATH": f"{ingest_directory}/luts.py"}
     result = subprocess.run(

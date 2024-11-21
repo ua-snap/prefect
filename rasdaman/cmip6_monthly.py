@@ -4,7 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def cmip6_monthly(
-    branch_name, working_directory, ingest_directory, source_directory, data_directory
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_common_grid/monthly",
+    source_directory="/workspace/Shared/Tech_Projects/rasdaman_production_datasets/cmip6_monthly/",
+    data_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_common_grid/monthly/data",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 

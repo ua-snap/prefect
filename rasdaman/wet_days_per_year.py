@@ -4,11 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def wet_days_per_year(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    data_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/wet_days_per_year/",
+    source_directory="/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/wet_days_per_year/",
+    data_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/wet_days_per_year/geotiffs/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
@@ -26,7 +26,7 @@ def wet_days_per_year(
 if __name__ == "__main__":
     wet_days_per_year.serve(
         name="Rasdaman Coverage: wet_days_per_year",
-        tags=["Arctic-EDS","Precipitation"],
+        tags=["Arctic-EDS", "Precipitation"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

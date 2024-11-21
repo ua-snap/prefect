@@ -4,11 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def alfresco_vegetation_mode_statistic(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    data_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/mode_vegetation_type/",
+    source_directory="/workspace/Shared/Tech_Projects/Alaska_IEM/project_data/NCR_ALFRESCO_datasets/alfresco_vegetation_mode_statistic/",
+    data_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/alfresco/mode_vegetation_type/mode_vegetation_geotiffs/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
