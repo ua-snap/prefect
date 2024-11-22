@@ -47,20 +47,60 @@ def copy_data_from_nfs_mount(source_directory, destination_directory, only_files
 
 @task(name="Unzip Files")
 def unzip_files(data_directory, zip_file):
+    extraction_dir = os.path.join(data_directory, os.path.splitext(zip_file)[0])
 
     with zipfile.ZipFile(f"{data_directory}/{zip_file}", "r") as zip_ref:
-        zip_ref.extractall(data_directory)
+        zip_file_names = zip_ref.namelist()
+
+    all_files_exist = True
+    for file_name in zip_file_names:
+        if not os.path.exists(os.path.join(extraction_dir, file_name)):
+            all_files_exist = False
+            break
+
+    if all_files_exist:
+        print(
+            f"All files from {zip_file} already exist in {extraction_dir}. Skipping extraction."
+        )
+        return
+
+    if not os.path.exists(extraction_dir):
+        os.makedirs(extraction_dir)
+
+    with zipfile.ZipFile(f"{data_directory}/{zip_file}", "r") as zip_ref:
+        zip_ref.extractall(extraction_dir)
+
+    print(f"Unzipped {zip_file} to {extraction_dir}")
 
 
 @task(name="Untar File")
 def untar_file(tar_file, data_directory):
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
-    if not os.path.exists(tar_file):
-        raise Exception(f"Tar file {tar_file} does not exist")
+    extraction_dir = os.path.join(
+        data_directory, os.path.splitext(os.path.basename(tar_file))[0]
+    )
 
     with tarfile.open(tar_file, "r:gz") as tar:
-        tar.extractall(data_directory)
+        tar_file_names = tar.getnames()
+
+    all_files_exist = True
+    for file_name in tar_file_names:
+        if not os.path.exists(os.path.join(extraction_dir, file_name)):
+            all_files_exist = False
+            break
+
+    if all_files_exist:
+        print(
+            f"All files from {tar_file} already exist in {extraction_dir}. Skipping extraction."
+        )
+        return
+
+    if not os.path.exists(extraction_dir):
+        os.makedirs(extraction_dir)
+
+    with tarfile.open(tar_file, "r:gz") as tar:
+        tar.extractall(extraction_dir)
+
+    print(f"Extracted {tar_file} to {extraction_dir}")
 
 
 @task(name="Clone GitHub Repository")
