@@ -4,11 +4,11 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def annual_mean_snowfall(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    destination_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/annual_mean_snowfall/",
+    source_directory="/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/mean_annual_snowfall_mm/",
+    destination_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/annual_mean_snowfall/geotiffs/",
 ):
 
     ingest_tasks.clone_github_repository(branch_name, working_directory)

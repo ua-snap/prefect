@@ -15,7 +15,7 @@ def ardac_chukchi_daily_slie(
 
     ingest_tasks.untar_file(source_file, ingest_directory)
 
-    ingest_tasks.run_ingest(ingest_directory)
+    ingest_tasks.run_ingest(ingest_directory, conda_env="hydrology")
 
 
 if __name__ == "__main__":
