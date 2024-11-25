@@ -11,6 +11,8 @@ def air_freezing_index_Fdays(
     zip_file="air_freezing_index.zip",
     python_script="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/merge.py",
 ):
+    python_script = f"{python_script} -d {ingest_directory}/air_freezing_index/"
+
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")

@@ -11,6 +11,8 @@ def heating_degree_days_Fdays(
     zip_file="heating_degree_days.zip",
     python_script="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/heating_degree_days_Fdays/merge.py",
 ):
+    python_script = f"{python_script} -d {ingest_directory}/heating_degree_days/"
+
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")

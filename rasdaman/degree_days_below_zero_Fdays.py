@@ -11,6 +11,8 @@ def degree_days_below_zero_Fdays(
     zip_file="degree_days_below_zero.zip",
     python_script="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/degree_days_below_zero_Fdays/merge.py",
 ):
+    python_script = f"{python_script} -d {ingest_directory}/degree_days_below_zero/"
+
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
     ingest_tasks.check_for_nfs_mount("/workspace/Shared")
