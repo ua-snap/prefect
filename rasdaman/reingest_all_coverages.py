@@ -31,6 +31,8 @@ from iem_cru_2km_taspr_seasonal_baseline_stats import (
 from jan_min_mean_max_temp import jan_min_mean_max_temp
 from july_min_mean_max_temp import july_min_mean_max_temp
 from ncar12km_indicators_era_summaries import ncar12km_indicators_era_summaries
+from tas_2km_historical import tas_2km_historical
+from tas_2km_projected import tas_2km_projected
 from wet_days_per_year import wet_days_per_year
 
 
