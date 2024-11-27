@@ -21,8 +21,8 @@ def thawing_index(
 
 if __name__ == "__main__":
     thawing_index.serve(
-        name="thawing_index",
-        tags=["thawing_index"],
+        name="Rasdaman Coverage: thawing_index",
+        tags=["Degree Days", "Thawing Index"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

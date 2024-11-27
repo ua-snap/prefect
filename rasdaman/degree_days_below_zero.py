@@ -22,8 +22,8 @@ def degree_days_below_zero(
 
 if __name__ == "__main__":
     degree_days_below_zero.serve(
-        name="degree_days_below_zero",
-        tags=["degree_days_below_zero"],
+        name="Rasdaman Coverage: degree_days_below_zero",
+        tags=["Degree Days", "Below Zero"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

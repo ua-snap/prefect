@@ -1,15 +1,14 @@
 from prefect import flow
-import paramiko
 import ingest_tasks
 
 
 @flow(log_prints=True)
-def annual_mean_tas(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
-    destination_directory,
+def annual_mean_temp(
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/annual_mean_tas/",
+    source_directory="/workspace/Shared/Tech_Projects/Arctic_EDS/project_data/rasdaman_datasets/annual_mean_temp/",
+    destination_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/annual_mean_tas/geotiffs/",
 ):
 
     ingest_tasks.clone_github_repository(branch_name, working_directory)
@@ -22,9 +21,9 @@ def annual_mean_tas(
 
 
 if __name__ == "__main__":
-    annual_mean_tas.serve(
-        name="annual_mean_tas",
-        tags=["annual_mean_tas"],
+    annual_mean_temp.serve(
+        name="Rasdaman Coverage: annual_mean_temp",
+        tags=["Temperature", "Annual Mean"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

@@ -21,8 +21,8 @@ def heating_degree_days(
 
 if __name__ == "__main__":
     heating_degree_days.serve(
-        name="heating_degree_days",
-        tags=["heating_degree_days"],
+        name="Rasdaman Coverage: heating_degree_days",
+        tags=["Degree Days", "Heating"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

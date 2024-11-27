@@ -4,11 +4,11 @@ import ingest_tasks
 
 
 @flow(log_prints=True)
-def hsia(
-    branch_name,
-    working_directory,
-    ingest_directory,
-    source_directory,
+def hsia_arctic_production(
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/hsiaa/",
+    source_directory="/workspace/Shared/Tech_Projects/Sea_Ice_Atlas/final_products/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
@@ -25,9 +25,9 @@ def hsia(
 
 
 if __name__ == "__main__":
-    hsia.serve(
-        name="Update Historical Sea Ice Rasdaman Coverage",
-        tags=["hsia", "sea ice"],
+    hsia_arctic_production.serve(
+        name="Rasdamam Coverage: hsia_arctic_production",
+        tags=["Sea Ice", "HSIA"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",

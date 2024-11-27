@@ -22,8 +22,8 @@ def design_freezing_index(
 
 if __name__ == "__main__":
     design_freezing_index.serve(
-        name="design_freezing_index",
-        tags=["design_freezing_index"],
+        name="Rasdaman Coverage: design_freezing_index",
+        tags=["Freezing Index", "Design"],
         parameters={
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
