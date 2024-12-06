@@ -13,8 +13,11 @@ def netcdf_to_geotiff(input_netcdf, output_tiff):
     # Need to scale the data to match the concentration values for the TIFFs
     rescaled_data = variable * 100
 
-    # Anything above 100% is set to 254 as it is considered invalid or land
-    rescaled_data[rescaled_data > 100] = 254  # Set values >1.0 to 254
+    rescaled_data[np.isclose(rescaled_data, 100.4)] = 251  # Circular mask
+    rescaled_data[np.isclose(rescaled_data, 100.8)] = 252  # Unused
+    rescaled_data[np.isclose(rescaled_data, 101.2)] = 253  # Coastlines
+    rescaled_data[np.isclose(rescaled_data, 101.6)] = 254  # Land mask
+    rescaled_data[np.isclose(rescaled_data, 102.0)] = 255  # Missing data
 
     # Matches the original TIFFs for output consistency
     rescaled_data = rescaled_data.astype(np.uint8)
