@@ -6,7 +6,7 @@ import subprocess
 import tarfile
 from urllib.parse import urlparse
 from prefect import task
-from seaice import netcdf_to_geotiff
+from seaice.seaice import netcdf_to_geotiff
 
 
 @task
