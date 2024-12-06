@@ -1,9 +1,9 @@
 import os
 import shutil
-import glob
 import netrc
 import subprocess
 import tarfile
+import calendar
 from urllib.parse import urlparse
 from prefect import task
 from seaice.seaice import netcdf_to_geotiff
@@ -167,7 +167,9 @@ def generate_annual_sea_ice_geotiffs(year, output_directory):
         try:
             netcdf_to_geotiff(input_netcdf, output_tiff)
         except:
-            print(f"Error converting {month} of {year} to a GeoTIFF")
+            print(
+                f"Error converting {calendar.month_name[month]} of {year} to a GeoTIFF"
+            )
             continue
 
 
