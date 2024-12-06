@@ -164,7 +164,11 @@ def generate_annual_sea_ice_geotiffs(year, output_directory):
             f"/tmp/nsidc_raw/{year}/NSIDC0051_SEAICE_PS_N25km_{year}{month:02d}_v2.0.nc"
         )
         output_tiff = f"{output_directory}/seaice_conc_sic_mean_pct_monthly_panarctic_{year}_{month:02d}.tif"
-        netcdf_to_geotiff(input_netcdf, output_tiff)
+        try:
+            netcdf_to_geotiff(input_netcdf, output_tiff)
+        except:
+            print(f"Error converting {input_netcdf} to GeoTIFF")
+            continue
 
 
 @task
