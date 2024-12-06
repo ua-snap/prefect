@@ -167,7 +167,7 @@ def generate_annual_sea_ice_geotiffs(year, output_directory):
         try:
             netcdf_to_geotiff(input_netcdf, output_tiff)
         except:
-            print(f"Error converting {input_netcdf} to GeoTIFF")
+            print(f"Error converting {month} of {year} to a GeoTIFF")
             continue
 
 
