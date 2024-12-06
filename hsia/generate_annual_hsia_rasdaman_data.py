@@ -5,7 +5,7 @@ import hsia_tasks
 
 @flow(log_prints=True)
 def hsia(
-    year,
+    years,
     home_directory,
     env_path,
     working_directory,
@@ -29,21 +29,31 @@ def hsia(
             f"{working_directory}/hsia/",
         )
 
-        hsia_tasks.download_new_nsidc_data(year)
+        # Year can be a list
+        if type(years) == list:
+            for year in years:
+                hsia_tasks.download_new_nsidc_data(year)
+                hsia_tasks.generate_annual_sea_ice_geotiffs(
+                    year,
+                    env_path,
+                    tif_directory,
+                )
+        else:
+            hsia_tasks.download_new_nsidc_data(years)
 
-        hsia_tasks.generate_annual_sea_ice_geotiffs(
-            year,
-            env_path,
-            tif_directory,
-        )
+            hsia_tasks.generate_annual_sea_ice_geotiffs(
+                year,
+                env_path,
+                tif_directory,
+            )
 
         hsia_tasks.tar_directory(
-            f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs",
-            f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs.tgz",
+            tif_directory,
+            f"{tif_directory}.tgz",
         )
 
         hsia_tasks.copy_tarfile_to_nfs_mount(
-            f"{working_directory}/hsia/rasdaman_hsia_arctic_production_tifs.tgz",
+            f"{tif_directory}.tgz",
             source_tar_file,
         )
 
@@ -57,11 +67,10 @@ if __name__ == "__main__":
         name="Update Annual Sea Ice GeoTIFFs for ingest into Rasdaman",
         tags=["hsia", "sea ice"],
         parameters={
-            "year": 2022,
+            "years": 2024,
             "home_directory": "/home/snapdata/",
-            "env_path": "/home/snapdata/.conda/envs/rasdaman/share/",  # This is the path to the environment's shared libraries (GDAL & proj4)
-            "working_directory": "/home/snapdata/",
+            "working_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/",
             "source_tar_file": "/workspace/Shared/Tech_Projects/Sea_Ice_Atlas/final_products/rasdaman_hsia_arctic_production_tifs.tgz",
-            "tif_directory": "/home/snapdata/hsia/rasdaman_hsia_arctic_production_tifs/",
+            "tif_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/rasdaman_hsia_arctic_production_tifs/",
         },
     )
