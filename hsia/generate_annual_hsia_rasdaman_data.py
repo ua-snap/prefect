@@ -37,7 +37,10 @@ def hsia(
                     tif_directory,
                 )
         else:
-            hsia_tasks.download_new_nsidc_data(years)
+            # Only a single year was requested
+            year = years
+
+            hsia_tasks.download_new_nsidc_data(year)
 
             hsia_tasks.generate_annual_sea_ice_geotiffs(
                 year,
@@ -62,7 +65,7 @@ if __name__ == "__main__":
 
     hsia.serve(
         name="Update Annual Sea Ice GeoTIFFs for ingest into Rasdaman",
-        tags=["hsia", "sea ice"],
+        tags=["HSIA", "Sea Ice", "Create New Data"],
         parameters={
             "years": 2024,
             "home_directory": "/home/snapdata/",
