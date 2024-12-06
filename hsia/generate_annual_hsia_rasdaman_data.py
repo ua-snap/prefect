@@ -7,7 +7,6 @@ import hsia_tasks
 def hsia(
     years,
     home_directory,
-    env_path,
     working_directory,
     source_tar_file,
     tif_directory,
@@ -35,7 +34,6 @@ def hsia(
                 hsia_tasks.download_new_nsidc_data(year)
                 hsia_tasks.generate_annual_sea_ice_geotiffs(
                     year,
-                    env_path,
                     tif_directory,
                 )
         else:
@@ -43,7 +41,6 @@ def hsia(
 
             hsia_tasks.generate_annual_sea_ice_geotiffs(
                 year,
-                env_path,
                 tif_directory,
             )
 
