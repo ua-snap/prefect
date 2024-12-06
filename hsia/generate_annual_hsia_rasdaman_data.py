@@ -19,9 +19,7 @@ def hsia(
 
         hsia_tasks.check_for_nfs_mount("/workspace/Shared")
 
-        hsia_tasks.copy_data_from_nfs_mount(
-            source_tar_file, f"{working_directory}/hsia"
-        )
+        hsia_tasks.copy_data_from_nfs_mount(source_tar_file, f"{working_directory}")
 
         hsia_tasks.untar_file(
             f"{working_directory}rasdaman_hsia_arctic_production_tifs.tgz",
