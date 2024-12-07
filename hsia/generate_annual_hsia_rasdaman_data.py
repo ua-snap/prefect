@@ -69,6 +69,6 @@ if __name__ == "__main__":
             "home_directory": "/home/snapdata/",
             "working_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/",
             "source_tar_file": "/workspace/Shared/Tech_Projects/Sea_Ice_Atlas/final_products/rasdaman_hsia_arctic_production_tifs.tgz",
-            "tif_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/rasdaman_hsia_arctic_production_tifs/",
+            "tif_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/rasdaman_hsia_arctic_production_tifs",
         },
     )
