@@ -70,11 +70,18 @@ def netcdf_to_geotiff(input_netcdf, output_tiff):
                 )
 
     # Use gdalwarp to overwrite the file with the correct coordinates
+    # We found that using rasterio for the warp resulted in incorrect coordinates
+    # which caused the data to not properly ingest into the coverage.
     os.system(
+        ". /opt/miniconda3/bin/activate && conda activate hydrology && "
         "gdalwarp -overwrite -q -multi -t_srs EPSG:3572 -te_srs EPSG:3572 "
         "-te -4862550.515 -4894840.007 4870398.248 4889334.803 "
         "-tr 17075.348707767432643 -17075.348707767432643 "
         f"'temp.tif' '{output_tiff}'"
     )
 
-    print(f"GeoTIFF {output_tiff} created successfully")
+    # Verify the output file exists and print a message
+    if os.path.exists(output_tiff):
+        print(f"GeoTIFF {output_tiff} created successfully")
+    else:
+        print(f"Error: GeoTIFF {output_tiff} was not created successfully")
