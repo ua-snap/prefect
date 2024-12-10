@@ -1,12 +1,12 @@
 import os
 import shutil
-import glob
 import netrc
 import subprocess
 import tarfile
+import calendar
 from urllib.parse import urlparse
 from prefect import task
-from seaice.seaice import SeaIceRaw
+from seaice.seaice import netcdf_to_geotiff
 
 
 @task
@@ -150,57 +150,48 @@ def download_new_nsidc_data(year):
         commanda = 'wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --no-check-certificate --auth-no-challenge=on -r --reject "index.html*" -np -nd -e robots=off --user {} --password "{}" -P {} '.format(
             username, password, out_dir
         )
-        commandb = "https://daacdata.apps.nsidc.org/pub/DATASETS/nsidc0051_gsfc_nasateam_seaice/final-gsfc/north/monthly/nt_{}{}_f17_v1.1_n.bin".format(
-            str(year), month
+        commandb = "https://n5eil01u.ecs.nsidc.org/PM/NSIDC-0051.002/{}.{}.01/NSIDC0051_SEAICE_PS_N25km_{}{}_v2.0.nc".format(
+            str(year), month, str(year), month
         )
         os.system(commanda + commandb)
 
 
 @task
-def generate_annual_sea_ice_geotiffs(year, env_path, output_directory):
-    os.environ["PROJ_LIB"] = f"{env_path}/proj"
-    os.environ["GDAL_DATA"] = f"{env_path}/gdal"
-
-    def seaicegen(fn, output_path):
-        sic = SeaIceRaw(fn)
-
-        # Collect the year and month from the file name from NSIDC data.
-        year_month = str(os.path.basename(fn)).split("_")[1]
-
-        # Output filename is generated with year + month.
-        output_filename = os.path.join(
-            output_path,
-            f"seaice_conc_sic_mean_pct_monthly_panarctic_{year_month[0:4]}_{year_month[4:]}.tif",
+def generate_annual_sea_ice_geotiffs(year, output_directory, conda_env="hydrology"):
+    # Generate annual Sea Ice GeoTIFFs
+    for month in range(1, 13):
+        input_netcdf = (
+            f"/tmp/nsidc_raw/{year}/NSIDC0051_SEAICE_PS_N25km_{year}{month:02d}_v2.0.nc"
         )
-
-        # Run GDAL to warp file to match previous years in hsia_arctic_production
-        # Rasdaman coverage.
-        sic.to_gtiff_3572(output_filename)
-
-    dat_path = os.path.join("/tmp/nsidc_raw", str(year))
-    output_path = os.path.join(dat_path, "output")
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    l = glob.glob(os.path.join(dat_path, "*.bin"))
-    _ = [seaicegen(fn, output_path) for fn in l]
-    for fn in glob.glob(os.path.join(output_path, "*.tif")):
-        destination_file = os.path.join(output_directory, os.path.basename(fn))
-
-        if os.path.exists(destination_file) and not os.path.isdir(destination_file):
-            os.remove(destination_file)
-
-        shutil.move(fn, output_directory)
+        output_tiff = f"{output_directory}/seaice_conc_sic_mean_pct_monthly_panarctic_{year}_{month:02d}.tif"
+        try:
+            netcdf_to_geotiff(input_netcdf, output_tiff, conda_env)
+        except:
+            print(
+                f"Error converting {calendar.month_name[month]} of {year} to a GeoTIFF"
+            )
+            continue
 
 
 @task
 def tar_directory(directory, output_file):
     with tarfile.open(output_file, "w:gz") as tar:
         print("Creating new tar file of Sea Ice data...")
-        tar.add(directory, arcname=os.path.basename(directory))
+        for item in os.listdir(directory):
+            item_path = os.path.join(directory, item)
+            tar.add(item_path, arcname=item)
     return output_file
 
 
 @task
-def copy_tarfile_to_nfs_mount(tar_file, source_directory):
-    print("Copying tar file to NFS mount...")
-    shutil.copyfile(tar_file, source_directory)
+def copy_tarfile_to_storage_server(tar_file, target_directory):
+    print("Copying tar file to NFS server via scp...")
+    try:
+        subprocess.run(
+            ["scp", tar_file, f"poseidon.snap.uaf.edu:{target_directory}"], check=True
+        )
+        print(
+            f"File {tar_file} successfully copied to poseidon.snap.uaf.edu:{target_directory}"
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error copying file: {e}")
