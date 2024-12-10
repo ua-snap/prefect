@@ -157,7 +157,7 @@ def download_new_nsidc_data(year):
 
 
 @task
-def generate_annual_sea_ice_geotiffs(year, output_directory):
+def generate_annual_sea_ice_geotiffs(year, output_directory, conda_env="hydrology"):
     # Generate annual Sea Ice GeoTIFFs
     for month in range(1, 13):
         input_netcdf = (
@@ -165,7 +165,7 @@ def generate_annual_sea_ice_geotiffs(year, output_directory):
         )
         output_tiff = f"{output_directory}/seaice_conc_sic_mean_pct_monthly_panarctic_{year}_{month:02d}.tif"
         try:
-            netcdf_to_geotiff(input_netcdf, output_tiff)
+            netcdf_to_geotiff(input_netcdf, output_tiff, conda_env)
         except:
             print(
                 f"Error converting {calendar.month_name[month]} of {year} to a GeoTIFF"

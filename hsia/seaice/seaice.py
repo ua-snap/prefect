@@ -6,7 +6,7 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling
 import os
 
 
-def netcdf_to_geotiff(input_netcdf, output_tiff):
+def netcdf_to_geotiff(input_netcdf, output_tiff, conda_env="hydrology"):
     dataset = xr.open_dataset(input_netcdf)
 
     variable = dataset["F17_ICECON"].isel(time=0).values
@@ -73,7 +73,7 @@ def netcdf_to_geotiff(input_netcdf, output_tiff):
     # We found that using rasterio for the warp resulted in incorrect coordinates
     # which caused the data to not properly ingest into the coverage.
     os.system(
-        ". /opt/miniconda3/bin/activate && conda activate hydrology && "
+        f". /opt/miniconda3/bin/activate && conda activate {conda_env} && "
         "gdalwarp -overwrite -q -multi -t_srs EPSG:3572 -te_srs EPSG:3572 "
         "-te -4862550.515 -4894840.007 4870398.248 4889334.803 "
         "-tr 17075.348707767432643 -17075.348707767432643 "
