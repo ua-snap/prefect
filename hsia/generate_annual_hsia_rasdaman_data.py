@@ -50,7 +50,7 @@ def hsia(
             f"{tif_directory}.tgz",
         )
 
-        hsia_tasks.copy_tarfile_to_nfs_mount(
+        hsia_tasks.copy_tarfile_to_storage_server(
             f"{tif_directory}.tgz",
             source_tar_file,
         )

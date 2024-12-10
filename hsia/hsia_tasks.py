@@ -177,11 +177,21 @@ def generate_annual_sea_ice_geotiffs(year, output_directory):
 def tar_directory(directory, output_file):
     with tarfile.open(output_file, "w:gz") as tar:
         print("Creating new tar file of Sea Ice data...")
-        tar.add(directory, arcname=os.path.basename(directory))
+        for item in os.listdir(directory):
+            item_path = os.path.join(directory, item)
+            tar.add(item_path, arcname=item)
     return output_file
 
 
 @task
-def copy_tarfile_to_nfs_mount(tar_file, source_directory):
-    print("Copying tar file to NFS mount...")
-    shutil.copyfile(tar_file, source_directory)
+def copy_tarfile_to_storage_server(tar_file, target_directory):
+    print("Copying tar file to NFS server via scp...")
+    try:
+        subprocess.run(
+            ["scp", tar_file, f"poseidon.snap.uaf.edu:{target_directory}"], check=True
+        )
+        print(
+            f"File {tar_file} successfully copied to poseidon.snap.uaf.edu:{target_directory}"
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error copying file: {e}")
