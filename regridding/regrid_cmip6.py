@@ -1,8 +1,8 @@
 from prefect import flow
 import paramiko
 from pathlib import Path
-
 import regridding_functions
+from utils import utils
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
@@ -13,8 +13,10 @@ ssh_port = 22
 def regrid_cmip6(
     ssh_username,
     ssh_private_key_path,
+    repo_name,  # cmip6-utils
     branch_name,
     cmip6_directory,
+    target_grid_file,
     scratch_directory,
     no_clobber,
     generate_batch_files,
@@ -49,7 +51,7 @@ def regrid_cmip6(
     slurm_dir = f"{output_directory}/slurm"
 
     # target regridding file - all files will be regridded to the grid in this file
-    target_grid_fp = f"{cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
+    # target_grid_fp = f"{cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
 
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -62,14 +64,16 @@ def regrid_cmip6(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        regridding_functions.clone_github_repository(
-            ssh, branch_name, scratch_directory
+        repo_path = utils.clone_github_repository(
+            ssh, repo_name, branch_name, scratch_directory
         )
 
-        regridding_functions.check_for_nfs_mount(ssh, "/import/beegfs")
+        utils.check_for_nfs_mount(ssh, "/import/beegfs")
 
-        regridding_functions.install_conda_environment(
-            ssh, conda_env_name, f"{scratch_directory}/cmip6-utils/environment.yml"
+        utils.check_for_conda(ssh)
+
+        utils.install_conda_environment(
+            ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
         if generate_batch_files == True:
@@ -100,7 +104,7 @@ def regrid_cmip6(
             conda_init_script,
             conda_env_name,
             regrid_script,
-            target_grid_fp,
+            target_grid_file,
             no_clobber,
             vars,
             freqs,
@@ -142,7 +146,7 @@ if __name__ == "__main__":
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
-    scratch_directory = Path(f"/center1/CMIP6/snapdata/")
+    scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
     no_clobber = False
     generate_batch_files = True
     vars = "all"
@@ -157,7 +161,7 @@ if __name__ == "__main__":
         parameters={
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
-            "branch_name": branch_name,
+            "cmip6_utils_branch_name": branch_name,
             "cmip6_directory": cmip6_directory,
             "scratch_directory": scratch_directory,
             "no_clobber": no_clobber,
