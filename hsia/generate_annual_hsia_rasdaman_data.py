@@ -24,7 +24,7 @@ def hsia(
 
         hsia_tasks.untar_file(
             f"{working_directory}rasdaman_hsia_arctic_production_tifs.tgz",
-            f"{working_directory}",
+            f"{working_directory}/rasdaman_hsia_arctic_production_tifs",
         )
 
         # Year can be a list
