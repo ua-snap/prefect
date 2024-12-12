@@ -1,3 +1,4 @@
+from pathlib import Path
 from time import sleep
 from prefect import task
 
@@ -24,6 +25,27 @@ def exec_command(ssh, cmd):
     exit_status = stdout.channel.recv_exit_status()
 
     return exit_status, decode_stream(stdout), decode_stream(stderr)
+
+
+def parse_job_ids(stdout):
+    """Parse the job IDs from stdout.
+    Any time we are expecting job IDs from stdout, it should be a string of " "-separated IDs.
+    Use this function to ensure we are getting job IDs in the correct format.
+
+    Parameters:
+    - stdout: stdout from a command that returns job IDs
+    """
+    job_ids = stdout.split(" ")
+
+    try:
+        # Check if the job IDs are integers
+        job_ids = [int(job_id) for job_id in job_ids]
+    except ValueError:
+        raise ValueError(
+            f"Non-integer job IDs found in output. stdout parsed: {stdout}, job_ids: {job_ids}"
+        )
+
+    return job_ids
 
 
 @task
@@ -56,7 +78,7 @@ def clone_github_repository(ssh, repo_name, branch_name, destination_directory):
     - destination_directory: Directory to clone the repository into
     """
 
-    target_directory = f"{destination_directory}/{repo_name}"
+    target_directory = Path(f"{destination_directory}/{repo_name}")
     exit_status, stdout, stderr = exec_command(
         ssh, f"if [ -d '{target_directory}' ]; then echo 'true'; else echo 'false'; fi"
     )
@@ -190,7 +212,7 @@ def initialize_shell_for_conda(ssh):
 
 
 @task
-def check_for_conda(ssh):
+def ensure_conda(ssh):
     """Check for a conda installation on the remote server via SSH.
     Install and initalize (i.e. make conda executable available on PATH, set some env vars etc) shell if not installed.
     If installed ($HOME/miniconda folder found) and not initialized, initialize shell for conda usage.
@@ -211,6 +233,7 @@ def check_for_conda(ssh):
         miniconda_installed = bool(stdout)
 
         if not miniconda_installed:
+            print("Conda not installed.")
             install_conda(ssh)
 
         print("Shell not initialized for Conda. Initializing...")
@@ -218,8 +241,8 @@ def check_for_conda(ssh):
 
 
 @task
-def check_for_slurm_tools(ssh):
-    """Check for SLURM tools on the remote server via SSH.
+def ensure_slurm(ssh):
+    """Check for SLURM tools on the remote server via SSH, and load the slurm module if not found.
 
     Parameters:
     - ssh: Paramiko SSHClient object
@@ -235,15 +258,35 @@ def check_for_slurm_tools(ssh):
 
 
 @task
-def install_conda_environment(ssh, conda_env_name, conda_env_file):
+def create_conda_environment(ssh, conda_env_name, conda_env_file):
     """
-    Task to check for a Python conda installation and install it from an environment file if it doesn't exist.
-    if it doesn't exist on the user's account via SSH. It also checks for Miniconda installation
-    and installs Miniconda if it doesn't exist.
+    Task to create a conda environment from and environment file spec.
 
     Parameters:
     - ssh: Paramiko SSHClient object
     - conda_env_name: Name of the Conda environment to create/install
+    - conda_env_file: Path to the Conda environment file (.yml) to use for installation
+    """
+    # Install the Conda environment from the environment file
+    install_cmd = f"conda env create -n {conda_env_name} -f {conda_env_file}"
+    exit_status, stdout, stderr = exec_command(ssh, install_cmd)
+
+    if exit_status == 0:
+        print(f"Conda environment '{conda_env_name}' created successfully.")
+    else:
+        raise Exception(
+            f"Error creating Conda environment '{conda_env_name}'. Error: {stderr}"
+        )
+
+
+@task
+def ensure_conda_env(ssh, conda_env_name, conda_env_file):
+    """
+    Task to check for a conda environment on the user's account via SSH and create it if not found.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - conda_env_name: Name of the Conda environment to check for
     - conda_env_file: Path to the Conda environment file (.yml) to use for installation
     """
     # Check if the Conda environment already exists
@@ -252,21 +295,11 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
     )
     conda_env_exists = bool(stdout)
 
-    if not conda_env_exists:
-        print(f"Conda environment '{conda_env_name}' does not exist. Installing...")
-
-        # Install the Conda environment from the environment file
-        install_cmd = f"conda env create -n {conda_env_name} -f {conda_env_file}"
-        exit_status, stdout, stderr = exec_command(ssh, install_cmd)
-
-        if exit_status == 0:
-            print(f"Conda environment '{conda_env_name}' installed successfully")
-        else:
-            raise Exception(
-                f"Error installing Conda environment '{conda_env_name}'. Error: {stderr}"
-            )
-    else:
+    if conda_env_exists:
         print(f"Conda environment '{conda_env_name}' already exists.")
+    else:
+        print(f"Conda environment '{conda_env_name}' not found. Creating...")
+        create_conda_environment(ssh, conda_env_name, conda_env_file)
 
 
 @task
@@ -278,11 +311,13 @@ def get_job_ids(ssh, username):
     - ssh: Paramiko SSHClient object
     - username: Username to get job IDs for
     """
-
-    exit_status, stdout, stderr = ssh.exec_command(f"squeue -u {username}")
+    # skip headers, print only the job IDs
+    exit_status, stdout, stderr = exec_command(
+        ssh, f"squeue -u {username} --noheader -o %i "
+    )
 
     # Get a list of job IDs for the specified user
-    job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
+    job_ids = stdout.split("\n")
 
     # Prints the list of job IDs to the log for debugging purposes
     print(job_ids)
@@ -290,7 +325,7 @@ def get_job_ids(ssh, username):
 
 
 @task
-def wait_for_jobs_completion(ssh, job_ids):
+def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!"):
     """
     Task to wait for a list of Slurm jobs to complete in the queue via SSH.
 
@@ -312,4 +347,4 @@ def wait_for_jobs_completion(ssh, job_ids):
             # Sleep for a while before checking again
             sleep(10)
 
-    print("Jobs completed!")
+    print(completion_message)

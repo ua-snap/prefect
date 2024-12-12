@@ -1,7 +1,7 @@
 from prefect import flow
 import paramiko
 from pathlib import Path
-import regridding_functions
+import regridding_functions as rf
 from utils import utils
 
 # Define your SSH parameters
@@ -18,18 +18,19 @@ def regrid_cmip6(
     cmip6_directory,
     target_grid_file,
     scratch_directory,
+    out_dir_name,
     no_clobber,
-    generate_batch_files,
     vars,
+    interp_method,
     freqs,
     models,
     scenarios,
     conda_env_name,
 ):
-    vars = regridding_functions.validate_vars(vars)
-    freqs = regridding_functions.validate_freqs(freqs)
-    models = regridding_functions.validate_models(models)
-    scenarios = regridding_functions.validate_scenarios(scenarios)
+    vars = rf.validate_vars(vars)
+    freqs = rf.validate_freqs(freqs)
+    models = rf.validate_models(models)
+    scenarios = rf.validate_scenarios(scenarios)
 
     # build additional parameters from prefect inputs
     repo_regridding_directory = f"{scratch_directory}/cmip6-utils/regridding"
@@ -43,9 +44,8 @@ def regrid_cmip6(
         f"{scratch_directory}/cmip6-utils/regridding/run_generate_batch_files.py"
     )
     run_qc_script = f"{scratch_directory}/cmip6-utils/regridding/run_qc.py"
-    qc_script = f"{scratch_directory}/cmip6-utils/regridding/qc.py"
-    visual_qc_notebook = f"{scratch_directory}/cmip6-utils/regridding/qc.ipynb"
-    output_directory = f"{scratch_directory}/cmip6_regridding"
+    qc_notebook = f"{scratch_directory}/cmip6-utils/regridding/qc.ipynb"
+    output_directory = f"{scratch_directory}/{out_dir_name}"
     regrid_dir = f"{output_directory}/regrid"
     regrid_batch_dir = f"{output_directory}/regrid_batch"
     slurm_dir = f"{output_directory}/slurm"
@@ -70,32 +70,35 @@ def regrid_cmip6(
 
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
 
-        utils.check_for_conda(ssh)
+        utils.ensure_slurm(ssh)
 
-        utils.install_conda_environment(
+        utils.ensure_conda(ssh)
+
+        utils.ensure_conda_env(
             ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
-        if generate_batch_files == True:
-            regridding_functions.run_generate_batch_files(
-                ssh,
-                conda_init_script,
-                conda_env_name,
-                generate_batch_files_script,
-                run_generate_batch_files_script,
-                cmip6_directory,
-                regrid_batch_dir,
-                vars,
-                freqs,
-                models,
-                scenarios,
-            )
+        batch_job_ids = rf.run_generate_batch_files(
+            ssh,
+            conda_init_script,
+            conda_env_name,
+            generate_batch_files_script,
+            run_generate_batch_files_script,
+            cmip6_directory,
+            regrid_batch_dir,
+            vars,
+            freqs,
+            models,
+            scenarios,
+        )
 
-            job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
+        utils.wait_for_jobs_completion(
+            ssh,
+            batch_job_ids,
+            completion_message="Slurm jobs for batch file generation complete.",
+        )
 
-            regridding_functions.wait_for_jobs_completion(ssh, job_ids)
-
-        regridding_functions.create_and_run_slurm_scripts(
+        regrid_job_ids = rf.run_regridding(
             ssh,
             slurm_script,
             slurm_dir,
@@ -107,16 +110,19 @@ def regrid_cmip6(
             target_grid_file,
             no_clobber,
             vars,
+            interp_method,
             freqs,
             models,
             scenarios,
         )
 
-        job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
+        utils.wait_for_jobs_completion(
+            ssh,
+            regrid_job_ids,
+            completion_message="Slurm jobs for regridding complete.",
+        )
 
-        regridding_functions.wait_for_jobs_completion(ssh, job_ids)
-
-        regridding_functions.run_qc(
+        qc_job_ids = rf.run_qc(
             ssh,
             output_directory,
             cmip6_directory,
@@ -124,17 +130,14 @@ def regrid_cmip6(
             conda_init_script,
             conda_env_name,
             run_qc_script,
-            qc_script,
-            visual_qc_notebook,
+            qc_notebook,
             vars,
             freqs,
             models,
             scenarios,
         )
 
-        job_ids = regridding_functions.get_job_ids(ssh, ssh_username)
-
-        regridding_functions.wait_for_jobs_completion(ssh, job_ids)
+        utils.wait_for_jobs_completion(ssh, qc_job_ids, "Slurm jobs for QC complete.")
 
     finally:
         ssh.close()
@@ -144,12 +147,13 @@ if __name__ == "__main__":
     # prefect parameter inputs
     ssh_username = "snapdata"
     ssh_private_key_path = "/home/snapdata/.ssh/id_rsa"
+    repo_name = "cmip6-utils"
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
     scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
     no_clobber = False
-    generate_batch_files = True
     vars = "all"
+    interp_method = "bilinear"
     freqs = "all"
     models = "all"
     scenarios = "all"
@@ -161,12 +165,13 @@ if __name__ == "__main__":
         parameters={
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
-            "cmip6_utils_branch_name": branch_name,
+            "repo_name": repo_name,
+            "branch_name": branch_name,
             "cmip6_directory": cmip6_directory,
             "scratch_directory": scratch_directory,
             "no_clobber": no_clobber,
-            "generate_batch_files": generate_batch_files,
             "vars": vars,
+            "interp_method": interp_method,
             "freqs": freqs,
             "models": models,
             "scenarios": scenarios,
