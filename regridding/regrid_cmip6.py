@@ -26,6 +26,7 @@ def regrid_cmip6(
     models,
     scenarios,
     conda_env_name,
+    target_sftlf_fp=None,
 ):
     vars = rf.validate_vars(vars)
     freqs = rf.validate_freqs(freqs)
@@ -52,6 +53,7 @@ def regrid_cmip6(
 
     # target regridding file - all files will be regridded to the grid in this file
     # target_grid_fp = f"{cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
+    # target_sftlf_fp =
 
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -114,6 +116,7 @@ def regrid_cmip6(
             freqs,
             models,
             scenarios,
+            target_sftlf_fp,
         )
 
         utils.wait_for_jobs_completion(

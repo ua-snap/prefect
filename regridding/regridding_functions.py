@@ -77,6 +77,7 @@ def run_regridding(
     freqs,
     models,
     scenarios,
+    target_sftlf_fp=None,
 ):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
@@ -111,6 +112,9 @@ def run_regridding(
         f" --interp_method {interp_method}"
         f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
+
+    if target_sftlf_fp:
+        cmd += f" --target_sftlf_fp {target_sftlf_fp}"
 
     if no_clobber:
         cmd += " --no_clobber"
