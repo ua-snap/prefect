@@ -1,10 +1,5 @@
 """This is the script for regridding the CMIP6 data to a common ~100km grid."""
 
-# should have an additional task here that creates a target grid file as a cropped slice of original target grid file
-
-# target file: {cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc
-# target domain: 90-50
-
 from pathlib import Path
 import paramiko
 from prefect import task, flow
@@ -29,20 +24,17 @@ def create_target_grid_file(
     """
     Task to create a target grid file for regridding.
 
-    Parameters:
-    ssh : Paramiko SSHClient object
-        ssh connection to the remote processing server
-    target_grid_source_file : str
-        Path to file on the target grid which will be cropped/sliced
-    prod_lat_slice : slice
-        Slice to use for cropping the target grid file
-    target_grid_file : str
-        Path to save the cropped target grid file
+    Parameters
+    ----------
+        ssh : Paramiko SSHClient object
+            ssh connection to the remote processing server
+        target_grid_source_file : str
+            Path to file on the target grid which will be cropped/sliced
+        prod_lat_slice : slice
+            Slice to use for cropping the target grid file
+        target_grid_file : str
+            Path to save the cropped target grid file
     """
-
-    # derive and submit this command via ssh
-    # python -c 'import xarray as xr; ds = xr.open_dataset("/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"); ds.sel(lat=slice(50, 90)).isel(time=[0]).to_netcdf("/beegfs/CMIP6/kmredilla/test_target.nc")'
-
     cmd = (
         f"python -c 'import xarray as xr; "
         f'ds = xr.open_dataset("{target_grid_source_file}"); '
