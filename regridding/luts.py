@@ -73,7 +73,6 @@ all_models = [
     "KACE-1-0-G",
     "MIROC6",
     "MPI-ESM1-2-HR",
-    "MPI-ESM1-2-LR",
     "MRI-ESM2-0",
     "NorESM2-MM",
     "TaiESM1",

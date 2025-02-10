@@ -1,0 +1,14 @@
+{
+  "ssh_username": "snapdata",
+  "ssh_private_key_path": "/home/snapdata/.ssh/id_rsa",
+  "branch_name": "main",
+  "cmip6_directory": "/beegfs/CMIP6/arctic-cmip6/CMIP6",
+  "scratch_directory": "/beegfs/CMIP6/snapdata",
+  "no_clobber": false,
+  "generate_batch_files": true,
+  "vars": "tas tasmax tasmin pr sfcWind sfcWindmax",
+  "freqs": "all",
+  "models": "all",
+  "scenarios": "all",
+  "conda_env_name": "snap-geo"
+}
