@@ -15,11 +15,10 @@ ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
 
+# this is a placeholder function for creating the target grid file in case we do not want it hardcoded
 @task
 def create_target_grid_file(
     ssh,
-    target_grid_source_file,
-    target_grid_file,
 ):
     """
     Task to create a target grid file for regridding.
@@ -129,12 +128,12 @@ if __name__ == "__main__":
     scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
     out_dir_name = "cmip6_4km_3338"
     no_clobber = False
-    vars = "all"
+    vars = "tasmin tasmax pr"
     interp_method = "bilinear"
-    freqs = "all"
+    freqs = "day"
     models = "all"
     scenarios = "all"
-    conda_env_name = "cmip6-utils"
+    conda_env_name = "snap-geo"
     rasdafy = False
     target_grid_source_fp = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
     target_sftlf_fp = None
