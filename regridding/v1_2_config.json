@@ -9,7 +9,7 @@
   "target_grid_source_file": "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc",
   "no_clobber": false,
   "interp_method": "bilinear",
-  "vars": "clt evspsbl hfls hfss psl rlds rls rsds rss ts uas vas",
+  "vars": "clt evspsbl hfls hfss psl rlds rls rsds rss ts uas vas prsn snw siconc",
   "freqs": "mon",
   "models": "all",
   "scenarios": "all",
