@@ -1,14 +1,19 @@
 {
   "ssh_username": "snapdata",
   "ssh_private_key_path": "/home/snapdata/.ssh/id_rsa",
+  "repo_name": "cmip6-utils",
   "branch_name": "main",
   "cmip6_directory": "/beegfs/CMIP6/arctic-cmip6/CMIP6",
   "scratch_directory": "/beegfs/CMIP6/snapdata",
+  "out_dir_name": "cmip6_common_regrid",
+  "target_grid_source_file": "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc",
   "no_clobber": false,
-  "generate_batch_files": true,
+  "interp_method": "bilinear",
   "vars": "tas tasmax tasmin pr sfcWind sfcWindmax",
-  "freqs": "all",
+  "freqs": "mon",
   "models": "all",
   "scenarios": "all",
-  "conda_env_name": "snap-geo"
+  "conda_env_name": "snap-geo",
+  "rasdafy": true,
+  "target_sftlf_fp": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/NCAR/CESM2/historical/r11i1p1f1/fx/sftlf/gn/v20190514/sftlf_fx_CESM2_historical_r11i1p1f1_gn.nc"
 }
