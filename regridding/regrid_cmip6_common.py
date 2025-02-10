@@ -54,6 +54,7 @@ def create_target_grid_file(
 
 @flow
 def regrid_cmip6_common(
+    # TO-DO: for all of these functions with tons of params we should really be using kwargs
     ssh_username,
     ssh_private_key_path,
     repo_name,  # cmip6-utils
@@ -69,6 +70,7 @@ def regrid_cmip6_common(
     models,
     scenarios,
     conda_env_name,
+    rasdafy,
     target_sftlf_fp=None,
 ):
     target_grid_file = f"{scratch_directory}/target_common_grid.nc"
@@ -109,6 +111,7 @@ def regrid_cmip6_common(
         "models": models,
         "scenarios": scenarios,
         "conda_env_name": conda_env_name,
+        "rasdafy": rasdafy,
         "target_sftlf_fp": target_sftlf_fp,
     }
 
@@ -131,6 +134,7 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     conda_env_name = "cmip6-utils"
+    rasdafy = True
     target_grid_source_fp = f"{cmip6_directory}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
     target_sftlf_fp = f"{cmip6_directory}/CMIP/NCAR/CESM2/historical/r11i1p1f1/fx/sftlf/gn/v20190514/sftlf_fx_CESM2_historical_r11i1p1f1_gn.nc"
 
@@ -153,6 +157,7 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "conda_env_name": conda_env_name,
+            "rasdafy": rasdafy,
             "target_sftlf_fp": target_sftlf_fp,
         },
     )

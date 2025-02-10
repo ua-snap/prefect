@@ -26,6 +26,7 @@ def regrid_cmip6(
     models,
     scenarios,
     conda_env_name,
+    rasdafy,
     target_sftlf_fp=None,
 ):
     vars = rf.validate_vars(vars)
@@ -116,6 +117,7 @@ def regrid_cmip6(
             freqs,
             models,
             scenarios,
+            rasdafy,
             target_sftlf_fp,
         )
 
@@ -161,6 +163,7 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     conda_env_name = "cmip6-utils"
+    rasdafy = True
 
     regrid_cmip6.serve(
         name="regrid-cmip6",
@@ -179,5 +182,6 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "conda_env_name": conda_env_name,
+            "rasdafy": rasdafy,
         },
     )

@@ -77,6 +77,7 @@ def run_regridding(
     freqs,
     models,
     scenarios,
+    rasdafy,
     target_sftlf_fp=None,
 ):
     """
@@ -98,6 +99,8 @@ def run_regridding(
     - freqs: Frequencies to regrid
     - models: Models to regrid
     - scenarios: Scenarios to regrid
+    - rasdafy: Boolean to determine if the regridded files should be prepared for Rasdaman
+    - target_sftlf_fp: Path to file with target land fraction data
     """
 
     cmd = (
@@ -118,6 +121,9 @@ def run_regridding(
 
     if no_clobber:
         cmd += " --no_clobber"
+
+    if rasdafy:
+        cmd += " --rasdafy"
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
