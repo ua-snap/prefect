@@ -4,6 +4,14 @@
 
 `pip install -U prefect paramiko`
 
+This repo now includes a [`pyproject.toml`](pyproject.toml) file to allow this repo to be "installed" so that code can be shared across the different directories containing flows. This has only been implemented in the regridding flows so far. 
+
+To install, activate the environment you use for prefect, and run:
+
+```
+python -m pip install .
+```
+
 ## Use the production Prefect server for running real tasks
 
 To set your Terminal window to use the production Prefect server, run the following:
