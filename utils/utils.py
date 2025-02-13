@@ -139,7 +139,7 @@ def clone_github_repository(ssh, repo_name, branch_name, destination_directory):
             raise Exception(
                 clone_error_exception_msg.format(
                     exit_status=exit_status,
-                    error_msg=decode_stream(stderr),
+                    error_msg=stderr,
                     cmd=git_pull_command,
                 )
             )
@@ -156,7 +156,7 @@ def clone_github_repository(ssh, repo_name, branch_name, destination_directory):
             raise Exception(
                 clone_error_exception_msg.format(
                     exit_status=exit_status,
-                    error_msg=decode_stream(stderr),
+                    error_msg=stderr,
                     cmd=git_pull_command,
                 )
             )
@@ -178,7 +178,7 @@ def install_conda(ssh):
     conda_installed = bool(int(stdout))
     assert (
         not conda_installed
-    ), f"install_conda called, but conda installation found at {decode_stream(stdout)}."
+    ), f"install_conda called, but conda installation found at {stdout}."
 
     conda_uri = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
     print("No conda installation found. Installing Miniconda ...")
@@ -189,7 +189,7 @@ def install_conda(ssh):
     exit_status, stdout, stderr = exec_command(ssh, install_miniconda_cmd)
 
     if exit_status != 0:
-        error_output = decode_stream(stderr)
+        error_output = stderr
         raise Exception(f"Error installing Miniconda. Error: {error_output}")
 
     print("Miniconda installed successfully")
@@ -207,7 +207,7 @@ def initialize_shell_for_conda(ssh):
     )
 
     if exit_status != 0:
-        error_output = decode_stream(stderr)
+        error_output = stderr
         raise Exception(f"Error initializing shell for Conda. Error: {error_output}")
 
 
