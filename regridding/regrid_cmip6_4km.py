@@ -88,8 +88,6 @@ def regrid_cmip6_4km(
 
         create_target_grid_file(
             ssh,
-            target_grid_source_file,
-            target_grid_file,
         )
 
     finally:
