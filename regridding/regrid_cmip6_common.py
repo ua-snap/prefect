@@ -17,6 +17,7 @@ ssh_port = 22
 @task
 def create_target_grid_file(
     ssh,
+    conda_env_name,
     target_grid_source_file,
     prod_lat_slice,
     target_grid_file,
@@ -28,6 +29,8 @@ def create_target_grid_file(
     ----------
         ssh : Paramiko SSHClient object
             ssh connection to the remote processing server
+        conda_env_name : str
+            Name of the Conda environment to activate for processing
         target_grid_source_file : str
             Path to file on the target grid which will be cropped/sliced
         prod_lat_slice : slice
@@ -36,6 +39,7 @@ def create_target_grid_file(
             Path to save the cropped target grid file
     """
     cmd = (
+        f"conda activate {conda_env_name}; "
         f"python -c 'import xarray as xr; "
         f'ds = xr.open_dataset("{target_grid_source_file}"); '
         f'ds.sel(lat={prod_lat_slice}).isel(time=[0]).to_netcdf("{target_grid_file}")\''
@@ -85,8 +89,21 @@ def regrid_cmip6_common(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
+        repo_path = utils.clone_github_repository(
+            ssh, repo_name, branch_name, scratch_directory
+        )
+
+        utils.check_for_nfs_mount(ssh, "/import/beegfs")
+
+        utils.ensure_conda(ssh)
+
+        utils.ensure_conda_env(
+            ssh, conda_env_name, repo_path.joinpath("environment.yml")
+        )
+
         create_target_grid_file(
             ssh,
+            conda_env_name,
             target_grid_source_file,
             prod_lat_slice,
             target_grid_file,
