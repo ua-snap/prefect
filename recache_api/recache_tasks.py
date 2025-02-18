@@ -35,13 +35,17 @@ def get_all_route_endpoints(curr_route, curr_type):
             GS_BASE_URL
             + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_communities&outputFormat=application/json&propertyName=latitude,longitude"
         )
-        places = requests.get(places_url)["features"]
+        response = requests.get(places_url)
+        places_data = response.json()
+        places = places_data["features"]
     else:
         places_url = (
             GS_BASE_URL
             + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id"
         )
-        places = requests.get(places_url)["features"]
+        response = requests.get(places_url)
+        places_data = response.json()
+        places = places_data["features"]
 
     # For each JSON item in the JSON object array
     for place in places:
