@@ -33,7 +33,7 @@ def get_all_route_endpoints(curr_route, curr_type):
     if curr_type == "community":
         places_url = (
             GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_communities&outputFormat=application/json&propertyName=latitude,longitude"
+            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_communities&outputFormat=application/json&propertyName=latitude,longitude,region"
         )
         response = requests.get(places_url)
         places_data = response.json()
@@ -41,7 +41,7 @@ def get_all_route_endpoints(curr_route, curr_type):
     else:
         places_url = (
             GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id"
+            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id,region"
         )
         response = requests.get(places_url)
         places_data = response.json()
@@ -49,7 +49,12 @@ def get_all_route_endpoints(curr_route, curr_type):
 
     # For each JSON item in the JSON object array
     for place in places:
-        get_endpoint(curr_route, curr_type, place["properties"])
+        if (
+            place["properties"]["region"] is "Alaska"
+            or place["properties"]["region"] is "Yukon"
+            or place["properties"]["region"] is "Northwest Territories"
+        ):
+            get_endpoint(curr_route, curr_type, place["properties"])
 
 
 def get_endpoint(curr_route, curr_type, place):
