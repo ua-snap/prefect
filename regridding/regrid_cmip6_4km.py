@@ -15,42 +15,6 @@ ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
 
-# this is a placeholder function for creating the target grid file in case we do not want it hardcoded
-@task
-def create_target_grid_file(
-    ssh,
-):
-    """
-    Task to create a target grid file for regridding.
-
-    Parameters
-    ----------
-        ssh : Paramiko SSHClient object
-            ssh connection to the remote processing server
-        target_grid_source_file : str
-            Path to file on the target grid
-        target_grid_file : str
-            Path to save the cropped target grid file
-    """
-    # TO-DO: figure out command (or other method) for creating target grid file
-    # derive and submit this command via ssh
-    cmd = (
-        f"python -c 'import xarray as xr'"
-        # f'ds = xr.open_dataset("{target_grid_source_file}"); '
-        # f'ds.sel(lat={prod_lat_slice}).isel(time=[0]).to_netcdf("{target_grid_file}")\''
-    )
-
-    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
-
-    # Check the exit status for errors
-    if exit_status != 0:
-        raise Exception(
-            f"Error submitting python code to create target grid file. Error: {stderr}"
-        )
-
-    return
-
-
 @flow
 def regrid_cmip6_4km(
     ssh_username,
@@ -85,10 +49,6 @@ def regrid_cmip6_4km(
 
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        create_target_grid_file(
-            ssh,
-        )
 
     finally:
         ssh.close()
