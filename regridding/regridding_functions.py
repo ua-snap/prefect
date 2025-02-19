@@ -1,164 +1,8 @@
 from time import sleep
 from prefect import task
 import paramiko
+from utils import utils
 from luts import *
-
-
-@task
-def check_for_nfs_mount(ssh, nfs_directory="/import/beegfs"):
-    """
-    Task to check if an NFS directory is mounted on the remote server via SSH.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - nfs_directory: Path to the NFS directory to check for
-    """
-
-    stdin_, stdout, stderr_ = ssh.exec_command(f"df -h | grep {nfs_directory}")
-
-    nfs_mounted = bool(stdout.read())
-
-    if not nfs_mounted:
-        raise Exception(f"NFS directory '{nfs_directory}' is not mounted")
-
-
-@task
-def clone_github_repository(ssh, branch, destination_directory):
-    """
-    Task to clone a GitHub repository via SSH and switch to a specific branch if it exists.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - branch: Name of the branch to clone and switch to
-    - destination_directory: Directory to clone the repository into
-    """
-
-    target_directory = f"{destination_directory}/cmip6-utils"
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"if [ -d '{target_directory}' ]; then echo 'true'; else echo 'false'; fi"
-    )
-
-    directory_exists = stdout.read().decode("utf-8").strip() == "true"
-
-    if directory_exists:
-        try:
-            # Directory exists, check the current branch
-            get_current_branch_command = (
-                f"cd {target_directory} && git pull && git branch --show-current"
-            )
-            stdin_, stdout, stderr = ssh.exec_command(get_current_branch_command)
-            current_branch = stdout.read().decode("utf-8").strip()
-        except:
-            # If the current branch cannot be determined, assume it's the wrong branch
-            set_branch_to_main = f"cd {target_directory} && git checkout main"
-            stdin_, stdout, stderr = ssh.exec_command(set_branch_to_main)
-
-            # Get the current branch again# Directory exists, check the current branch
-            get_current_branch_command = (
-                f"cd {target_directory} && git pull && git branch --show-current"
-            )
-            stdin_, stdout, stderr = ssh.exec_command(get_current_branch_command)
-            current_branch = stdout.read().decode("utf-8").strip()
-
-        if current_branch != branch:
-            print(f"Change repository branch to branch {branch}...")
-            # If the current branch is different from the desired branch, switch to the correct branch
-            switch_branch_command = f"cd {target_directory} && git checkout {branch}"
-            stdin_, stdout, stderr = ssh.exec_command(switch_branch_command)
-
-        print(f"Pulling the GitHub repository on branch {branch}...")
-
-        # Run the Git pull command to pull the repository
-        git_pull_command = f"cd {target_directory} && git pull origin {branch}"
-        stdin_, stdout, stderr = ssh.exec_command(git_pull_command)
-
-        # Wait for the Git command to finish and get the exit status
-        exit_status = stdout.channel.recv_exit_status()
-
-        # Check the exit status for errors
-        if exit_status != 0:
-            raise Exception(
-                f"Error cloning the GitHub repository. Exit status: {exit_status}"
-            )
-    else:
-        print(f"Cloning the GitHub repository on branch {branch}...")
-        # Run the Git clone command to clone the repository
-        git_command = f"cd {destination_directory} && git clone -b {branch} https://github.com/ua-snap/cmip6-utils.git"
-        stdin_, stdout, stderr = ssh.exec_command(git_command)
-
-        # Wait for the Git command to finish and get the exit status
-        exit_status = stdout.channel.recv_exit_status()
-
-        # Check the exit status for errors
-        if exit_status != 0:
-            error_output = stderr.read().decode("utf-8")
-            raise Exception(
-                f"Error cloning the GitHub repository. Error: {error_output}"
-            )
-
-
-@task
-def install_conda_environment(ssh, conda_env_name, conda_env_file):
-    """
-    Task to check for a Python Conda environment and install it from an environment file
-    if it doesn't exist on the user's account via SSH. It also checks for Miniconda installation
-    and installs Miniconda if it doesn't exist.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - conda_env_name: Name of the Conda environment to create/install
-    - conda_env_file: Path to the Conda environment file (.yml) to use for installation
-    """
-
-    # Check if the Miniconda directory exists in the user's home directory
-    stdin_, stdout, stderr = ssh.exec_command(
-        "test -d $HOME/miniconda3 && echo 1 || echo 0"
-    )
-
-    miniconda_found = int(stdout.read())
-    miniconda_installed = bool(miniconda_found)
-
-    if not miniconda_installed:
-        print("Miniconda directory not found. Installing Miniconda...")
-        # Download and install Miniconda
-        install_miniconda_cmd = "wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh && bash miniconda.sh -b -p $HOME/miniconda3"
-        stdin_, stdout, stderr = ssh.exec_command(install_miniconda_cmd)
-
-        # Wait for the command to finish and get the exit status
-        exit_status = stdout.channel.recv_exit_status()
-
-        if exit_status != 0:
-            error_output = stderr.read().decode("utf-8")
-            raise Exception(f"Error installing Miniconda. Error: {error_output}")
-
-        print("Miniconda installed successfully")
-
-    # Check if the Conda environment already exists
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env list | grep {conda_env_name}"
-    )
-
-    conda_env_exists = bool(stdout.read())
-
-    if not conda_env_exists:
-        print(f"Conda environment '{conda_env_name}' does not exist. Installing...")
-
-        # Install the Conda environment from the environment file
-        install_cmd = f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}"
-        stdin_, stdout, stderr = ssh.exec_command(install_cmd)
-
-        # Wait for the command to finish and get the exit status
-        exit_status = stdout.channel.recv_exit_status()
-
-        if exit_status == 0:
-            print(f"Conda environment '{conda_env_name}' installed successfully")
-        else:
-            error_output = stderr.read().decode("utf-8")
-            raise Exception(
-                f"Error installing Conda environment '{conda_env_name}'. Error: {error_output}"
-            )
-    else:
-        print(f"Conda environment '{conda_env_name}' already exists.")
 
 
 @task
@@ -180,33 +24,44 @@ def run_generate_batch_files(
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - slurm_script: Directory to regridding slurm.py script
-    - slurm_dir: Directory to save slurm sbatch files
-    - regrid_dir: Path to directory where regridded files are written
-    - regrid_batch_dir: Directory of batch files
     - conda_init_script: Script to initialize conda during slurm jobs
-    - conda_env_name: Name of the Conda environment to activate
-    - regrid_script: Location of regrid.py script in the repo
-    - target_grid_fp: Path to file used as the regridding target
-    - no_clobber: Do not overwrite regridded files if they exist
+    - conda_env_name: Name of the Conda environment to activate for processing
+    - generate_batch_files_script: Location of the script to generate batch files
+    - run_generate_batch_files_script: Location of the script to run the batch file generation script
+    - cmip6_directory: Path to the CMIP6 data directory
+    - regrid_batch_dir: Directory to save the batch files
+    - vars: Variables to regrid
+    - freqs: Frequencies to regrid
+    - models: Models to regrid
+    - scenarios: Scenarios to regrid
     """
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_generate_batch_files_script} --generate_batch_files_script '{generate_batch_files_script}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --cmip6_directory '{cmip6_directory}' --regrid_batch_dir '{regrid_batch_dir}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+    cmd = (
+        f"python {run_generate_batch_files_script}"
+        f" --generate_batch_files_script {generate_batch_files_script}"
+        f" --conda_init_script {conda_init_script}"
+        f" --conda_env_name {conda_env_name}"
+        f" --cmip6_directory {cmip6_directory}"
+        f" --regrid_batch_dir {regrid_batch_dir}"
+        f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
-
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
+    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
     # Check the exit status for errors
     if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error generating batch files. Error: {error_output}")
+        raise Exception(f"Error generating batch files. Error: {stderr}")
 
-    print("Generate batch files job submitted!")
+    job_ids = utils.parse_job_ids(stdout)
+    assert (
+        len(job_ids) == 1
+    ), f"More than one job ID given for batch file generation: {job_ids}"
+
+    print(f"Generate batch files job submitted! (job ID: {job_ids[0]})")
+
+    return job_ids
 
 
 @task
-def create_and_run_slurm_scripts(
+def run_regridding(
     ssh,
     slurm_script,
     slurm_dir,
@@ -218,9 +73,12 @@ def create_and_run_slurm_scripts(
     target_grid_fp,
     no_clobber,
     vars,
+    interp_method,
     freqs,
     models,
     scenarios,
+    rasdafy,
+    target_sftlf_fp=None,
 ):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
@@ -236,76 +94,50 @@ def create_and_run_slurm_scripts(
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
     - no_clobber: Do not overwrite regridded files if they exist
+    - vars: Variables to regrid
+    - interp_method: Interpolation method to use
+    - freqs: Frequencies to regrid
+    - models: Models to regrid
+    - scenarios: Scenarios to regrid
+    - rasdafy: Boolean to determine if the regridded files should be prepared for Rasdaman
+    - target_sftlf_fp: Path to file with target land fraction data
     """
-    print("Models in create_and_run_slurm_scripts: ", models)
-    cmd = f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --slurm_dir '{slurm_dir}' --regrid_dir '{regrid_dir}'  --regrid_batch_dir '{regrid_batch_dir}' --conda_init_script '{conda_init_script}' --conda_env_name {conda_env_name} --regrid_script '{regrid_script}' --target_grid_fp '{target_grid_fp}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+
+    cmd = (
+        f"python {slurm_script}"
+        f" --slurm_dir {slurm_dir}"
+        f" --regrid_dir {regrid_dir}"
+        f" --regrid_batch_dir {regrid_batch_dir}"
+        f" --conda_init_script {conda_init_script}"
+        f" --conda_env_name {conda_env_name}"
+        f" --regrid_script {regrid_script}"
+        f" --target_grid_fp {target_grid_fp}"
+        f" --interp_method {interp_method}"
+        f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+    )
+
+    if target_sftlf_fp:
+        cmd += f" --target_sftlf_fp {target_sftlf_fp}"
 
     if no_clobber:
         cmd += " --no_clobber"
 
-    stdin_, stdout, stderr = ssh.exec_command(cmd)
+    if rasdafy:
+        cmd += " --rasdafy"
 
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
+    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
     # Check the exit status for errors
     if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
         raise Exception(
-            f"Error creating or running Slurm scripts. Error: {error_output}"
+            f"Error creating and submitting regridding slurm scripts. Error: {stderr}"
         )
 
-    print("Regridding jobs submitted!")
+    job_ids = utils.parse_job_ids(stdout)
 
+    print(f"Regridding jobs submitted! (job IDs: {job_ids})")
 
-@task
-def get_job_ids(ssh, username):
-    """
-    Task to get a list of job IDs for a specified user from the Slurm queue via SSH.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - username: Username to get job IDs for
-    """
-
-    stdin_, stdout, stderr_ = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -u {username}"
-    )
-
-    # Get a list of job IDs for the specified user
-    job_ids = [line.split()[0] for line in stdout.readlines()[1:]]  # Skip header
-
-    # Prints the list of job IDs to the log for debugging purposes
-    print(job_ids)
     return job_ids
-
-
-@task
-def wait_for_jobs_completion(ssh, job_ids):
-    """
-    Task to wait for a list of Slurm jobs to complete in the queue via SSH.
-
-    Parameters:
-    - ssh: Paramiko SSHClient object
-    - job_ids: List of job IDs to wait for
-    """
-
-    while job_ids:
-        # Check the status of each job in the list
-        for job_id in job_ids.copy():
-            stdin_, stdout, stderr_ = ssh.exec_command(
-                f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin && squeue -h -j {job_id}"
-            )
-
-            # If the job is no longer in the queue, remove it from the list
-            if not stdout.read():
-                job_ids.remove(job_id)
-
-        if job_ids:
-            # Sleep for a while before checking again
-            sleep(10)
-
-    print("Jobs completed!")
 
 
 @task
@@ -388,17 +220,24 @@ def run_qc(
     models,
     scenarios,
 ):
-    print(f"Models in run_qc: {models}")
-    stdin_, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {run_qc_script} --qc_notebook '{qc_notebook}' --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}' --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}' --repo_regridding_directory '{repo_regridding_directory}' --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
-    )
 
-    # Wait for the command to finish and get the exit status
-    exit_status = stdout.channel.recv_exit_status()
+    exit_status, stdout, stderr = utils.exec_command(
+        ssh,
+        (
+            f"python {run_qc_script}"
+            f" --qc_notebook '{qc_notebook}'"
+            f" --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}'"
+            f" --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}'"
+            f" --repo_regridding_directory '{repo_regridding_directory}'"
+            f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+        ),
+    )
 
     # Check the exit status for errors
     if exit_status != 0:
-        error_output = stderr.read().decode("utf-8")
-        raise Exception(f"Error submitting QC scripts. Error: {error_output}")
+        raise Exception(f"Error submitting QC scripts. Error: {stderr}")
 
-    print("QC jobs submitted!")
+    job_ids = utils.parse_job_ids(stdout)
+    print(f"QC jobs submitted! (job IDs: {job_ids[0]})")
+
+    return job_ids
