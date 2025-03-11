@@ -1,6 +1,7 @@
 from pathlib import Path
 from time import sleep
 from prefect import task
+import logging
 
 
 def decode_stream(std):
@@ -347,4 +348,33 @@ def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!")
             # Sleep for a while before checking again
             sleep(10)
 
-    print(completion_message)
+    logging.info(completion_message)
+
+
+@task
+def create_directories(ssh, dir_list):
+    """Creates directories if they don't exist, otherwise does nothing.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - dir_list: List of directories to create
+    """
+    for directory in dir_list:
+        exit_status, stdout, stderr = exec_command(
+            ssh, f"test -d {directory} && echo 1 || echo 0"
+        )
+        directory_exists = bool(int(stdout))
+
+        if directory_exists:
+            logging.info(f"Directory {directory} already exists.")
+            continue
+        else:
+            logging.info(f"Creating directory {directory}...")
+            exit_status, stdout, stderr = exec_command(ssh, f"mkdir {directory}")
+
+            if exit_status != 0:
+                raise Exception(
+                    f"Error creating directory {directory}. Error: {stderr}"
+                )
+            else:
+                print(f"Directory {directory} created successfully.")
