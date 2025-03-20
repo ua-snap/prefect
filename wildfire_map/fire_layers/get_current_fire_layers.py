@@ -220,10 +220,10 @@ def process_fire_geojson(
             "NAME": feature["properties"]["NAME"],
             "acres": feature["properties"]["acres"],
             "CAUSE": feature["properties"]["CAUSE"],
+            "SUMMARY": feature["properties"]["SUMMARY"],
             "updated": feature["properties"].get("updated", None),
             "OUTDATE": feature["properties"].get("OUTDATE", None),
             "discovered": feature["properties"].get("discovered", None),
-            "SUMMARY": feature["properties"].get("SUMMARY", None),
         }
 
         # This filters out null, NaN and "0" fire sizes
@@ -253,6 +253,7 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
         point_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
         point_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
         point_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+        point_layer.CreateField(ogr.FieldDefn("SUMMARY", ogr.OFTString))
 
         polygon_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
         polygon_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
@@ -261,6 +262,7 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
         polygon_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
         polygon_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
         polygon_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+        polygon_layer.CreateField(ogr.FieldDefn("SUMMARY", ogr.OFTString))
     elif feature_type == "lightning":
         # Create a single layer for lightning points
         point_layer = datasource.CreateLayer("lightning_points", geom_type=ogr.wkbPoint)
@@ -295,6 +297,7 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
                 feat.SetField("updated", feature["properties"]["updated"])
                 feat.SetField("discovered", feature["properties"]["discovered"])
                 feat.SetField("CAUSE", feature["properties"]["CAUSE"])
+                feat.SetField("SUMMARY", feature["properties"]["SUMMARY"])
 
             elif feature_type == "lightning":
                 feat.SetField("amplitude", feature["properties"]["amplitude"])
