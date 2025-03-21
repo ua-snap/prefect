@@ -33,7 +33,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
         # Check if the Conda environment already exists
         conda_env_exists = (
             subprocess.run(
-                f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env list | grep {conda_env_name}",
+                f". $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env list | grep {conda_env_name}",
                 shell=True,
             ).returncode
             == 0
@@ -44,7 +44,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
             # Install the Conda environment from the environment file
             subprocess.run(
-                f"source $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
+                f". $HOME/miniconda3/bin/activate && $HOME/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
                 shell=True,
                 check=True,
             )
@@ -69,7 +69,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
         # Check if the Conda environment already exists
         conda_env_exists = (
             subprocess.run(
-                f"source /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env list | grep {conda_env_name}",
+                f". /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env list | grep {conda_env_name}",
                 shell=True,
             ).returncode
             == 0
@@ -80,7 +80,7 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
             # Install the Conda environment from the environment file
             subprocess.run(
-                f"source /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
+                f". /opt/miniconda3/bin/activate && /opt/miniconda3/bin/conda env create -n {conda_env_name} -f {conda_env_file}",
                 shell=True,
                 check=True,
             )
@@ -95,7 +95,7 @@ def execute_local_script(
 ):
     # Execute the script on the local machine
     process = subprocess.Popen(
-        f". /opt/miniconda3/bin/activate {conda_env_name}; export PURPLE_AIR_API_KEY={purple_air_key}; python {script_path} --out-dir {output_path}",
+        f". /opt/miniconda3/bin/activate {conda_env_name}; export PURPLE_AIR_API_KEY={purple_air_key}; /home/snapdata/.conda/envs/{conda_env_name}/bin/python {script_path} --out-dir {output_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
