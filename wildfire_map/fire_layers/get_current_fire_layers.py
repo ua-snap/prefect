@@ -3,7 +3,7 @@ import requests
 from datetime import datetime, timezone
 import json
 import argparse
-from osgeo import ogr
+from osgeo import ogr, gdal
 
 script_dir = os.path.dirname(__file__)
 data_dir = os.path.join(script_dir, "data", "debug")
@@ -238,32 +238,10 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
     driver = ogr.GetDriverByName("ESRI Shapefile")
     datasource = driver.CreateDataSource(out_shapefile)
 
-    if feature_type == "fire":
-        # Create separate layers for points and polygons
-        point_layer = datasource.CreateLayer("fire_points", geom_type=ogr.wkbPoint)
-        polygon_layer = datasource.CreateLayer(
-            "fire_polygons", geom_type=ogr.wkbPolygon
-        )
+    # Fire can't be a shapefile anymore due to the length of the SUMMARY field.
+    # Use convert_geojson_to_geopackage instead.
 
-        # Define fields for both layers
-        point_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
-        point_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
-        point_layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
-        point_layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
-        point_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
-        point_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
-        point_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
-        point_layer.CreateField(ogr.FieldDefn("SUMMARY", ogr.OFTString))
-
-        polygon_layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
-        polygon_layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
-        polygon_layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
-        polygon_layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
-        polygon_layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
-        polygon_layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
-        polygon_layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
-        polygon_layer.CreateField(ogr.FieldDefn("SUMMARY", ogr.OFTString))
-    elif feature_type == "lightning":
+    if feature_type == "lightning":
         # Create a single layer for lightning points
         point_layer = datasource.CreateLayer("lightning_points", geom_type=ogr.wkbPoint)
 
@@ -289,17 +267,7 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
         feat = ogr.Feature(layer.GetLayerDefn())
         feat.SetGeometry(geom)
         try:
-            if feature_type == "fire":
-                feat.SetField("NAME", feature["properties"]["NAME"])
-                feat.SetField("acres", feature["properties"]["acres"])
-                feat.SetField("active", feature["properties"]["active"])
-                feat.SetField("OUTDATE", feature["properties"]["OUTDATE"])
-                feat.SetField("updated", feature["properties"]["updated"])
-                feat.SetField("discovered", feature["properties"]["discovered"])
-                feat.SetField("CAUSE", feature["properties"]["CAUSE"])
-                feat.SetField("SUMMARY", feature["properties"]["SUMMARY"])
-
-            elif feature_type == "lightning":
+            if feature_type == "lightning":
                 feat.SetField("amplitude", feature["properties"]["amplitude"])
                 feat.SetField("hoursago", feature["properties"]["hoursago"])
 
@@ -308,6 +276,93 @@ def convert_geojson_to_shapefile(geojson_features, out_shapefile, feature_type="
             print(f"Error adding feature to the layer: {e}")
 
     # Cleanup
+    datasource = None
+
+
+def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire"):
+    driver = ogr.GetDriverByName("GPKG")
+    if os.path.exists(out_gpkg):
+        driver.DeleteDataSource(out_gpkg)
+    datasource = driver.CreateDataSource(out_gpkg)
+
+    spatial_ref = ogr.osr.SpatialReference()
+    spatial_ref.ImportFromEPSG(4326)
+
+    if feature_type == "fire":
+        point_layer = datasource.CreateLayer(
+            "fire_points",
+            srs=spatial_ref,
+            geom_type=ogr.wkbPoint,
+            options=["GEOMETRY_NAME=the_geom"],
+        )
+        polygon_layer = datasource.CreateLayer(
+            "fire_polygons",
+            srs=spatial_ref,
+            geom_type=ogr.wkbPolygon,
+            options=["GEOMETRY_NAME=the_geom"],
+        )
+
+        for layer in [point_layer, polygon_layer]:
+            layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
+            layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
+            layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
+            layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
+            layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
+            layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
+            layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+            field = ogr.FieldDefn("SUMMARY", ogr.OFTString)
+            field.SetWidth(1000)
+            layer.CreateField(field)
+
+    elif feature_type == "lightning":
+        point_layer = datasource.CreateLayer(
+            "lightning_points",
+            srs=spatial_ref,
+            geom_type=ogr.wkbPoint,
+            options=["GEOMETRY_NAME=the_geom"],
+        )
+        point_layer.CreateField(ogr.FieldDefn("amplitude", ogr.OFTReal))
+        point_layer.CreateField(ogr.FieldDefn("hoursago", ogr.OFTReal))
+
+    elif feature_type == "viirs":
+        point_layer = datasource.CreateLayer(
+            "viirs_hotspots",
+            srs=spatial_ref,
+            geom_type=ogr.wkbPoint,
+            options=["GEOMETRY_NAME=the_geom"],
+        )
+
+    for feature in geojson_features:
+        geom_type = feature["geometry"]["type"]
+        geom = ogr.CreateGeometryFromJson(json.dumps(feature["geometry"]))
+
+        if geom_type == "Point":
+            layer = point_layer
+        elif geom_type in ["Polygon", "MultiPolygon"]:
+            layer = polygon_layer
+        else:
+            continue
+
+        feat = ogr.Feature(layer.GetLayerDefn())
+        feat.SetGeometry(geom)
+
+        try:
+            if feature_type == "fire":
+                feat.SetField("NAME", feature["properties"].get("NAME", ""))
+                feat.SetField("acres", feature["properties"].get("acres", 0))
+                feat.SetField("active", feature["properties"].get("active", ""))
+                feat.SetField("OUTDATE", feature["properties"].get("OUTDATE", ""))
+                feat.SetField("updated", feature["properties"].get("updated", ""))
+                feat.SetField("discovered", feature["properties"].get("discovered", ""))
+                feat.SetField("CAUSE", feature["properties"].get("CAUSE", "N/A"))
+                feat.SetField("SUMMARY", feature["properties"].get("SUMMARY", ""))
+            elif feature_type == "lightning":
+                feat.SetField("amplitude", feature["properties"].get("amplitude", 0))
+                feat.SetField("hoursago", feature["properties"].get("hoursago", 0))
+            layer.CreateFeature(feat)
+        except Exception as e:
+            print(f"Error adding feature to the layer: {e}")
+
     datasource = None
 
 
@@ -324,11 +379,11 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Creates fire shapefiles
-    out_shapefile = os.path.join(args.out_dir, "fires.shp")
+    # Creates fire GeoPackage <-- required due to length of SUMMARY field
+    out_shapefile = os.path.join(args.out_dir, "fires.gpkg")
     fire_geojson = fetch_fire_geojson()
     if fire_layers_update_failed is False:
-        convert_geojson_to_shapefile(fire_geojson, out_shapefile, "fire")
+        convert_geojson_to_geopackage(fire_geojson, out_shapefile, "fire")
 
     # Creates lightning shapefile
     out_shapefile = os.path.join(args.out_dir, "lightning.shp")
