@@ -35,7 +35,7 @@ if __name__ == "__main__":
         name="Update Smokey Bear Layer",
         tags=["smokey_bear_layer", "wildfire_map"],
         parameters={
-            "home_directory": "/home/prefect",
+            "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "script_name": "update_smokey_bear.sh",
         },

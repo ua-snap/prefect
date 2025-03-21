@@ -35,7 +35,7 @@ if __name__ == "__main__":
         name="Update Snow Cover Layer",
         tags=["snow_cover_layer", "wildfire_map"],
         parameters={
-            "home_directory": "/home/prefect",
+            "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "script_name": "update_snow_cover.sh",
         },

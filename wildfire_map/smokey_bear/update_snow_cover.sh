@@ -36,4 +36,4 @@ gdal_translate -projwin 173.2 77.0 -118.0 46.0 -projwin_srs EPSG:4326 /tmp/snow_
 mv /tmp/$tname $GEOSERVER_HOME/data_dir/data/alaska_wildfires/
 
 # Reseeds tile cache layer
-curl -v -u admin:${admin_pass} -XPOST -H "Content-type: text/xml" -d '<seedRequest><name>alaska_wildfires:snow_cover_3338</name><srs><number>3338</number></srs><zoomStart>0</zoomStart><zoomStop>7</zoomStop><format>image/png</format><type>reseed</type><threadCount>4</threadCount></seedRequest>'  "http://gs.mapventure.org:8080/geoserver/gwc/rest/seed/alaska_wildfires:snow_cover_3338.xml"
+curl -v -u admin:${admin_pass} -XPOST -H "Content-type: text/xml" -d '<seedRequest><name>alaska_wildfires:snow_cover_3338</name><srs><number>3338</number></srs><zoomStart>0</zoomStart><zoomStop>7</zoomStop><format>image/png</format><type>reseed</type><threadCount>4</threadCount></seedRequest>'  "http://gs.earthmaps.io:8080/geoserver/gwc/rest/seed/alaska_wildfires:snow_cover_3338.xml"
