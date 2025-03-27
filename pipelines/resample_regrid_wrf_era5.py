@@ -16,10 +16,10 @@ def run_resample_and_regrid(
     ssh,
     launcher_script,
     conda_env_name,
-    runner_script,
     wrf_era5_directory,
     output_directory,
     slurm_directory,
+    script_directory,
     geo_file,
     start_year,
     end_year,
@@ -28,10 +28,10 @@ def run_resample_and_regrid(
     cmd = (
         f"python {launcher_script} "
         f"--conda_env_name {conda_env_name} "
-        f"--runner_script {runner_script} "
         f"--wrf_era5_directory {wrf_era5_directory} "
         f"--output_directory {output_directory} "
         f"--slurm_directory {slurm_directory} "
+        f"--script_directory {script_directory} "
         f"--geo_file {geo_file} "
         f"--start_year {start_year} "
         f"--end_year {end_year}"
@@ -98,20 +98,18 @@ def resample_regrid_wrf_era5(
         launcher_script = repo_path.joinpath(
             "downscaling", "run_resample_and_regrid_era5.py"
         )
-        runner_script = repo_path.joinpath(
-            "downscaling", "run_resample_and_regrid_era5.sh"
-        )
         write_directory = Path(scratch_directory).joinpath(write_dir_name)
         output_directory = write_directory.joinpath("netcdf")
         slurm_directory = write_directory.joinpath("slurm")
+        script_directory = launcher_script.parent
         kwargs = {
             "ssh": ssh,
             "launcher_script": launcher_script,
             "conda_env_name": conda_env_name,
-            "runner_script": runner_script,
             "wrf_era5_directory": wrf_era5_directory,
             "output_directory": output_directory,
             "slurm_directory": slurm_directory,
+            "script_directory": script_directory,
             "geo_file": geo_file,
             "start_year": start_year,
             "end_year": end_year,
