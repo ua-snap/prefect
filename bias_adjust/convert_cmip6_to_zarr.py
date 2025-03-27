@@ -16,8 +16,13 @@ ssh_port = 22
 
 tmp_year_str = "{model}/{scenario}/day/{var_id}/{var_id}_day_{model}_{scenario}_regrid_{{year}}0101-{{year}}1231.nc"
 tmp_zarr_name = "{var_id}_{model}_{scenario}.zarr"
-start_year = 1965
-end_year = 2014
+year_range_lut = {
+    "historical": (1965, 2014),
+    "ssp126": (2015, 2100),
+    "ssp245": (2015, 2100),
+    "ssp370": (2015, 2100),
+    "ssp585": (2015, 2100),
+}
 
 
 @flow(log_prints=True)
@@ -76,6 +81,7 @@ def convert_cmip6_to_zarr(
         for var_id in vars:
             for model in models:
                 for scenario in scenarios:
+                    start_year, end_year = year_range_lut[scenario]
                     year_str = tmp_year_str.format(
                         model=model, scenario=scenario, var_id=var_id
                     )
