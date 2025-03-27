@@ -80,44 +80,58 @@ all_scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
 
 @task
-def validate_vars(vars):
+def validate_vars(vars, return_list=True):
     """
     Task to validate strings of variables. Variables are checked against the lists in luts.py.
     Parameters:
     - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
     """
     if vars == "all":
-        return all_vars
+        vars = all_vars
+        vars_str = " ".join(all_vars)
     else:
         var_list = vars.split()
         assert all(x in all_vars for x in var_list), "Variables not valid."
 
-        return var_list
+    if return_list:
+        return vars
+    else:
+        return vars_str
 
 
 @task
-def validate_models(models_str):
+def validate_models(models_str, return_list=True):
     """Task to validate string of models to work on.
     Parameters:
     - models_str: string of models separated by white space (e.g., 'CESM2 GFDL-ESM4')
     """
     if models_str == "all":
-        return all_models
+        models = all_models
+        models_str = " ".join(models)
     else:
         models = models_str.split()
         assert all(x in all_models for x in models), "Models not valid."
+
+    if return_list:
         return models
+    else:
+        return models_str
 
 
 @task
-def validate_scenarios(scenarios_str):
+def validate_scenarios(scenarios_str, return_list=True):
     """Task to validate string of scenarios to work on.
     Parameters:
     - scenarios_str: string of scenarios separated by white space (e.g., 'historical ssp585')
     """
     if scenarios_str == "all":
-        return all_scenarios
+        scenarios = all_scenarios
+        scenarios_str = " ".join(all_scenarios)
     else:
         scenarios = scenarios_str.split()
         assert all(x in all_scenarios for x in scenarios), "Scenarios not valid."
+
+    if return_list:
         return scenarios
+    else:
+        return scenarios_str
