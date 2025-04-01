@@ -288,31 +288,41 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
     spatial_ref = ogr.osr.SpatialReference()
     spatial_ref.ImportFromEPSG(4326)
 
-    if feature_type == "fire":
-        point_layer = datasource.CreateLayer(
+    if feature_type == "fire_points":
+        layer = datasource.CreateLayer(
             "fire_points",
             srs=spatial_ref,
             geom_type=ogr.wkbPoint,
             options=["GEOMETRY_NAME=the_geom"],
         )
-        polygon_layer = datasource.CreateLayer(
+        layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+        field = ogr.FieldDefn("SUMMARY", ogr.OFTString)
+        field.SetWidth(1000)
+        layer.CreateField(field)
+
+    elif feature_type == "fire_polygons":
+        layer = datasource.CreateLayer(
             "fire_polygons",
             srs=spatial_ref,
             geom_type=ogr.wkbPolygon,
             options=["GEOMETRY_NAME=the_geom"],
         )
-
-        for layer in [point_layer, polygon_layer]:
-            layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
-            layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
-            layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
-            layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
-            layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
-            layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
-            layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
-            field = ogr.FieldDefn("SUMMARY", ogr.OFTString)
-            field.SetWidth(1000)
-            layer.CreateField(field)
+        layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("acres", ogr.OFTReal))
+        layer.CreateField(ogr.FieldDefn("active", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("OUTDATE", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("updated", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
+        layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
+        field = ogr.FieldDefn("SUMMARY", ogr.OFTString)
+        field.SetWidth(1000)
+        layer.CreateField(field)
 
     elif feature_type == "lightning":
         point_layer = datasource.CreateLayer(
@@ -336,10 +346,15 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
         geom_type = feature["geometry"]["type"]
         geom = ogr.CreateGeometryFromJson(json.dumps(feature["geometry"]))
 
-        if geom_type == "Point":
+        if feature_type == "fire_points" and geom_type == "Point":
+            layer = layer
+        elif feature_type == "fire_polygons" and geom_type in [
+            "Polygon",
+            "MultiPolygon",
+        ]:
+            layer = layer
+        elif feature_type in ["lightning", "viirs"] and geom_type == "Point":
             layer = point_layer
-        elif geom_type in ["Polygon", "MultiPolygon"]:
-            layer = polygon_layer
         else:
             continue
 
@@ -347,7 +362,7 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
         feat.SetGeometry(geom)
 
         try:
-            if feature_type == "fire":
+            if feature_type in ["fire_points", "fire_polygons"]:
                 feat.SetField("NAME", feature["properties"].get("NAME", ""))
                 feat.SetField("acres", feature["properties"].get("acres", 0))
                 feat.SetField("active", feature["properties"].get("active", ""))
@@ -379,11 +394,24 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Creates fire GeoPackage <-- required due to length of SUMMARY field
-    out_shapefile = os.path.join(args.out_dir, "fires.gpkg")
+    # Creates separate GeoPackages for fire points and polygons
     fire_geojson = fetch_fire_geojson()
     if fire_layers_update_failed is False:
-        convert_geojson_to_geopackage(fire_geojson, out_shapefile, "fire")
+        # Split features into points and polygons
+        point_features = [f for f in fire_geojson if f["geometry"]["type"] == "Point"]
+        polygon_features = [
+            f
+            for f in fire_geojson
+            if f["geometry"]["type"] in ["Polygon", "MultiPolygon"]
+        ]
+
+        # Create GeoPackage for fire points
+        out_shapefile = os.path.join(args.out_dir, "fire_points.gpkg")
+        convert_geojson_to_geopackage(point_features, out_shapefile, "fire_points")
+
+        # Create GeoPackage for fire polygons
+        out_shapefile = os.path.join(args.out_dir, "fire_polygons.gpkg")
+        convert_geojson_to_geopackage(polygon_features, out_shapefile, "fire_polygons")
 
     # Creates lightning shapefile
     out_shapefile = os.path.join(args.out_dir, "lightning.shp")
