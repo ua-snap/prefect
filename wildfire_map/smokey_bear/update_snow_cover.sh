@@ -1,3 +1,4 @@
+#! /bin/bash
 # Downloads data from upstream source,
 # Updates layer in GeoServer,
 # Rebuilds TileCache layer.
