@@ -1,6 +1,6 @@
 from prefect import flow
 from .viirs_smoke_tasks import *
-import datetime
+from datetime import datetime
 
 
 @flow(log_prints=True)
