@@ -3,8 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python=3.9
-  - prefect
+  - python=3.13
   - s3fs
   - requests
   - pandas
@@ -15,4 +14,4 @@ dependencies:
   - cartopy
   - gdal
   - h5netcdf
-  - pip
+  - h5py
