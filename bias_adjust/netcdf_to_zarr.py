@@ -1,5 +1,8 @@
-"""Contains tasks for converting netcdf files to zarr format. This is done for the bias adjustment to
-improve performance and resilience of the pipeline.
+"""Contains generic flow for converting a set of netcdf files to zarr format.
+TO-DO: Not sure if this works yet, might have changed some things in the cmip6-utils repo
+
+This was developed for the xclim-based bias-adjustment algorithms as it really seemed to
+improve performance and consistency of completion.
 """
 
 from prefect import flow, task
@@ -43,24 +46,6 @@ def run_netcdf_zarr_conversion(
         cmd += f"--start_year {start_year} --end_year {end_year} "
     if chunks_dict:
         cmd += f"--chunks_dict {chunks_dict} "
-
-    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
-    if exit_status != 0:
-        # this should error if something fails with creating the job
-        raise Exception(
-            f"Error in starting the Zarr conversion processing. Error: {stderr}"
-        )
-    if stdout != "":
-        logging.info(stdout)
-
-    job_ids = utils.parse_job_ids(stdout)
-    assert (
-        len(job_ids) == 1
-    ), f"More than one job ID given for batch file generation: {job_ids}"
-
-    print(f"Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})")
-
-    return job_ids
 
 
 @flow(log_prints=True)

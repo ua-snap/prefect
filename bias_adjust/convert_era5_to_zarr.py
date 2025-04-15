@@ -1,6 +1,5 @@
-"""Wrapper flow for converting a suite of CMIP6 data to Zarr format.
+"""Wrapper flow for converting ERA5 netCDFs to Zarr format.
 Uses fixed year range and assumes certain directory structure.
-Hard wired for daily data.
 
 """
 
@@ -9,24 +8,17 @@ from prefect import flow, task
 import paramiko
 from pathlib import Path
 from utils import utils, cmip6
-from netcdf_to_zarr import run_cmip6_netcdf_zarr_conversion
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
-tmp_year_str = "{model}/{scenario}/day/{var_id}/{var_id}_day_{model}_{scenario}_regrid_{{year}}0101-{{year}}1231.nc"
-tmp_zarr_name = "{var_id}_{model}_{scenario}.zarr"
-year_range_lut = {
-    "historical": (1965, 2014),
-    "ssp126": (2015, 2100),
-    "ssp245": (2015, 2100),
-    "ssp370": (2015, 2100),
-    "ssp585": (2015, 2100),
-}
+tmp_year_str = "{var_id}_{year}_era5_4km_3338.nc"
+tmp_zarr_name = "{var_id}_era5.zarr"
+year_range = (1965, 2014)
 
 
-def run_convert_cmip6_netcdf_to_zarr(
+def run_convert_era5_netcdf_to_zarr(
     ssh,
     conda_env_name,
     launcher_script,
@@ -34,8 +26,6 @@ def run_convert_cmip6_netcdf_to_zarr(
     worker_script,
     netcdf_dir,
     output_dir,
-    models,
-    scenarios,
     variables,
     slurm_dir,
 ):
@@ -48,8 +38,6 @@ def run_convert_cmip6_netcdf_to_zarr(
         f"--worker_script {worker_script} "
         f"--netcdf_dir {netcdf_dir} "
         f"--output_dir {output_dir} "
-        f"--models '{models}' "
-        f"--scenarios '{scenarios}' "
         f"--variables '{variables}' "
         f"--slurm_dir {slurm_dir}"
     )
@@ -69,14 +57,14 @@ def run_convert_cmip6_netcdf_to_zarr(
     ), f"More than one job ID given for batch file generation: {job_ids}"
 
     logging.info(
-        f"CMIP6 Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})"
+        f"ERA5 Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})"
     )
 
     return job_ids
 
 
 @flow(log_prints=True)
-def convert_cmip6_to_zarr(
+def convert_era5_to_zarr(
     ssh_username,
     ssh_private_key_path,
     repo_name,
@@ -84,17 +72,11 @@ def convert_cmip6_to_zarr(
     conda_env_name,
     netcdf_dir,
     variables,
-    models,
-    scenarios,
-    scratch_dir,  # e.g. /import/beegfs/kmredilla
+    scratch_dir,  # e.g. /center1/CMIP6/kmredilla
     tmp_dir_name,  # e.g. zarr_bias_adjust_inputs
     out_dir_name,
     partition,
 ):
-    variables = cmip6.validate_vars(variables, return_list=False)
-    models = cmip6.validate_models(models, return_list=False)
-    scenarios = cmip6.validate_scenarios(scenarios, return_list=False)
-
     # Create an SSH client
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -110,6 +92,20 @@ def convert_cmip6_to_zarr(
             ssh, repo_name, branch_name, scratch_dir
         )
 
+        # check that netcdf_dir is in scratch_dir
+        # netcdf_dir_on_scratch = utils.input_is_child_of_scratch_dir(
+        #     ssh, netcdf_dir, scratch_dir
+        # )
+        # if not netcdf_dir_on_scratch:
+        #     # run an rsync task to get the data to scratch_dir
+        #     utils.rsync(
+        #         ssh,
+        #         source_directory=netcdf_dir,
+        #         destination_directory=scratch_dir.joinpath(netcdf_dir.name),
+        #     )
+
+        utils.check_for_nfs_mount(ssh, "/import/beegfs")
+
         utils.ensure_slurm(ssh)
 
         utils.ensure_conda(ssh)
@@ -119,7 +115,7 @@ def convert_cmip6_to_zarr(
         )
 
         launcher_script = repo_path.joinpath(
-            "bias_adjust", "run_cmip6_netcdf_to_zarr.py"
+            "bias_adjust", "run_era5_netcdf_to_zarr.py"
         )
         worker_script = repo_path.joinpath("bias_adjust", "netcdf_to_zarr.py")
         scratch_dir = Path(scratch_dir)
@@ -133,16 +129,13 @@ def convert_cmip6_to_zarr(
             "ssh": ssh,
             "launcher_script": launcher_script,
             "conda_env_name": conda_env_name,
-            "partition": partition,
             "worker_script": worker_script,
             "netcdf_dir": netcdf_dir,
-            "output_dir": output_dir,
-            "models": models,
-            "scenarios": scenarios,
             "variables": variables,
-            "slurm_dir": slurm_dir,
+            "output_dir": output_dir,
+            "partition": partition,
         }
-        job_ids = [run_convert_cmip6_netcdf_to_zarr(**kwargs)]
+        job_ids = [run_convert_era5_netcdf_to_zarr(**kwargs)]
 
         utils.wait_for_jobs_completion(
             ssh,
@@ -160,31 +153,27 @@ if __name__ == "__main__":
     repo_name = "cmip6-utils"
     branch_name = "main"
     conda_env_name = "cmip6-utils"
-    models = "all"
-    scenarios = "all"
     variables = "tasmax pr dtr"
     scratch_dir = "/import/beegfs/CMIP6/snapdata"
     tmp_dir_name = "cmip6_downscaling"
     out_dir_name = "zarr_bias_adjust_inputs"
-    netcdf_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
+    netcdf_dir = "/center1/CMIP6/snapdata/daily_era5_4km_3338"
     partition = "t2small"
 
-    convert_cmip6_to_zarr.serve(
-        name="convert-cmip6-netcdf-to-zarr",
+    convert_era5_to_zarr.serve(
+        name="convert-era5-netcdf-to-zarr",
         tags=["Bias adjustment", "Downscaling"],
         parameters={
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
             "repo_name": repo_name,
             "branch_name": branch_name,
+            "partition": partition,
             "conda_env_name": conda_env_name,
             "scratch_dir": scratch_dir,
             "tmp_dir_name": tmp_dir_name,
             "out_dir_name": out_dir_name,
-            "models": models,
-            "scenarios": scenarios,
             "variables": variables,
             "netcdf_dir": netcdf_dir,
-            "partition": partition,
         },
     )
