@@ -80,17 +80,17 @@ all_scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
 
 @task
-def validate_vars(vars, return_list=True):
+def validate_vars(vars_str, return_list=True):
     """
     Task to validate strings of variables. Variables are checked against the lists in luts.py.
     Parameters:
     - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
     """
-    if vars == "all":
+    if vars_str == "all":
         vars = all_vars
         vars_str = " ".join(all_vars)
     else:
-        var_list = vars.split()
+        var_list = vars_str.split()
         assert all(x in all_vars for x in var_list), "Variables not valid."
 
     if return_list:

@@ -1,7 +1,26 @@
+import logging
 from pathlib import Path
 from time import sleep
+import paramiko
 from prefect import task
-import logging
+
+
+def connect_ssh(ssh_host, ssh_port, ssh_username, ssh_private_key_path):
+    """Connect to a remote server via SSH using Paramiko.
+
+    Parameters:
+    - ssh_host: SSH host address
+    - ssh_port: SSH port number
+    - ssh_username: SSH username
+    - ssh_private_key_path: Path to the private key file for SSH authentication
+    """
+    # Create an SSH client
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+    ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+    return ssh
 
 
 def decode_stream(std):
@@ -28,6 +47,26 @@ def exec_command(ssh, cmd):
     return exit_status, decode_stream(stdout), decode_stream(stderr)
 
 
+def rsync(ssh, source_directory, destination_directory, exclude=None):
+    """Synchronizes a directory from the source directory to a destination directory via rsync.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - source_directory: Source directory
+    - destination_directory: Destination directory on the local machine
+    - exclude: Patterns to exclude from synchronization (optional)
+    """
+    exclude_str = ""
+    if exclude:
+        exclude_str = " ".join([f"--exclude={item}" for item in exclude])
+
+    cmd = f"rsync -av {exclude_str} {source_directory} {destination_directory}"
+    exit_status, stdout, stderr = exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        raise Exception(f"Error synchronizing directory. Error: {stderr}")
+
+
 def parse_job_ids(stdout):
     """Parse the job IDs from stdout.
     Any time we are expecting job IDs from stdout, it should be a string of " "-separated IDs.
@@ -47,6 +86,36 @@ def parse_job_ids(stdout):
         )
 
     return job_ids
+
+
+def remote_directory_exists(ssh, directory):
+    """Check if a directory exists on the remote server via SSH.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - directory: Directory to check for existence
+    """
+    exit_status, stdout, stderr = exec_command(ssh, f"test -d {directory}")
+    return bool(exit_status)
+
+
+def input_is_child_of_scratch_dir(ssh, input_dir, scratch_dir):
+    """Check that an input directory exists as a subdirectory of scratch_dir.
+    If it does, return the directory. If not, return None.
+    """
+    # recursively compare parent of input_dir to scratch_dir
+    tmp_path = input_dir.parent
+    while tmp_path != scratch_dir:
+        tmp_path = tmp_path.parent
+        if str(tmp_path) != "/":
+            return False
+
+    # now verify this dir exists
+    input_exists = remote_directory_exists(ssh, input_dir)
+    if not input_exists:
+        raise Exception(f"Input directory {input_dir} does not exist on remote server.")
+
+    return True
 
 
 @task
@@ -378,3 +447,9 @@ def create_directories(ssh, dir_list):
                 )
             else:
                 print(f"Directory {directory} created successfully.")
+
+
+@task
+def rsync_task(ssh, source_directory, destination_directory, exclude=None):
+    """Task wrapper for utils.rsync"""
+    rsync(ssh, source_directory, destination_directory, exclude=None)
