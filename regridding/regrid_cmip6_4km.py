@@ -1,5 +1,5 @@
 """This is the script for regridding the CMIP6 data to a 4km grid matching WRF ERA5 data.
-Hard-coded defaults. 
+Hard-coded defaults.
 """
 
 # temp target file: /beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc
@@ -7,7 +7,7 @@ Hard-coded defaults.
 from pathlib import Path
 import paramiko
 from prefect import task, flow
-from regrid_cmip6 import regrid_cmip6
+from regridding import regrid_cmip6
 from utils import utils
 
 # Define your SSH parameters
@@ -25,8 +25,7 @@ def regrid_cmip6_4km(
     target_grid_source_file,
     scratch_directory,
     out_dir_name,
-    no_clobber,
-    vars,
+    variables,
     interp_method,
     freqs,
     models,
@@ -34,9 +33,10 @@ def regrid_cmip6_4km(
     conda_env_name,
     rasdafy,
     target_sftlf_fp=None,
+    no_clobber=False,
 ):
     # target_grid_file = f"{scratch_directory}/target_common_grid.nc"
-    # TO-DO: when it's ready, remove line below and uyse the one above
+    # TO-DO: when it's ready, remove line below and use the one above
     target_grid_file = target_grid_source_file
 
     # Create an SSH client
@@ -63,7 +63,7 @@ def regrid_cmip6_4km(
         "out_dir_name": out_dir_name,
         "target_grid_file": target_grid_file,
         "no_clobber": no_clobber,
-        "vars": vars,
+        "variables": variables,
         "interp_method": interp_method,
         "freqs": freqs,
         "models": models,
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
     out_dir_name = "cmip6_4km_3338"
     no_clobber = False
-    vars = "tasmin tasmax pr"
+    variables = "tasmin tasmax pr"
     interp_method = "bilinear"
     freqs = "day"
     models = "all"
@@ -109,7 +109,7 @@ if __name__ == "__main__":
             "target_grid_source_file": target_grid_source_fp,
             "out_dir_name": out_dir_name,
             "no_clobber": no_clobber,
-            "vars": vars,
+            "variables": variables,
             "interp_method": interp_method,
             "freqs": freqs,
             "models": models,

@@ -2,7 +2,7 @@ from time import sleep
 from prefect import task
 import paramiko
 from utils import utils
-from luts import *
+from regridding.luts import *
 
 
 @task

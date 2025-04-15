@@ -1,7 +1,7 @@
 from prefect import flow
 import paramiko
 from pathlib import Path
-import regridding_functions as rf
+from regridding import regridding_functions as rf
 from utils import utils
 
 # Define your SSH parameters
@@ -20,7 +20,7 @@ def regrid_cmip6(
     scratch_directory,
     out_dir_name,
     no_clobber,
-    vars,
+    variables,
     interp_method,
     freqs,
     models,
@@ -29,7 +29,7 @@ def regrid_cmip6(
     rasdafy,
     target_sftlf_fp=None,
 ):
-    vars = rf.validate_vars(vars)
+    variables = rf.validate_vars(variables)
     freqs = rf.validate_freqs(freqs)
     models = rf.validate_models(models)
     scenarios = rf.validate_scenarios(scenarios)
@@ -89,7 +89,7 @@ def regrid_cmip6(
             run_generate_batch_files_script,
             cmip6_directory,
             regrid_batch_dir,
-            vars,
+            variables,
             freqs,
             models,
             scenarios,
@@ -112,7 +112,7 @@ def regrid_cmip6(
             regrid_script,
             target_grid_file,
             no_clobber,
-            vars,
+            variables,
             interp_method,
             freqs,
             models,
@@ -136,7 +136,7 @@ def regrid_cmip6(
             conda_env_name,
             run_qc_script,
             qc_notebook,
-            vars,
+            variables,
             freqs,
             models,
             scenarios,
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
     scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
     no_clobber = False
-    vars = "all"
+    variables = "all"
     interp_method = "bilinear"
     freqs = "all"
     models = "all"
@@ -176,7 +176,7 @@ if __name__ == "__main__":
             "cmip6_directory": cmip6_directory,
             "scratch_directory": scratch_directory,
             "no_clobber": no_clobber,
-            "vars": vars,
+            "variables": variables,
             "interp_method": interp_method,
             "freqs": freqs,
             "models": models,
