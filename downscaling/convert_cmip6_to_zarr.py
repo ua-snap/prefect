@@ -9,7 +9,6 @@ from prefect import flow, task
 import paramiko
 from pathlib import Path
 from utils import utils, cmip6
-from netcdf_to_zarr import run_cmip6_netcdf_zarr_conversion
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"

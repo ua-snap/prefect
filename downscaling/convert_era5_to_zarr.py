@@ -7,7 +7,7 @@ import logging
 from prefect import flow, task
 import paramiko
 from pathlib import Path
-from utils import utils, cmip6
+from utils import utils
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
