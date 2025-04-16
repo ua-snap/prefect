@@ -10,6 +10,9 @@ from utils import utils, cmip6
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
+# name of folder in working_dir where dtr data is written
+out_dir_name = "dtr"
+
 
 @task
 def run_process_dtr(
@@ -63,7 +66,7 @@ def process_dtr(
     scenarios,
     input_dir,
     scratch_dir,
-    tmp_dir_name,
+    work_dir_name,
     partition,
 ):
     models = cmip6.validate_models(models, return_list=False)
@@ -94,8 +97,10 @@ def process_dtr(
 
         launcher_script = repo_path.joinpath("derived", "run_cmip6_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
-        tmp_dir = Path(scratch_dir).joinpath(tmp_dir_name)
-        slurm_dir = tmp_dir.joinpath("slurm")
+        working_dir = Path(scratch_dir).joinpath(work_dir_name)
+        output_dir = working_dir.joinpath(out_dir_name)
+        slurm_dir = working_dir.joinpath("slurm")
+
         kwargs = {
             "ssh": ssh,
             "launcher_script": launcher_script,
@@ -104,7 +109,7 @@ def process_dtr(
             "models": models,
             "scenarios": scenarios,
             "input_dir": input_dir,
-            "output_dir": input_dir,  # will write outputs back to input dir, as they mimic the input dir structure
+            "output_dir": output_dir,
             "slurm_dir": slurm_dir,
             "partition": partition,
         }
@@ -130,7 +135,7 @@ if __name__ == "__main__":
     input_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     output_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     scratch_dir = f"/beegfs/CMIP6/snapdata"
-    out_dir_name = "cmip6_dtr_4km_3338"
+    work_dir_name = "cmip6_dtr_4km_3338"
     partition = "t2small"
 
     process_dtr.serve(
@@ -146,7 +151,7 @@ if __name__ == "__main__":
             "scenarios": scenarios,
             "input_dir": input_dir,
             "scratch_dir": scratch_dir,
-            "out_dir_name": out_dir_name,
+            "work_dir_name": work_dir_name,
             "partition": partition,
         },
     )

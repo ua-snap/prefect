@@ -11,6 +11,7 @@ Thus, the following space is needed on /center1/CMIP6:
 
 which does not have the abundance of storage we are used to with / beegfs
 
+Downscaled data is written to <scratch_dir>/<work_dir_name>/downscaled
 """
 
 from prefect import flow, task
@@ -28,6 +29,9 @@ from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
+# name of folder in working_dir where downscaled data is written
+out_dir_name = "downscaled"
+
 
 @flow(log_prints=True)
 def downscale_cmip6(
@@ -39,7 +43,7 @@ def downscale_cmip6(
     cmip6_dir,  # e.g. /beegfs/CMIP6/arctic-cmip6/CMIP6
     reference_dir,  # e.g. /beegfs/CMIP6/kmredilla/daily_era5_4km_3338/netcdf
     scratch_dir,  # e.g. /center1/CMIP6/kmredilla
-    out_dir_name,
+    work_dir_name,
     variables,
     models,
     scenarios,
@@ -66,7 +70,7 @@ def downscale_cmip6(
         "branch_name": branch_name,
         "conda_env_name": conda_env_name,
         "scratch_dir": scratch_dir,
-        "out_dir_name": out_dir_name,
+        "work_dir_name": work_dir_name,
         "models": models,
         "scenarios": scenarios,
         "variables": variables,
@@ -100,7 +104,7 @@ def downscale_cmip6(
             "scratch_dir": scratch_dir,
         }
     )
-    process_dtr(**process_dtr_kwargs)
+    # process_dtr(**process_dtr_kwargs)
 
     {
         "ssh_username": ssh_username,
@@ -112,7 +116,6 @@ def downscale_cmip6(
         "scenarios": scenarios,
         "input_dir": cmip6_dir,
         "scratch_dir": scratch_dir,
-        "out_dir_name": out_dir_name,
         "partition": partition,
     }
 
@@ -150,7 +153,7 @@ if __name__ == "__main__":
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
     reference_dir = "/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338"
     scratch_dir = "/center1/CMIP6/snapdata"
-    out_dir_name = "cmip6_4km_downscaling"
+    work_dir_name = "cmip6_4km_downscaling"
     variables = "tasmax dtr pr"
     models = "all"
     scenarios = "all"
@@ -166,7 +169,7 @@ if __name__ == "__main__":
         "cmip6_dir": cmip6_dir,
         "reference_dir": reference_dir,
         "scratch_dir": scratch_dir,
-        "out_dir_name": out_dir_name,
+        "work_dir_name": work_dir_name,
         "variables": variables,
         "models": models,
         "scenarios": scenarios,

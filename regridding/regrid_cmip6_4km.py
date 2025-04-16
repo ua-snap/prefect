@@ -1,5 +1,7 @@
 """This is the script for regridding the CMIP6 data to a 4km grid matching WRF ERA5 data.
 Hard-coded defaults.
+
+Regridded data is written to <scratch_dir>/<work_dir_name>/regrid
 """
 
 # temp target file: /beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc
@@ -24,7 +26,7 @@ def regrid_cmip6_4km(
     cmip6_dir,
     target_grid_source_file,
     scratch_dir,
-    out_dir_name,
+    work_dir_name,
     variables,
     interp_method,
     freqs,
@@ -47,7 +49,7 @@ def regrid_cmip6_4km(
         "branch_name": branch_name,
         "cmip6_dir": cmip6_dir,
         "scratch_dir": scratch_dir,
-        "out_dir_name": out_dir_name,
+        "work_dir_name": work_dir_name,
         "target_grid_file": target_grid_file,
         "no_clobber": no_clobber,
         "variables": variables,
@@ -74,7 +76,7 @@ if __name__ == "__main__":
     branch_name = "main"
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
     scratch_dir = f"/beegfs/CMIP6/snapdata/"
-    out_dir_name = "cmip6_4km_3338"
+    work_dir_name = "cmip6_4km_3338"
     no_clobber = False
     variables = "tasmin tasmax pr"
     interp_method = "bilinear"
@@ -98,7 +100,7 @@ if __name__ == "__main__":
             "cmip6_dir": cmip6_dir,
             "scratch_dir": scratch_dir,
             "target_grid_source_file": target_grid_source_fp,
-            "out_dir_name": out_dir_name,
+            "work_dir_name": work_dir_name,
             "no_clobber": no_clobber,
             "variables": variables,
             "interp_method": interp_method,
