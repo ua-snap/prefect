@@ -79,6 +79,7 @@ def run_regridding(
     scenarios,
     rasdafy,
     target_sftlf_fp=None,
+    partition="t2small",
 ):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
@@ -101,6 +102,7 @@ def run_regridding(
     - scenarios: Scenarios to regrid
     - rasdafy: Boolean to determine if the regridded files should be prepared for Rasdaman
     - target_sftlf_fp: Path to file with target land fraction data
+    - partition: Slurm partition to use
     """
 
     cmd = (
@@ -113,6 +115,7 @@ def run_regridding(
         f" --regrid_script {regrid_script}"
         f" --target_grid_fp {target_grid_fp}"
         f" --interp_method {interp_method}"
+        f" --partition {partition}"
         f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
@@ -140,7 +143,7 @@ def run_regridding(
     return job_ids
 
 
-@task
+@task(name="rf_validate_vars")
 def validate_vars(vars):
     """
     Task to validate strings of variables. Variables are checked against the lists in luts.py.
@@ -177,7 +180,7 @@ def validate_freqs(freq_str):
         return freq_str
 
 
-@task
+@task(name="rf_validate_models")
 def validate_models(models_str):
     """Task to validate string of models to work on.
     Parameters:
@@ -191,7 +194,7 @@ def validate_models(models_str):
         return models_str
 
 
-@task
+@task(name="rf_validate_scenarios")
 def validate_scenarios(scenarios_str):
     """Task to validate string of scenarios to work on.
     Parameters:

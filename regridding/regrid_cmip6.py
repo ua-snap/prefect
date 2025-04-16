@@ -28,6 +28,7 @@ def regrid_cmip6(
     conda_env_name,
     rasdafy,
     target_sftlf_fp=None,
+    partition="t2small",
 ):
     variables = rf.validate_vars(variables)
     freqs = rf.validate_freqs(freqs)
@@ -119,6 +120,7 @@ def regrid_cmip6(
             scenarios,
             rasdafy,
             target_sftlf_fp,
+            partition,
         )
 
         utils.wait_for_jobs_completion(
@@ -146,6 +148,8 @@ def regrid_cmip6(
 
     finally:
         ssh.close()
+
+    return regrid_dir
 
 
 if __name__ == "__main__":
