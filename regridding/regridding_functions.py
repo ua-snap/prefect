@@ -70,9 +70,9 @@ def run_regridding(
     conda_init_script,
     conda_env_name,
     regrid_script,
-    target_grid_fp,
+    target_grid_file,
     no_clobber,
-    vars,
+    variables,
     interp_method,
     freqs,
     models,
@@ -95,7 +95,7 @@ def run_regridding(
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
     - no_clobber: Do not overwrite regridded files if they exist
-    - vars: Variables to regrid
+    - variables: Variables to regrid
     - interp_method: Interpolation method to use
     - freqs: Frequencies to regrid
     - models: Models to regrid
@@ -113,10 +113,10 @@ def run_regridding(
         f" --conda_init_script {conda_init_script}"
         f" --conda_env_name {conda_env_name}"
         f" --regrid_script {regrid_script}"
-        f" --target_grid_fp {target_grid_fp}"
+        f" --target_grid_fp {target_grid_file}"
         f" --interp_method {interp_method}"
         f" --partition {partition}"
-        f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+        f" --vars '{variables}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     if target_sftlf_fp:
@@ -211,7 +211,7 @@ def validate_scenarios(scenarios_str):
 @task
 def run_qc(
     ssh,
-    output_directory,
+    working_dir,
     cmip6_directory,
     repo_regridding_directory,
     conda_init_script,
@@ -230,7 +230,7 @@ def run_qc(
             f"python {run_qc_script}"
             f" --qc_notebook '{qc_notebook}'"
             f" --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}'"
-            f" --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}'"
+            f" --cmip6_directory '{cmip6_directory}' --working_dir '{working_dir}'"
             f" --repo_regridding_directory '{repo_regridding_directory}'"
             f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
         ),

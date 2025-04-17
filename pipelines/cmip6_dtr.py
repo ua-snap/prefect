@@ -123,6 +123,8 @@ def process_dtr(
     finally:
         ssh.close()
 
+    return output_dir
+
 
 if __name__ == "__main__":
     ssh_username = "snapdata"
