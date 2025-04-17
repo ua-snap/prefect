@@ -3,8 +3,8 @@ Uses fixed year range and assumes certain directory structure.
 
 """
 
-import logging
 from prefect import flow, task
+from prefect.logging import get_run_logger
 import paramiko
 from pathlib import Path
 from utils import utils
@@ -21,6 +21,7 @@ year_range = (1965, 2014)
 out_dir_name = "era5_zarr"
 
 
+@task
 def run_convert_era5_netcdf_to_zarr(
     ssh,
     conda_env_name,
@@ -33,6 +34,8 @@ def run_convert_era5_netcdf_to_zarr(
     slurm_dir,
 ):
     """This function will ssh to the remote server and run the slurm launcher script"""
+    logger = get_run_logger()
+
     cmd = (
         f"conda activate {conda_env_name}; "
         f"python {launcher_script} "
@@ -52,16 +55,14 @@ def run_convert_era5_netcdf_to_zarr(
             f"Error in starting the Zarr conversion processing. Error: {stderr}"
         )
     if stdout != "":
-        logging.info(stdout)
+        logger.info(stdout)
 
     job_ids = utils.parse_job_ids(stdout)
     assert (
         len(job_ids) == 1
     ), f"More than one job ID given for batch file generation: {job_ids}"
 
-    logging.info(
-        f"ERA5 Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})"
-    )
+    logger.info(f"ERA5 Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})")
 
     return job_ids
 
