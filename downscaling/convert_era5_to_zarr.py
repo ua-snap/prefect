@@ -13,11 +13,6 @@ from utils import utils
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
-tmp_year_str = "{var_id}_{year}_era5_4km_3338.nc"
-tmp_zarr_name = "{var_id}_era5.zarr"
-year_range = (1965, 2014)
-
-
 out_dir_name = "era5_zarr"
 
 
