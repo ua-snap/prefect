@@ -108,7 +108,7 @@ def convert_era5_to_zarr(
         worker_script = repo_path.joinpath("bias_adjust", "netcdf_to_zarr.py")
         scratch_dir = Path(scratch_dir)
         working_dir = scratch_dir.joinpath(work_dir_name)
-        output_dir = work_dir_name.joinpath(out_dir_name)
+        output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
         utils.create_directories(ssh, [output_dir, slurm_dir])
@@ -121,6 +121,7 @@ def convert_era5_to_zarr(
             "netcdf_dir": netcdf_dir,
             "variables": variables,
             "output_dir": output_dir,
+            "slurm_dir": slurm_dir,
             "partition": partition,
         }
         job_ids = [run_convert_era5_netcdf_to_zarr(**kwargs)]
