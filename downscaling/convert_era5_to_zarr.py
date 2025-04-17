@@ -18,6 +18,9 @@ tmp_zarr_name = "{var_id}_era5.zarr"
 year_range = (1965, 2014)
 
 
+out_dir_name = "era5_zarr"
+
+
 def run_convert_era5_netcdf_to_zarr(
     ssh,
     conda_env_name,
@@ -73,8 +76,7 @@ def convert_era5_to_zarr(
     netcdf_dir,
     variables,
     scratch_dir,  # e.g. /center1/CMIP6/kmredilla
-    tmp_dir_name,  # e.g. zarr_bias_adjust_inputs
-    out_dir_name,
+    work_dir_name,  # e.g. zarr_bias_adjust_inputs
     partition,
 ):
     # Create an SSH client
@@ -92,20 +94,6 @@ def convert_era5_to_zarr(
             ssh, repo_name, branch_name, scratch_dir
         )
 
-        # check that netcdf_dir is in scratch_dir
-        # netcdf_dir_on_scratch = utils.input_is_child_of_scratch_dir(
-        #     ssh, netcdf_dir, scratch_dir
-        # )
-        # if not netcdf_dir_on_scratch:
-        #     # run an rsync task to get the data to scratch_dir
-        #     utils.rsync(
-        #         ssh,
-        #         source_directory=netcdf_dir,
-        #         destination_directory=scratch_dir.joinpath(netcdf_dir.name),
-        #     )
-
-        utils.check_for_nfs_mount(ssh, "/import/beegfs")
-
         utils.ensure_slurm(ssh)
 
         utils.ensure_conda(ssh)
@@ -119,11 +107,11 @@ def convert_era5_to_zarr(
         )
         worker_script = repo_path.joinpath("bias_adjust", "netcdf_to_zarr.py")
         scratch_dir = Path(scratch_dir)
-        tmp_dir = scratch_dir.joinpath(tmp_dir_name)
-        output_dir = scratch_dir.joinpath(out_dir_name)
-        slurm_dir = tmp_dir.joinpath("slurm")
+        working_dir = scratch_dir.joinpath(work_dir_name)
+        output_dir = work_dir_name.joinpath(out_dir_name)
+        slurm_dir = working_dir.joinpath("slurm")
 
-        utils.create_directories(ssh, [tmp_dir, slurm_dir])
+        utils.create_directories(ssh, [output_dir, slurm_dir])
 
         kwargs = {
             "ssh": ssh,
@@ -146,6 +134,8 @@ def convert_era5_to_zarr(
     finally:
         ssh.close()
 
+    return output_dir
+
 
 if __name__ == "__main__":
     ssh_username = "snapdata"
@@ -155,9 +145,8 @@ if __name__ == "__main__":
     conda_env_name = "cmip6-utils"
     variables = "tasmax pr dtr"
     scratch_dir = "/import/beegfs/CMIP6/snapdata"
-    tmp_dir_name = "cmip6_downscaling"
-    out_dir_name = "zarr_bias_adjust_inputs"
-    netcdf_dir = "/center1/CMIP6/snapdata/daily_era5_4km_3338"
+    work_dir_name = "cmip6_4km_downscaling"
+    netcdf_dir = "/center1/CMIP6/snapdata/daily_era5_4km_3338/netcdf"
     partition = "t2small"
 
     convert_era5_to_zarr.serve(
@@ -171,8 +160,7 @@ if __name__ == "__main__":
             "partition": partition,
             "conda_env_name": conda_env_name,
             "scratch_dir": scratch_dir,
-            "tmp_dir_name": tmp_dir_name,
-            "out_dir_name": out_dir_name,
+            "work_dir_name": work_dir_name,
             "variables": variables,
             "netcdf_dir": netcdf_dir,
         },

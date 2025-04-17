@@ -15,6 +15,7 @@ Downscaled data is written to <scratch_dir>/<work_dir_name>/downscaled
 """
 
 from prefect import flow, task
+from prefect.logging import get_run_logger
 import paramiko
 from pathlib import Path
 from utils import utils
@@ -31,6 +32,54 @@ ssh_port = 22
 
 # name of folder in working_dir where downscaled data is written
 out_dir_name = "downscaled"
+
+
+@task
+def ensure_reference_data_in_scratch(
+    ssh_username,
+    ssh_private_key_path,
+    reference_dir,  # e.g. /beegfs/CMIP6/kmredilla/daily_era5_4km_3338/netcdf
+    scratch_dir,  # e.g. /center1/CMIP6/kmredilla
+    working_dir,
+):
+    logger = get_run_logger()
+    logger.info(
+        f"Checking for reference data directory {reference_dir} in scratch_dir {scratch_dir}"
+    )
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        # Load the private key for key-based authentication
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+
+        # Connect to the SSH server using key-based authentication
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        ref_exists = utils.input_is_child_of_scratch_dir(
+            ssh, reference_dir, scratch_dir
+        )
+        if not ref_exists:
+            logger.info(
+                f"Reference data not found in scratch_dir. Copying from {reference_dir}."
+            )
+            ref_scratch_dir = working_dir.joinpath("ref_netcdf")
+            utils.rsync(ssh, reference_dir, ref_scratch_dir)
+            logger.info(
+                f"Copied reference data from {reference_dir} to {ref_scratch_dir}"
+            )
+
+        else:
+            logger.info(
+                "Reference data already exists in scratch_dir. No action needed."
+            )
+            ref_scratch_dir = reference_dir
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+    return ref_scratch_dir
 
 
 @flow(log_prints=True)
@@ -50,15 +99,18 @@ def downscale_cmip6(
     partition,
     target_grid_source_file,
 ):
+    # logger = get_run_logger()
+
     reference_dir = Path(reference_dir)
     cmip6_dir = Path(cmip6_dir)
     scratch_dir = Path(scratch_dir)
+    working_dir = scratch_dir.joinpath(work_dir_name)
 
     # to start, we should probably just get every step laid out here
     # TO-DO: add these checks in as able
     # check for reference data in zarr format on scratch space
     # if yes, continue
-    # if no, check for reference data in netcdf on scratch space
+    # if no, check for reference data in netcdf in working_dir
     # if yes, convert to zarr
     # if no, rsync from reference_dir
 
@@ -93,33 +145,41 @@ def downscale_cmip6(
             "rasdafy": False,
         }
     )
-    regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
+    # regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
+    regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
 
     # second subflow: process DTR
     process_dtr_kwargs = base_kwargs.copy()
+    del process_dtr_kwargs["variables"]
     process_dtr_kwargs.update(
         {
             "input_dir": regrid_dir,
-            "output_dir": regrid_dir,  # will write outputs back to input dir, as they mimic the input dir structure
             "scratch_dir": scratch_dir,
+            "work_dir_name": work_dir_name,
         }
     )
-    # process_dtr(**process_dtr_kwargs)
+    # dtr_dir = process_dtr(**process_dtr_kwargs)
+    dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr"
 
-    {
+    ref_data_check_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
-        "repo_name": repo_name,
-        "branch_name": branch_name,
-        "conda_env_name": conda_env_name,
-        "models": models,
-        "scenarios": scenarios,
-        "input_dir": cmip6_dir,
+        "reference_dir": reference_dir,
         "scratch_dir": scratch_dir,
-        "partition": partition,
+        "working_dir": working_dir,
     }
+    # reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
 
-    # subflow: copy CMIP6 data to scratch directory
+    # convert ERA5 data to zarr
+    convert_era5_to_zarr_kwargs = base_kwargs.copy()
+    era5_vars = cmip6.cmip6_to_era5_variables(variables)
+    convert_era5_to_zarr_kwargs.update(
+        variables=era5_vars,
+        netcdf_dir=reference_dir,
+    )
+    del convert_era5_to_zarr_kwargs["models"]
+    del convert_era5_to_zarr_kwargs["scenarios"]
+    ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
 
     # subflow: convert cmip6 to zarr
     convert_cmip6_to_zarr_kwargs = (
