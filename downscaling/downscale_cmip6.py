@@ -82,6 +82,44 @@ def ensure_reference_data_in_scratch(
     return ref_scratch_dir
 
 
+@task
+def link_dtr_to_regrid(
+    ssh_username,
+    ssh_private_key_path,
+    dtr_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr
+    regrid_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid
+):
+    logger = get_run_logger()
+    logger.info(f"Linking DTR data from {dtr_dir} to {regrid_dir}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        # Load the private key for key-based authentication
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+
+        # Connect to the SSH server using key-based authentication
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        cmd = (
+            f"d1={regrid_dir}; "
+            f"d2={dtr_dir}; "
+            'find "$d2" -type f | while read -r filepath; do '
+            'relpath="${filepath#$d2/}"; '
+            'destdir="$(dirname "$d1/$relpath")"; '
+            'mkdir -p "$destdir"; '
+            'ln -sf "$filepath" "$d1/$relpath"; '
+            "done"
+        )
+
+        utils.exec_command(ssh, cmd)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -161,6 +199,15 @@ def downscale_cmip6(
     # dtr_dir = process_dtr(**process_dtr_kwargs)
     dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr"
 
+    # link the dtr data under the regrid directory so that it can all be accessed in the same place
+    link_dtr_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "dtr_dir": dtr_dir,
+        "regrid_dir": regrid_dir,
+    }
+    link_dtr_to_regrid(**link_dtr_kwargs)
+
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
@@ -179,24 +226,12 @@ def downscale_cmip6(
     )
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
-    ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
+    # ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
 
-    # subflow: convert cmip6 to zarr
-    convert_cmip6_to_zarr_kwargs = (
-        {
-            "ssh_username": ssh_username,
-            "ssh_private_key_path": ssh_private_key_path,
-            "repo_name": repo_name,
-            "branch_name": branch_name,
-            "conda_env_name": conda_env_name,
-            "netcdf_dir": cmip6_dir,
-            "variables": variables,
-            "models": models,
-            "scenarios": scenarios,
-            "scratch_dir": scratch_dir,
-            "out_dir_name": out_dir_name,
-            "partition": partition,
-        },
+    # convert CMIP6 data to zarr
+    convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
+    convert_cmip6_to_zarr_kwargs.update(
+        netcdf_dir=regrid_dir,
     )
     # convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
 
