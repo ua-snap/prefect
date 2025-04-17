@@ -4,8 +4,8 @@ Hard wired for daily data.
 
 """
 
-import logging
 from prefect import flow, task
+from prefect.logging import get_run_logger
 import paramiko
 from pathlib import Path
 from utils import utils, cmip6
@@ -25,6 +25,10 @@ year_range_lut = {
 }
 
 
+out_dir_name = "cmip6_zarr"
+
+
+@task
 def run_convert_cmip6_netcdf_to_zarr(
     ssh,
     conda_env_name,
@@ -39,6 +43,8 @@ def run_convert_cmip6_netcdf_to_zarr(
     slurm_dir,
 ):
     """This function will ssh to the remote server and run the slurm launcher script"""
+    logger = get_run_logger()
+
     cmd = (
         f"conda activate {conda_env_name}; "
         f"python {launcher_script} "
@@ -60,14 +66,14 @@ def run_convert_cmip6_netcdf_to_zarr(
             f"Error in starting the Zarr conversion processing. Error: {stderr}"
         )
     if stdout != "":
-        logging.info(stdout)
+        logger.info(stdout)
 
     job_ids = utils.parse_job_ids(stdout)
     assert (
         len(job_ids) == 1
     ), f"More than one job ID given for batch file generation: {job_ids}"
 
-    logging.info(
+    logger.info(
         f"CMIP6 Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})"
     )
 
@@ -86,8 +92,7 @@ def convert_cmip6_to_zarr(
     models,
     scenarios,
     scratch_dir,  # e.g. /import/beegfs/kmredilla
-    tmp_dir_name,  # e.g. zarr_bias_adjust_inputs
-    out_dir_name,
+    work_dir_name,  # e.g. zarr_bias_adjust_inputs
     partition,
 ):
     variables = cmip6.validate_vars(variables, return_list=False)
@@ -122,11 +127,11 @@ def convert_cmip6_to_zarr(
         )
         worker_script = repo_path.joinpath("bias_adjust", "netcdf_to_zarr.py")
         scratch_dir = Path(scratch_dir)
-        tmp_dir = scratch_dir.joinpath(tmp_dir_name)
-        output_dir = scratch_dir.joinpath(out_dir_name)
-        slurm_dir = tmp_dir.joinpath("slurm")
+        working_dir = scratch_dir.joinpath(work_dir_name)
+        output_dir = working_dir.joinpath(out_dir_name)
+        slurm_dir = working_dir.joinpath("slurm")
 
-        utils.create_directories(ssh, [tmp_dir, slurm_dir])
+        utils.create_directories(ssh, [output_dir, slurm_dir])
 
         kwargs = {
             "ssh": ssh,
@@ -136,10 +141,10 @@ def convert_cmip6_to_zarr(
             "worker_script": worker_script,
             "netcdf_dir": netcdf_dir,
             "output_dir": output_dir,
+            "slurm_dir": slurm_dir,
             "models": models,
             "scenarios": scenarios,
             "variables": variables,
-            "slurm_dir": slurm_dir,
         }
         job_ids = [run_convert_cmip6_netcdf_to_zarr(**kwargs)]
 
@@ -151,6 +156,8 @@ def convert_cmip6_to_zarr(
 
     finally:
         ssh.close()
+
+    return output_dir
 
 
 if __name__ == "__main__":
