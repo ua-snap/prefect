@@ -78,6 +78,33 @@ all_models = [
 
 all_scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
 
+# note, these really aren't the ERA5 variables.
+# These are the names given during the ERA5 postprocessing and could change...
+cmip6_to_era5_vars_lut = {
+    "tasmax": "t2max",
+    "tasmin": "t2min",
+    "tas": "t2",
+    "pr": "pr",
+}
+
+
+def cmip6_to_era5_variables(vars_str):
+    """Covnert a string of CMIP6 variables to the equivalent ERA5 variables.
+
+    Parameters:
+    - vars: a string of variable ids separated by white space (e.g., 'pr tas ta')
+    """
+    var_list = vars_str.split()
+    era5_var_list = [cmip6_to_era5_vars_lut.get(x) for x in var_list]
+    if None in era5_var_list:
+        raise ValueError(
+            f"Some variables are not in the CMIP6 to ERA5 conversion lookup table: {vars_str}"
+        )
+
+    era5_vars_str = " ".join(era5_var_list)
+
+    return era5_vars_str
+
 
 @task
 def validate_vars(vars_str, return_list=True):
@@ -87,14 +114,14 @@ def validate_vars(vars_str, return_list=True):
     - vars: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
     """
     if vars_str == "all":
-        vars = all_vars
+        var_list = all_vars
         vars_str = " ".join(all_vars)
     else:
         var_list = vars_str.split()
         assert all(x in all_vars for x in var_list), "Variables not valid."
 
     if return_list:
-        return vars
+        return var_list
     else:
         return vars_str
 
