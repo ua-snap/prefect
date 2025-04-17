@@ -94,9 +94,12 @@ def remote_directory_exists(ssh, directory):
     Parameters:
     - ssh: Paramiko SSHClient object
     - directory: Directory to check for existence
+
+    Returns:
+    - True if the directory exists, False otherwise
     """
     exit_status, stdout, stderr = exec_command(ssh, f"test -d {directory}")
-    return bool(exit_status)
+    return not bool(exit_status)
 
 
 def input_is_child_of_scratch_dir(ssh, input_dir, scratch_dir):
@@ -107,7 +110,7 @@ def input_is_child_of_scratch_dir(ssh, input_dir, scratch_dir):
     tmp_path = input_dir.parent
     while tmp_path != scratch_dir:
         tmp_path = tmp_path.parent
-        if str(tmp_path) != "/":
+        if tmp_path == Path("/"):
             return False
 
     # now verify this dir exists
