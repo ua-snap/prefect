@@ -1,8 +1,8 @@
-import logging
 from pathlib import Path
 from time import sleep
 import paramiko
 from prefect import task
+from prefect.logging import get_run_logger
 
 
 def connect_ssh(ssh_host, ssh_port, ssh_username, ssh_private_key_path):
@@ -406,7 +406,7 @@ def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!")
     - ssh: Paramiko SSHClient object
     - job_ids: List of job IDs to wait for
     """
-
+    logger = get_run_logger()
     while job_ids:
         # Check the status of each job in the list
         for job_id in job_ids.copy():
@@ -420,7 +420,7 @@ def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!")
             # Sleep for a while before checking again
             sleep(10)
 
-    logging.info(completion_message)
+    logger.info(completion_message)
 
 
 @task
@@ -431,6 +431,7 @@ def create_directories(ssh, dir_list):
     - ssh: Paramiko SSHClient object
     - dir_list: List of directories to create
     """
+    logger = get_run_logger()
     for directory in dir_list:
         exit_status, stdout, stderr = exec_command(
             ssh, f"test -d {directory} && echo 1 || echo 0"
@@ -438,10 +439,10 @@ def create_directories(ssh, dir_list):
         directory_exists = bool(int(stdout))
 
         if directory_exists:
-            logging.info(f"Directory {directory} already exists.")
+            logger.info(f"Directory {directory} already exists.")
             continue
         else:
-            logging.info(f"Creating directory {directory}...")
+            logger.info(f"Creating directory {directory}...")
             exit_status, stdout, stderr = exec_command(ssh, f"mkdir {directory}")
 
             if exit_status != 0:

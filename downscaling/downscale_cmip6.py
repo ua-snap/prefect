@@ -25,6 +25,7 @@ from regridding.regrid_cmip6_4km import regrid_cmip6_4km
 from pipelines.cmip6_dtr import process_dtr
 from downscaling.convert_cmip6_to_zarr import convert_cmip6_to_zarr
 from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
+from bias_adjust.train_bias_adjustment import train_bias_adjustment
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
@@ -206,7 +207,7 @@ def downscale_cmip6(
         "dtr_dir": dtr_dir,
         "regrid_dir": regrid_dir,
     }
-    link_dtr_to_regrid(**link_dtr_kwargs)
+    # link_dtr_to_regrid(**link_dtr_kwargs)
 
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
@@ -227,15 +228,25 @@ def downscale_cmip6(
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
     # ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
+    ref_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_zarr"
 
     # convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=regrid_dir,
     )
-    # convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+    # cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+    cmip6_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_zarr"
 
-    # subflow: run bias adjustment
+    train_bias_adjust_kwargs = base_kwargs.copy()
+    del train_bias_adjust_kwargs["scenarios"]
+    train_bias_adjust_kwargs.update(
+        {
+            "sim_dir": cmip6_zarr_dir,
+            "ref_dir": ref_zarr_dir,
+        }
+    )
+    train_bias_adjustment(**train_bias_adjust_kwargs)
     # bias_adjust_kwargs = base_kwargs.copy()
 
 

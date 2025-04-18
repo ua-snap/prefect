@@ -1,4 +1,4 @@
-"""Wrapper flow for converting a suite of CMIP6 data to Zarr format.
+"""Flow for training an xclim-based bias-adjustment and writing it to Zarr format.
 Uses fixed year range and assumes certain directory structure.
 Hard wired for daily data.
 
@@ -14,30 +14,21 @@ from utils import utils, cmip6
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
-# TO-DO: delete or incorporate as args?
-# year_range_lut = {
-#     "historical": (1965, 2014),
-#     "ssp126": (2015, 2100),
-#     "ssp245": (2015, 2100),
-#     "ssp370": (2015, 2100),
-#     "ssp585": (2015, 2100),
-# }
 
-
-out_dir_name = "cmip6_zarr"
+out_dir_name = "trained_datasets"
 
 
 @task
-def run_convert_cmip6_netcdf_to_zarr(
+def run_train_bias_adjustment(
     ssh,
     conda_env_name,
     launcher_script,
     partition,
     worker_script,
-    netcdf_dir,
+    sim_dir,
+    ref_dir,
     output_dir,
     models,
-    scenarios,
     variables,
     slurm_dir,
 ):
@@ -50,10 +41,10 @@ def run_convert_cmip6_netcdf_to_zarr(
         f"--partition {partition} "
         f"--conda_env_name {conda_env_name} "
         f"--worker_script {worker_script} "
-        f"--netcdf_dir {netcdf_dir} "
+        f"--sim_dir {sim_dir} "
+        f"--ref_dir {ref_dir} "
         f"--output_dir {output_dir} "
         f"--models '{models}' "
-        f"--scenarios '{scenarios}' "
         f"--variables '{variables}' "
         f"--slurm_dir {slurm_dir}"
     )
@@ -62,41 +53,34 @@ def run_convert_cmip6_netcdf_to_zarr(
     if exit_status != 0:
         # this should error if something fails with creating the job
         raise Exception(
-            f"Error in starting the Zarr conversion processing. Error: {stderr}"
+            f"Error in starting the bias adjustment training processing. Error: {stderr}"
         )
     if stdout != "":
         logger.info(stdout)
 
     job_ids = utils.parse_job_ids(stdout)
-    assert (
-        len(job_ids) == 1
-    ), f"More than one job ID given for batch file generation: {job_ids}"
-
-    logger.info(
-        f"CMIP6 Netcdf-to-Zarr conversion job submitted! (job ID: {job_ids[0]})"
-    )
+    logger.info(f"CMIP6 bias adjustment job submitted! (job ID: {job_ids})")
 
     return job_ids
 
 
 @flow(log_prints=True)
-def convert_cmip6_to_zarr(
+def train_bias_adjustment(
     ssh_username,
     ssh_private_key_path,
     repo_name,
     branch_name,
     conda_env_name,
-    netcdf_dir,
+    sim_dir,
+    ref_dir,
     variables,
     models,
-    scenarios,
     scratch_dir,  # e.g. /import/beegfs/kmredilla
     work_dir_name,  # e.g. zarr_bias_adjust_inputs
     partition,
 ):
     variables = cmip6.validate_vars(variables, return_list=False)
     models = cmip6.validate_models(models, return_list=False)
-    scenarios = cmip6.validate_scenarios(scenarios, return_list=False)
 
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -121,10 +105,8 @@ def convert_cmip6_to_zarr(
             ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
-        launcher_script = repo_path.joinpath(
-            "bias_adjust", "run_cmip6_netcdf_to_zarr.py"
-        )
-        worker_script = repo_path.joinpath("bias_adjust", "netcdf_to_zarr.py")
+        launcher_script = repo_path.joinpath("bias_adjust", "run_train_qm.py")
+        worker_script = repo_path.joinpath("bias_adjust", "train_qm.py")
         scratch_dir = Path(scratch_dir)
         working_dir = scratch_dir.joinpath(work_dir_name)
         output_dir = working_dir.joinpath(out_dir_name)
@@ -138,19 +120,19 @@ def convert_cmip6_to_zarr(
             "conda_env_name": conda_env_name,
             "partition": partition,
             "worker_script": worker_script,
-            "netcdf_dir": netcdf_dir,
+            "sim_dir": sim_dir,
+            "ref_dir": ref_dir,
             "output_dir": output_dir,
             "slurm_dir": slurm_dir,
             "models": models,
-            "scenarios": scenarios,
             "variables": variables,
         }
-        job_ids = [run_convert_cmip6_netcdf_to_zarr(**kwargs)]
+        job_ids = run_train_bias_adjustment(**kwargs)
 
         utils.wait_for_jobs_completion(
             ssh,
             job_ids,
-            completion_message="Slurm jobs for Zarr conversion complete.",
+            completion_message="Slurm jobs for bias adjustment training complete.",
         )
 
     finally:
@@ -166,14 +148,15 @@ if __name__ == "__main__":
     branch_name = "main"
     conda_env_name = "cmip6-utils"
     models = "all"
-    scenarios = "all"
     variables = "tasmax pr dtr"
     scratch_dir = "/import/beegfs/CMIP6/snapdata"
+    sim_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/cmip6_zarr"
+    ref_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/era5_zarr"
     work_dir_name = "cmip6_4km_downscaling"
     netcdf_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     partition = "t2small"
 
-    convert_cmip6_to_zarr.serve(
+    train_bias_adjustment.serve(
         name="convert-cmip6-netcdf-to-zarr",
         tags=["Bias adjustment", "Downscaling"],
         parameters={
@@ -183,9 +166,10 @@ if __name__ == "__main__":
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
             "scratch_dir": scratch_dir,
+            "sim_dir": sim_dir,
+            "ref_dir": ref_dir,
             "work_dir_name": work_dir_name,
             "models": models,
-            "scenarios": scenarios,
             "variables": variables,
             "netcdf_dir": netcdf_dir,
             "partition": partition,
