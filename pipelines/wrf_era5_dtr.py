@@ -1,4 +1,4 @@
-"""Flow for processing CMIP6 Diurnal Temperature Range from daily tasmax and tasmin data."""
+"""Flow for processing WRF-downscaled ERA5 Diurnal Temperature Range from daily tasmax and tasmin data."""
 
 from prefect import flow, task
 import paramiko
@@ -11,7 +11,7 @@ ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
 # name of folder in working_dir where dtr data is written
-out_dir_name = "cmip6_dtr"
+out_dir_name = "era5_dtr"
 
 
 @task
@@ -20,9 +20,7 @@ def run_process_dtr(
     launcher_script,
     worker_script,
     conda_env_name,
-    models,
-    scenarios,
-    input_dir,
+    era5_dir,
     output_dir,
     slurm_dir,
     partition,
@@ -32,9 +30,7 @@ def run_process_dtr(
         f"python {launcher_script} "
         f"--worker_script {worker_script} "
         f"--conda_env_name {conda_env_name} "
-        f"--models '{models}' "
-        f"--scenarios '{scenarios}' "
-        f"--input_dir {input_dir} "
+        f"--era5_dir {era5_dir} "
         f"--output_dir {output_dir} "
         f"--slurm_dir {slurm_dir} "
         f"--partition {partition} "
@@ -62,15 +58,11 @@ def process_dtr(
     repo_name,  # cmip6-utils
     branch_name,
     conda_env_name,
-    models,
-    scenarios,
-    input_dir,
+    era5_dir,
     scratch_dir,
     work_dir_name,
     partition,
 ):
-    models = cmip6.validate_models(models, return_list=False)
-    scenarios = cmip6.validate_scenarios(scenarios, return_list=False)
 
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -95,7 +87,7 @@ def process_dtr(
             ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
-        launcher_script = repo_path.joinpath("derived", "run_cmip6_dtr.py")
+        launcher_script = repo_path.joinpath("derived", "run_era5_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
         working_dir = Path(scratch_dir).joinpath(work_dir_name)
         output_dir = working_dir.joinpath(out_dir_name)
@@ -106,9 +98,7 @@ def process_dtr(
             "launcher_script": launcher_script,
             "worker_script": worker_script,
             "conda_env_name": conda_env_name,
-            "models": models,
-            "scenarios": scenarios,
-            "input_dir": input_dir,
+            "era5_dir": era5_dir,
             "output_dir": output_dir,
             "slurm_dir": slurm_dir,
             "partition": partition,
@@ -132,12 +122,9 @@ if __name__ == "__main__":
     repo_name = "cmip6-utils"
     branch_name = "main"
     conda_env_name = "cmip6-utils"
-    models = "all"
-    scenarios = "all"
-    input_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
-    output_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
+    era5_dir = "/beegfs/CMIP6/snapdata/daily_era5_4km_3338"
     scratch_dir = f"/beegfs/CMIP6/snapdata"
-    work_dir_name = "cmip6_dtr_4km_3338"
+    work_dir_name = "cmip6_4km_downscaling"
     partition = "t2small"
 
     process_dtr.serve(
@@ -149,9 +136,7 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
-            "models": models,
-            "scenarios": scenarios,
-            "input_dir": input_dir,
+            "era5_dir": era5_dir,
             "scratch_dir": scratch_dir,
             "work_dir_name": work_dir_name,
             "partition": partition,

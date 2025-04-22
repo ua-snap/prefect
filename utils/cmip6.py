@@ -85,6 +85,7 @@ cmip6_to_era5_vars_lut = {
     "tasmin": "t2min",
     "tas": "t2",
     "pr": "pr",
+    "dtr": "dtr",
 }
 
 
