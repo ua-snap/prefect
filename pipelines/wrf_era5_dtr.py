@@ -15,7 +15,7 @@ out_dir_name = "era5_dtr"
 
 
 @task
-def run_process_dtr(
+def run_process_era5_dtr(
     ssh,
     launcher_script,
     worker_script,
@@ -52,7 +52,7 @@ def run_process_dtr(
 
 
 @flow(log_prints=True)
-def process_dtr(
+def process_era5_dtr(
     ssh_username,
     ssh_private_key_path,
     repo_name,  # cmip6-utils
@@ -87,7 +87,7 @@ def process_dtr(
             ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
-        launcher_script = repo_path.joinpath("derived", "run_era5_dtr.py")
+        launcher_script = repo_path.joinpath("derived", "run_wrf_era5_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
         working_dir = Path(scratch_dir).joinpath(work_dir_name)
         output_dir = working_dir.joinpath(out_dir_name)
@@ -103,7 +103,7 @@ def process_dtr(
             "slurm_dir": slurm_dir,
             "partition": partition,
         }
-        job_ids = run_process_dtr(**kwargs)
+        job_ids = run_process_era5_dtr(**kwargs)
 
         utils.wait_for_jobs_completion(
             ssh,
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     work_dir_name = "cmip6_4km_downscaling"
     partition = "t2small"
 
-    process_dtr.serve(
+    process_era5_dtr.serve(
         name="process-dtr-cmip6",
         tags=["Data production", "CMIP6"],
         parameters={

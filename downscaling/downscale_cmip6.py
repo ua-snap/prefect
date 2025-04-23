@@ -22,6 +22,7 @@ from utils import utils
 from utils import cmip6
 from regridding.regrid_cmip6_4km import regrid_cmip6_4km
 from pipelines.cmip6_dtr import process_dtr
+from pipelines.wrf_era5_dtr import process_era5_dtr
 from downscaling.convert_cmip6_to_zarr import convert_cmip6_to_zarr
 from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 from bias_adjust.train_bias_adjustment import train_bias_adjustment
@@ -35,17 +36,25 @@ ssh_port = 22
 out_dir_name = "downscaled"
 
 
-def drop_non_regrid_variables(variables):
-    """Drops variables that are unintended for regridding step from the string representation of variables list
+def get_regrid_variables(variables):
+    """Modifies variables as needed that are unintended for regridding step using the string representation of variables list
 
     Parameters:
         variables (str): String representation of variables list
+
     Returns:
         str: String representation of variables list for regridding
     """
-    variables_list = variables.split()
-    drop_vars = ["dtr"]
-    regrid_variables_list = [var for var in variables_list if var not in drop_vars]
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    drop_vars = ["dtr"]  # dtr is not a variable in the CMIP6 data
+    regrid_variables_list = [var for var in var_list if var not in drop_vars]
+
+    if "dtr" in var_list:
+        if "tasmin" not in var_list:
+            regrid_variables_list.append("tasmin")
+        if "tasmax" not in var_list:
+            regrid_variables_list.append("tasmax")
+
     regrid_variables = " ".join(regrid_variables_list)
 
     return regrid_variables
@@ -137,6 +146,38 @@ def link_dtr_to_regrid(
         ssh.close()
 
 
+@task
+def link_dir(
+    ssh_username,
+    ssh_private_key_path,
+    src_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_dtr
+    target_dir,  # e.g. /center1/CMIP6/kmredilla/daily_era5_4km_3338/netcdf/dtr
+):
+    """Link a directory to another directory using SSH.
+
+    Created to link new DTR data to the ERA5 directory for batch access."""
+    logger = get_run_logger()
+    logger.info(f"Linking directory from {src_dir} to {target_dir}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        # Load the private key for key-based authentication
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+
+        # Connect to the SSH server using key-based authentication
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        cmd = f"ln -sf {target_dir} {target_dir}"
+
+        utils.exec_command(ssh, cmd)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -185,14 +226,14 @@ def downscale_cmip6(
         "partition": partition,
     }
 
-    # first subflow: regrid CMIP6 data to target grid
+    ### Regrid CMIP6 to 4km ERA5 grid
     regrid_cmip6_kwargs = base_kwargs.copy()
 
     # TO-DO: take target_grid_
     # target_grid_source_file = reference_dir.joinpath(
     #     "t2max/t2max_2014_era5_4km_3338.nc"
     # )
-    regrid_variables = drop_non_regrid_variables(variables)
+    regrid_variables = get_regrid_variables(variables)
     regrid_cmip6_kwargs.update(
         {
             "cmip6_dir": cmip6_dir,
@@ -206,27 +247,53 @@ def downscale_cmip6(
     # regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
     regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
 
-    # second subflow: process DTR
+    ### CMIP6 DTR processing
     process_dtr_kwargs = base_kwargs.copy()
     del process_dtr_kwargs["variables"]
     process_dtr_kwargs.update(
         {
             "input_dir": regrid_dir,
-            "scratch_dir": scratch_dir,
-            "work_dir_name": work_dir_name,
         }
     )
-    # dtr_dir = process_dtr(**process_dtr_kwargs)
-    dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr"
+    # cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
+    cmip6_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr"
+
+    # Note on directory structure:
+    # to keep things organized separately for individual tasks/flows,
+    # we will not be writing outputs to the same child directories,
+    # but rather giving them their own directories and linking them
+    # (the main case here being DTR, since that is created in this flow)
 
     # link the dtr data under the regrid directory so that it can all be accessed in the same place
     link_dtr_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
-        "dtr_dir": dtr_dir,
+        "dtr_dir": cmip6_dtr_dir,
         "regrid_dir": regrid_dir,
     }
-    link_dtr_to_regrid(**link_dtr_kwargs)
+    # link_dtr_to_regrid(**link_dtr_kwargs)
+
+    # ERA5 DTR processing
+    process_era5_dtr_kwargs = base_kwargs.copy()
+    del process_era5_dtr_kwargs["variables"]
+    del process_era5_dtr_kwargs["models"]
+    del process_era5_dtr_kwargs["scenarios"]
+    process_era5_dtr_kwargs.update(
+        {
+            "era5_dir": reference_dir,
+        }
+    )
+    # era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
+    era5_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_dtr"
+
+    era5_target_dtr_dir = reference_dir.joinpath("dtr")
+    link_era5_dtr_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "src_dir": era5_dtr_dir,
+        "target_dir": era5_target_dtr_dir,
+    }
+    # link_dir(**link_era5_dtr_kwargs)
 
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
@@ -265,8 +332,8 @@ def downscale_cmip6(
             "ref_dir": ref_zarr_dir,
         }
     )
-    # train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-    train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
+    train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+    # train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
 
     bias_adjust_kwargs = base_kwargs.copy()
     bias_adjust_kwargs.update(
@@ -275,7 +342,7 @@ def downscale_cmip6(
             "train_dir": train_dir,
         }
     )
-    # bias_adjustment(**bias_adjust_kwargs)
+    bias_adjustment(**bias_adjust_kwargs)
 
 
 if __name__ == "__main__":
