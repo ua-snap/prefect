@@ -120,7 +120,7 @@ def convert_era5_to_zarr(
             "slurm_dir": slurm_dir,
             "partition": partition,
         }
-        job_ids = [run_convert_era5_netcdf_to_zarr(**kwargs)]
+        job_ids = run_convert_era5_netcdf_to_zarr(**kwargs)
 
         utils.wait_for_jobs_completion(
             ssh,

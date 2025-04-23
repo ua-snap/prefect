@@ -407,10 +407,16 @@ def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!")
     - job_ids: List of job IDs to wait for
     """
     logger = get_run_logger()
+    logger.info(f"Waiting for jobs to complete: {job_ids}")
     while job_ids:
         # Check the status of each job in the list
         for job_id in job_ids.copy():
             exit_status, stdout, stderr = exec_command(ssh, f"squeue -h -j {job_id}")
+
+            if exit_status != 0:
+                raise Exception(
+                    f"Error checking job status for job ID {job_id}. Error: {stderr}"
+                )
 
             # If the job is no longer in the queue, remove it from the list
             if not stdout:

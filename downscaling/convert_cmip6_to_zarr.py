@@ -145,7 +145,7 @@ def convert_cmip6_to_zarr(
             "scenarios": scenarios,
             "variables": variables,
         }
-        job_ids = [run_convert_cmip6_netcdf_to_zarr(**kwargs)]
+        job_ids = run_convert_cmip6_netcdf_to_zarr(**kwargs)
 
         utils.wait_for_jobs_completion(
             ssh,
