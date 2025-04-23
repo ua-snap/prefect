@@ -1,6 +1,7 @@
-from prefect import task
-import logging
-
+from prefect import task, flow
+from prefect.logging import get_run_logger
+import paramiko
+from utils import utils
 
 # these were copied from the transfers/config.py in the cmip6-utils repo and include the WRF variables
 
@@ -164,3 +165,119 @@ def validate_scenarios(scenarios_str, return_list=True):
         return scenarios
     else:
         return scenarios_str
+
+
+@flow(log_prints=True)
+def check_for_derived_cmip6_data(
+    ssh_host,
+    ssh_port,
+    ssh_username,
+    ssh_private_key_path,
+    cmip6_dir,
+    scratch_dir,
+    work_dir_name,
+    out_dir_name,
+    models,
+    scenarios,
+    variables,
+    freqs,
+    **kwargs,
+):
+    """
+    Check for data derived from CMIP6 outputs.
+    This assumes the output data follows the typical structure of <model>/<scenario>/<frequency>/<variable_id>.
+    """
+    logger = get_run_logger()
+    logger.info("Checking for derived CMIP6 data...")
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(
+        ssh_host,
+        port=ssh_port,
+        username=ssh_username,
+        key_filename=ssh_private_key_path,
+    )
+
+    variables = validate_vars(variables, return_list=True)
+    models = validate_models(models, return_list=True)
+    scenarios = validate_scenarios(scenarios, return_list=True)
+    assert len(freqs.split()) == 1, "Only one frequency is allowed at a time."
+    freq = freqs.split()[0]
+
+    # accumulate tubles of missing combos (model, scenario, variable)
+    missing_data = []
+    for model in models:
+        for scenario in scenarios:
+            for variable in variables:
+                # check for raw files with globbing
+                mip_dirname = "CMIP" if scenario == "historical" else "ScenarioMIP"
+                raw_data_glob_str = cmip6_dir.joinpath(
+                    mip_dirname,
+                    "*",
+                    model,
+                    scenario,
+                    "*",
+                    freq,
+                    variable,
+                    "*",
+                    "*",
+                    "*.nc",
+                )
+                exist_status, stdout, stderr = utils.exec_command(
+                    ssh, f"ls {raw_data_glob_str} | wc -l"
+                )
+                if exist_status != 0:
+                    logger.error(f"Error checking {raw_data_glob_str}: {stderr}")
+                else:
+                    try:
+                        n_raw_files = int(stdout)
+                    except ValueError:
+                        logger.error(
+                            f"Error converting output from {raw_data_glob_str} to int: {stdout}"
+                        )
+                    if n_raw_files == 0:
+                        logger.info(f"Raw data files do not exist: {raw_data_glob_str}")
+                        continue
+
+                # made it this far should mean we have n_raw_files > 0
+                # check for derived data
+                # Construct the path to the derived data directory, check for this first
+                derived_dir = scratch_dir.joinpath(
+                    work_dir_name, out_dir_name, model, scenario, freq, variable
+                )
+                derived_exists = utils.remote_directory_exists(ssh, derived_dir)
+                if not derived_exists:
+                    logger.info(f"Derived data directory does not exist: {derived_dir}")
+                    missing_data.append((model, scenario, variable))
+                    continue
+
+                exist_status, stdout, stderr = utils.exec_command(
+                    ssh, f"ls {derived_dir} | wc -l"
+                )
+
+                if exist_status != 0:
+                    logger.error(f"Error checking {derived_dir}: {stderr}")
+                else:
+                    try:
+                        n_files = int(stdout)
+                        if n_files == 0:
+                            logger.info(
+                                f"Expected data files not found in {derived_dir}"
+                            )
+                            missing_data.append((model, scenario, variable))
+                    except ValueError:
+                        logger.error(
+                            f"Error converting stdout to number of files: {stdout}"
+                        )
+
+    data_is_missing = len(missing_data) > 0
+    if data_is_missing:
+        logger.info(
+            f"Missing derived data for the following combinations: {missing_data}"
+        )
+    else:
+        logger.info("All derived data exists.")
+
+    ssh.close()
+
+    return data_is_missing

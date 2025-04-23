@@ -213,6 +213,8 @@ def downscale_cmip6(
     # here are some base kwargs that will be recycled across subflows
 
     base_kwargs = {
+        "ssh_host": ssh_host,
+        "ssh_port": ssh_port,
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "repo_name": repo_name,
@@ -239,13 +241,17 @@ def downscale_cmip6(
             "cmip6_dir": cmip6_dir,
             "target_grid_source_file": target_grid_source_file,
             "interp_method": "bilinear",
+            "out_dir_name": "regrid",
             "freqs": "day",
             "rasdafy": False,
             "variables": regrid_variables,
         }
     )
-    # regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
-    regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
+    # check for regridded data
+    missing_regrid_data = cmip6.check_for_derived_cmip6_data(**regrid_cmip6_kwargs)
+    if missing_regrid_data:
+        regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
+    # regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
 
     ### CMIP6 DTR processing
     process_dtr_kwargs = base_kwargs.copy()
