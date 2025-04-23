@@ -19,6 +19,8 @@ out_dir_name = "regrid"
 
 @flow(log_prints=True)
 def regrid_cmip6(
+    ssh_host,
+    ssh_port,
     ssh_username,
     ssh_private_key_path,
     repo_name,  # cmip6-utils
@@ -27,6 +29,7 @@ def regrid_cmip6(
     target_grid_file,
     scratch_dir,
     work_dir_name,
+    out_dir_name,
     no_clobber,
     variables,
     interp_method,
@@ -184,12 +187,15 @@ if __name__ == "__main__":
         name="regrid-cmip6",
         tags=["CMIP6 Regridding"],
         parameters={
+            "ssh_host": ssh_host,
+            "ssh_port": ssh_port,
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
             "repo_name": repo_name,
             "branch_name": branch_name,
             "cmip6_dir": cmip6_dir,
             "work_dir_name": work_dir_name,
+            "out_dir_name": out_dir_name,
             "scratch_dir": scratch_dir,
             "no_clobber": no_clobber,
             "variables": variables,

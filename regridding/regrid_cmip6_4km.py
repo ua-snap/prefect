@@ -19,6 +19,8 @@ ssh_port = 22
 
 @flow
 def regrid_cmip6_4km(
+    ssh_host,
+    ssh_port,
     ssh_username,
     ssh_private_key_path,
     repo_name,  # cmip6-utils
@@ -27,6 +29,7 @@ def regrid_cmip6_4km(
     target_grid_source_file,
     scratch_dir,
     work_dir_name,
+    out_dir_name,
     variables,
     interp_method,
     freqs,
@@ -43,6 +46,8 @@ def regrid_cmip6_4km(
     target_grid_file = target_grid_source_file
 
     kwargs = {
+        "ssh_host": ssh_host,
+        "ssh_port": ssh_port,
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "repo_name": repo_name,
@@ -50,6 +55,7 @@ def regrid_cmip6_4km(
         "cmip6_dir": cmip6_dir,
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
+        "out_dir_name": out_dir_name,
         "target_grid_file": target_grid_file,
         "no_clobber": no_clobber,
         "variables": variables,
@@ -77,6 +83,7 @@ if __name__ == "__main__":
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
     scratch_dir = f"/beegfs/CMIP6/snapdata/"
     work_dir_name = "cmip6_4km_3338"
+    out_dir_name = "regrid"
     no_clobber = False
     variables = "tasmin tasmax pr"
     interp_method = "bilinear"
@@ -93,6 +100,8 @@ if __name__ == "__main__":
         name="regrid-cmip6-4km-era5",
         tags=["CMIP6 Regridding"],
         parameters={
+            "ssh_host": ssh_host,
+            "ssh_port": ssh_port,
             "ssh_username": ssh_username,
             "ssh_private_key_path": ssh_private_key_path,
             "repo_name": repo_name,
@@ -101,6 +110,7 @@ if __name__ == "__main__":
             "scratch_dir": scratch_dir,
             "target_grid_source_file": target_grid_source_fp,
             "work_dir_name": work_dir_name,
+            "out_dir_name": out_dir_name,
             "no_clobber": no_clobber,
             "variables": variables,
             "interp_method": interp_method,
