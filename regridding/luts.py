@@ -76,6 +76,7 @@ all_models = [
     "MRI-ESM2-0",
     "NorESM2-MM",
     "TaiESM1",
+    "E3SM-Project",
 ]
 
 all_scenarios = ["historical", "ssp126", "ssp245", "ssp370", "ssp585"]
