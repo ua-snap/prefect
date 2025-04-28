@@ -9,10 +9,10 @@ def generate_viirs_smoke(working_directory, output_directory):
         install_conda_environment("viirs_smoke", f"{working_directory}/environment.yml")
 
         execute_local_script(
-            f"{working_directory}/adp/create_adp_smoke.py --out-dir ", output_directory
+            f"{working_directory}/adp/create_adp_smoke.py", output_directory
         )
         execute_local_script(
-            f"{working_directory}/aod/create_aod_smoke.py --out-dir ", output_directory
+            f"{working_directory}/aod/create_aod_smoke.py", output_directory
         )
         return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
     except Exception as e:
