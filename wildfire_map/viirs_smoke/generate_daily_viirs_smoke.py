@@ -4,11 +4,16 @@ from datetime import datetime
 
 
 @flow(log_prints=True)
-def generate_viirs_smoke(working_directory, script_name, output_directory):
+def generate_viirs_smoke(working_directory, output_directory):
     try:
         install_conda_environment("viirs_smoke", f"{working_directory}/environment.yml")
 
-        execute_local_script(f"{working_directory}/{script_name}", output_directory)
+        execute_local_script(
+            f"{working_directory}/adp/create_adp_smoke.py --out-dir ", output_directory
+        )
+        execute_local_script(
+            f"{working_directory}/aod/create_aod_smoke.py --out-dir ", output_directory
+        )
         return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
     except Exception as e:
         return {
@@ -24,7 +29,6 @@ if __name__ == "__main__":
         tags=["VIIRS Smoke", "Wildfire Map"],
         parameters={
             "working_directory": "/usr/local/prefect/wildfire_map/viirs_smoke",
-            "script_name": "create_viirs_smoke.py",
             "output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/",
         },
     )

@@ -1,3 +1,9 @@
+"""
+The script is designed to be used with Prefect to create a GeoTIFF from a VIIRS ADP map image file.
+
+Requires an output directory to be passed in as an argument.
+"""
+
 from pathlib import Path
 
 import datetime
@@ -261,11 +267,7 @@ def plot_simple_viirs_adp_smoke(fs, file_list, png_domain, save_path):
                     transform=ccrs.PlateCarree(),
                 )
 
-    # Pull observation info from first data file name (string)
-    fname = file_list[0].split("/")[-1]
-    save_sat = fname.split("_")[2]
-    save_date = fname.split("_")[3][1:9]
-    save_name = f"{save_sat}_viirs_adp_saai_smoke_{save_date}"
+    save_name = "viirs_adp.png"
 
     # Save image file to designated directory
     # Set background as transparent (for GeoTIFF)
@@ -273,8 +275,6 @@ def plot_simple_viirs_adp_smoke(fs, file_list, png_domain, save_path):
 
     # Close plot
     plt.close()
-
-    return save_name
 
 
 # Create GeoTIFF from map image file
@@ -351,7 +351,7 @@ def main(output_directory=Path.cwd()):
 
     # Create VIIRS Smoke ADP map image file
     if file_list:
-        save_name = plot_simple_viirs_adp_smoke(fs, file_list, png_domain, image_path)
+        plot_simple_viirs_adp_smoke(fs, file_list, png_domain, image_path)
 
     # Convert .png file to .tif file & save locally
 
@@ -370,11 +370,11 @@ def main(output_directory=Path.cwd()):
 
     # Set full paths for .png and .tif files (as strings)
     # gdal takes file paths as strings
-    image_file_path = (image_path / (f"{save_name}.png")).as_posix()
-    tif_file_path = (tif_path / (f"{save_name}.tif")).as_posix()
+    image_file_path = (image_path / "viirs_adp.png").as_posix()
+    tif_file_path = (tif_path / "viirs_adp.tif").as_posix()
 
     # Create geotiff
-    print(f"Creating GeoTIFF {save_name}.tif")
+    print(f"Creating GeoTIFF viirs_adp.tif")
     create_geotiff(tif_file_path, image_file_path, tif_domain)
 
 
