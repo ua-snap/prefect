@@ -48,7 +48,6 @@ def regrid_cmip6(
 
     # build additional parameters from prefect inputs
     repo_regridding_dir = f"{scratch_dir}/cmip6-utils/regridding"
-    conda_init_script = f"{scratch_dir}/cmip6-utils/regridding/conda_init.sh"
     regrid_script = f"{scratch_dir}/cmip6-utils/regridding/regrid.py"
     slurm_script = f"{scratch_dir}/cmip6-utils/regridding/slurm.py"
     generate_batch_files_script = (
@@ -95,7 +94,6 @@ def regrid_cmip6(
 
         batch_job_ids = rf.run_generate_batch_files(
             ssh,
-            conda_init_script,
             conda_env_name,
             generate_batch_files_script,
             run_generate_batch_files_script,
@@ -119,7 +117,6 @@ def regrid_cmip6(
             "slurm_dir": slurm_dir,
             "regrid_dir": output_dir,
             "regrid_batch_dir": regrid_batch_dir,
-            "conda_init_script": conda_init_script,
             "conda_env_name": conda_env_name,
             "regrid_script": regrid_script,
             "target_grid_file": target_grid_file,
@@ -146,7 +143,6 @@ def regrid_cmip6(
             output_dir,
             cmip6_dir,
             repo_regridding_dir,
-            conda_init_script,
             conda_env_name,
             run_qc_script,
             qc_notebook,

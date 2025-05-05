@@ -8,7 +8,6 @@ from regridding.luts import *
 @task
 def run_generate_batch_files(
     ssh,
-    conda_init_script,
     conda_env_name,
     generate_batch_files_script,
     run_generate_batch_files_script,
@@ -24,7 +23,6 @@ def run_generate_batch_files(
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - conda_init_script: Script to initialize conda during slurm jobs
     - conda_env_name: Name of the Conda environment to activate for processing
     - generate_batch_files_script: Location of the script to generate batch files
     - run_generate_batch_files_script: Location of the script to run the batch file generation script
@@ -38,7 +36,6 @@ def run_generate_batch_files(
     cmd = (
         f"python {run_generate_batch_files_script}"
         f" --generate_batch_files_script {generate_batch_files_script}"
-        f" --conda_init_script {conda_init_script}"
         f" --conda_env_name {conda_env_name}"
         f" --cmip6_directory {cmip6_directory}"
         f" --regrid_batch_dir {regrid_batch_dir}"
@@ -67,7 +64,6 @@ def run_regridding(
     slurm_dir,
     regrid_dir,
     regrid_batch_dir,
-    conda_init_script,
     conda_env_name,
     regrid_script,
     target_grid_file,
@@ -79,6 +75,7 @@ def run_regridding(
     scenarios,
     rasdafy,
     target_sftlf_fp=None,
+    cascade_file=None,
     partition="t2small",
 ):
     """
@@ -90,7 +87,6 @@ def run_regridding(
     - slurm_dir: Directory to save slurm sbatch files
     - regrid_dir: Path to directory where regridded files are written
     - regrid_batch_dir: Directory of batch files
-    - conda_init_script: Script to initialize conda during slurm jobs
     - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
@@ -102,6 +98,7 @@ def run_regridding(
     - scenarios: Scenarios to regrid
     - rasdafy: Boolean to determine if the regridded files should be prepared for Rasdaman
     - target_sftlf_fp: Path to file with target land fraction data
+    - cascade_file: Path to intermediate file for cascade regridding
     - partition: Slurm partition to use
     """
 
@@ -110,7 +107,6 @@ def run_regridding(
         f" --slurm_dir {slurm_dir}"
         f" --regrid_dir {regrid_dir}"
         f" --regrid_batch_dir {regrid_batch_dir}"
-        f" --conda_init_script {conda_init_script}"
         f" --conda_env_name {conda_env_name}"
         f" --regrid_script {regrid_script}"
         f" --target_grid_fp {target_grid_file}"
@@ -127,6 +123,9 @@ def run_regridding(
 
     if rasdafy:
         cmd += " --rasdafy"
+
+    if cascade_regrid_fp:
+        cmd += f" --cascade_file {cascade_file}"
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
@@ -214,7 +213,6 @@ def run_qc(
     working_dir,
     cmip6_directory,
     repo_regridding_directory,
-    conda_init_script,
     conda_env_name,
     run_qc_script,
     qc_notebook,
@@ -229,7 +227,7 @@ def run_qc(
         (
             f"python {run_qc_script}"
             f" --qc_notebook '{qc_notebook}'"
-            f" --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}'"
+            f" --conda_env_name '{conda_env_name}'"
             f" --cmip6_directory '{cmip6_directory}' --working_dir '{working_dir}'"
             f" --repo_regridding_directory '{repo_regridding_directory}'"
             f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
