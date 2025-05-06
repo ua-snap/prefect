@@ -271,7 +271,7 @@ def qc(ssh, working_directory, input_dir):
     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
 
     qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
-    output_dir = f"{working_directory}"
+    output_dir = f"{working_directory}/cmip6_indicators"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
@@ -309,7 +309,7 @@ def visual_qc_nb(ssh, working_directory, input_directory):
     conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
     repo_indicators_dir = f"{working_directory}/cmip6-utils/indicators"
     visual_qc_nb = f"{working_directory}/cmip6-utils/indicators/visual_qc.ipynb"
-    output_nb = f"{working_directory}/qc/visual_qc_out.ipynb"
+    output_nb = f"{working_directory}/cmip6_indicators/qc/visual_qc_out.ipynb"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"source {conda_init_script}\n"
