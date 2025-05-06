@@ -124,9 +124,6 @@ def run_regridding(
     if rasdafy:
         cmd += " --rasdafy"
 
-    if cascade_regrid_fp:
-        cmd += f" --cascade_file {cascade_file}"
-
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
     # Check the exit status for errors
