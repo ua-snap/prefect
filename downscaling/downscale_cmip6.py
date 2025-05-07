@@ -20,7 +20,7 @@ import paramiko
 from pathlib import Path
 from utils import utils
 from utils import cmip6
-from regridding.regrid_cmip6_4km import regrid_cmip6_4km
+from regridding.regrid_cmip6 import regrid_cmip6
 from pipelines.cmip6_dtr import process_dtr
 from pipelines.wrf_era5_dtr import process_era5_dtr
 from downscaling.convert_cmip6_to_zarr import convert_cmip6_to_zarr
@@ -178,6 +178,111 @@ def link_dir(
         ssh.close()
 
 
+@task
+def create_cascade_target_grid_file(
+    ssh_username,
+    ssh_private_key_path,
+    cascade_grid_script,
+    cascade_grid_source_file,
+    scratch_dir,
+    work_dir_name,
+):
+    cascade_target_file = scratch_dir.joinpath(work_dir_name, "intermediate_target.nc")
+
+    logger = get_run_logger()
+    logger.info(f"Creating target grid file {cascade_target_file}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_target.nc
+    cmd = f"conda activate cmip6-utils && \
+            python {cascade_grid_script} \
+            --src_file {cascade_grid_source_file} \
+            --out_file {cascade_target_file}"
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+        utils.exec_command(ssh, cmd)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+    return cascade_target_file
+
+
+@flow
+# putting this flow here now because it has more to do with downscaling than general regridding
+def run_regrid_cmip6_again(
+    working_dir,
+    launcher_script,
+    conda_env_name,
+    partition,
+    regrid_script,
+    interp_method,
+    target_grid_file,
+    regridded_dir,
+    ssh_username,
+    ssh_private_key_path,
+    out_dir_name,
+):
+    """Flow for regridding CMIP6 data that has been regridded once and so is all on a common grid."""
+    logger = get_run_logger()
+    logger.info(f"Regridding CMIP6 data again to {target_grid_file}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    slurm_dir = working_dir.joinpath("slurm")
+    regrid_again_batch_dir = slurm_dir.joinpath("regrid_again_batch")
+    output_dir = working_dir.joinpath(out_dir_name)
+
+    cmd = (
+        f"conda activate {conda_env_name}; "
+        f"python {launcher_script} "
+        f"--partition {partition} "
+        f"--conda_env_name {conda_env_name} "
+        f"--slurm_dir {slurm_dir} "
+        f"--regrid_script {regrid_script} "
+        f"--interp_method {interp_method} "
+        f"--target_grid_file {target_grid_file} "
+        f"--regridded_dir {regridded_dir} "
+        f"--regrid_again_batch_dir {regrid_again_batch_dir} "
+        f"--output_dir {output_dir} "
+    )
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(f"Error in starting the re-regridding. Error: {stderr}")
+        if stdout != "":
+            logger.info(stdout)
+
+        job_ids = utils.parse_job_ids(stdout)
+        assert (
+            len(job_ids) == 1
+        ), f"More than one job ID given for final regridding: {job_ids}"
+
+        logger.info(
+            f"CMIP6 regridding to final grid job submitted! (job ID: {job_ids[0]})"
+        )
+
+        utils.wait_for_jobs_completion(
+            ssh,
+            job_ids,
+            completion_message="Slurm jobs for final regridding complete.",
+        )
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+    return output_dir
+
+
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -228,37 +333,131 @@ def downscale_cmip6(
         "partition": partition,
     }
 
-    ### Regrid CMIP6 to 4km ERA5 grid
-    regrid_cmip6_kwargs = base_kwargs.copy()
+    ### Regridding 1: Regrid CMIP6 data to intermediate grid
+    # first, run the task to create the intermediate target grid file
+    cascade_grid_script = scratch_dir.joinpath(
+        repo_name, "downscaling", "make_intermediate_target_grid_file.py"
+    )
+    cascade_grid_source_file = cmip6_dir.joinpath(
+        "ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
+    )
+
+    cascade_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "cascade_grid_script": cascade_grid_script,
+        "cascade_grid_source_file": cascade_grid_source_file,
+        "scratch_dir": scratch_dir,
+        "work_dir_name": work_dir_name,
+    }
+    cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+
+    intermediate_out_dir_name = "intermediate_regrid"
+    regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
+    regrid_variables = get_regrid_variables(variables)
+    interp_method = "bilinear"
+    regrid_cmip6_intermediate_kwargs.update(
+        {
+            "cmip6_dir": cmip6_dir,
+            "target_grid_file": cascade_target_file,
+            "interp_method": interp_method,
+            "out_dir_name": intermediate_out_dir_name,
+            "freqs": "day",
+            "rasdafy": False,
+            "no_clobber": False,
+            "variables": regrid_variables,
+        }
+    )
+    intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
+    # intermediate_regrid_dir = (
+    #     "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_regrid"
+    # )
+
+    print("Intermediate regrid dir", intermediate_regrid_dir)
+    # return
+
+    ### Regridding 2: Regrid CMIP6 data to final grid
+    # first, run the task to create the final target grid file
+    # TO-DO: take target grid file from the reference data, e.g.:
+    # target_grid_source_file = reference_dir.joinpath(
+    #     "t2max/t2max_2014_era5_4km_3338.nc"
+    # )
+
+    regrid_again_script = scratch_dir.joinpath(
+        repo_name, "regridding", "run_regrid_again.py"
+    )
+    regrid_script = scratch_dir.joinpath(repo_name, "regridding", "regrid.py")
+
+    regrid_again_out_dir_name = "final_regrid"
+    target_grid_file = target_grid_source_file
+    regrid_again_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "conda_env_name": conda_env_name,
+        "partition": partition,
+        "launcher_script": regrid_again_script,
+        "regrid_script": regrid_script,
+        "interp_method": interp_method,
+        "target_grid_file": target_grid_file,
+        "working_dir": working_dir,
+        "regridded_dir": intermediate_regrid_dir,
+        "out_dir_name": regrid_again_out_dir_name,
+    }
+
+    final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
+    print("Final regrid dir", final_regrid_dir)
+    return
+    # final_target_file
+
+    # regrid_cmip6_4km_kwargs = base_kwargs.copy()
+    # regrid_cmip6_4km_kwargs.update(
+    #     {
+    #         "cmip6_dir": cmip6_dir,
+    #         "target_grid_source_file": target_grid_source_file,
+    #         "interp_method": "bilinear",
+    #         "out_dir_name": "regrid",
+    #         "freqs": "day",
+    #         "rasdafy": False,
+    #         "variables": regrid_variables,
+    #     }
+    # )
+    # check for regridded data
+    # missing_regrid_data = cmip6.check_for_derived_cmip6_data(**regrid_cmip6_kwargs)
+    # if missing_regrid_data:
+    #     regrid_dir = regrid_cmip6(**regrid_cmip6_kwargs)
+    # regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
 
     # TO-DO: take target_grid_
     # target_grid_source_file = reference_dir.joinpath(
     #     "t2max/t2max_2014_era5_4km_3338.nc"
     # )
-    regrid_variables = get_regrid_variables(variables)
-    regrid_cmip6_kwargs.update(
-        {
-            "cmip6_dir": cmip6_dir,
-            "target_grid_source_file": target_grid_source_file,
-            "interp_method": "bilinear",
-            "out_dir_name": "regrid",
-            "freqs": "day",
-            "rasdafy": False,
-            "variables": regrid_variables,
-        }
-    )
+    ### Regrid CMIP6 to 4km ERA5 grid
+    # regrid_cmip6_kwargs = base_kwargs.copy()
+    # regrid_variables = get_regrid_variables(variables)
+    # regrid_cmip6_kwargs.update(
+    #     {
+    #         "cmip6_dir": cmip6_dir,
+    #         "target_grid_source_file": target_grid_source_file,
+    #         "interp_method": "bilinear",
+    #         "out_dir_name": "regrid",
+    #         "freqs": "day",
+    #         "rasdafy": False,
+    #         "variables": regrid_variables,
+    #     }
+    # )
     # check for regridded data
-    missing_regrid_data = cmip6.check_for_derived_cmip6_data(**regrid_cmip6_kwargs)
-    if missing_regrid_data:
-        regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
+    # missing_regrid_data = cmip6.check_for_derived_cmip6_data(**regrid_cmip6_kwargs)
+    # if missing_regrid_data:
+    #     regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
     # regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
 
     ### CMIP6 DTR processing
+    # This is done after we have regridded the data to the final grid
     process_dtr_kwargs = base_kwargs.copy()
     del process_dtr_kwargs["variables"]
     process_dtr_kwargs.update(
         {
-            "input_dir": regrid_dir,
+            "input_dir": final_regrid_dir,
         }
     )
     # cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
@@ -275,7 +474,7 @@ def downscale_cmip6(
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "dtr_dir": cmip6_dtr_dir,
-        "regrid_dir": regrid_dir,
+        "regrid_dir": final_regrid_dir,
     }
     # link_dtr_to_regrid(**link_dtr_kwargs)
 
@@ -325,10 +524,10 @@ def downscale_cmip6(
     # convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
     convert_cmip6_to_zarr_kwargs.update(
-        netcdf_dir=regrid_dir,
+        netcdf_dir=final_regrid_dir,
     )
-    cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
-    # cmip6_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_zarr"
+    # cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+    cmip6_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_zarr"
 
     train_bias_adjust_kwargs = base_kwargs.copy()
     del train_bias_adjust_kwargs["scenarios"]
@@ -338,8 +537,8 @@ def downscale_cmip6(
             "ref_dir": ref_zarr_dir,
         }
     )
-    train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-    # train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
+    # train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+    train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
 
     bias_adjust_kwargs = base_kwargs.copy()
     bias_adjust_kwargs.update(
@@ -348,7 +547,7 @@ def downscale_cmip6(
             "train_dir": train_dir,
         }
     )
-    bias_adjustment(**bias_adjust_kwargs)
+    # bias_adjustment(**bias_adjust_kwargs)
 
 
 if __name__ == "__main__":

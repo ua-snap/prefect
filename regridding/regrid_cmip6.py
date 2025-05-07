@@ -92,18 +92,31 @@ def regrid_cmip6(
             ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
-        batch_job_ids = rf.run_generate_batch_files(
-            ssh,
-            conda_env_name,
-            generate_batch_files_script,
-            run_generate_batch_files_script,
-            cmip6_dir,
-            regrid_batch_dir,
-            variables,
-            freqs,
-            models,
-            scenarios,
-        )
+        batch_file_kwargs = {
+            "ssh": ssh,
+            "conda_env_name": conda_env_name,
+            "generate_batch_files_script": generate_batch_files_script,
+            "run_generate_batch_files_script": run_generate_batch_files_script,
+            "cmip6_dir": cmip6_dir,
+            "slurm_dir": slurm_dir,
+            "vars": variables,
+            "freqs": freqs,
+            "models": models,
+            "scenarios": scenarios,
+        }
+        batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
+        # batch_job_ids = rf.run_generate_batch_files(
+        #     ssh,
+        #     conda_env_name,
+        #     generate_batch_files_script,
+        #     run_generate_batch_files_script,
+        #     cmip6_dir,
+        #     regrid_batch_dir,
+        #     variables,
+        #     freqs,
+        #     models,
+        #     scenarios,
+        # )
 
         utils.wait_for_jobs_completion(
             ssh,
@@ -138,19 +151,20 @@ def regrid_cmip6(
             completion_message="Slurm jobs for regridding complete.",
         )
 
-        qc_job_ids = rf.run_qc(
-            ssh,
-            output_dir,
-            cmip6_dir,
-            repo_regridding_dir,
-            conda_env_name,
-            run_qc_script,
-            qc_notebook,
-            variables,
-            freqs,
-            models,
-            scenarios,
-        )
+        qc_kwargs = {
+            "ssh": ssh,
+            "working_dir": working_dir,
+            "cmip6_dir": cmip6_dir,
+            "repo_regridding_dir": repo_regridding_dir,
+            "conda_env_name": conda_env_name,
+            "run_qc_script": run_qc_script,
+            "qc_notebook": qc_notebook,
+            "variables": variables,
+            "freqs": freqs,
+            "models": models,
+            "scenarios": scenarios,
+        }
+        qc_job_ids = rf.run_qc(**qc_kwargs)
 
         utils.wait_for_jobs_completion(ssh, qc_job_ids, "Slurm jobs for QC complete.")
 

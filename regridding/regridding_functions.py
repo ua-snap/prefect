@@ -11,8 +11,8 @@ def run_generate_batch_files(
     conda_env_name,
     generate_batch_files_script,
     run_generate_batch_files_script,
-    cmip6_directory,
-    regrid_batch_dir,
+    cmip6_dir,
+    slurm_dir,
     vars,
     freqs,
     models,
@@ -26,8 +26,8 @@ def run_generate_batch_files(
     - conda_env_name: Name of the Conda environment to activate for processing
     - generate_batch_files_script: Location of the script to generate batch files
     - run_generate_batch_files_script: Location of the script to run the batch file generation script
-    - cmip6_directory: Path to the CMIP6 data directory
-    - regrid_batch_dir: Directory to save the batch files
+    - cmip6_dir: Path to the CMIP6 data directory
+    - slurm_dir: Directory for all slurm files
     - vars: Variables to regrid
     - freqs: Frequencies to regrid
     - models: Models to regrid
@@ -37,8 +37,8 @@ def run_generate_batch_files(
         f"python {run_generate_batch_files_script}"
         f" --generate_batch_files_script {generate_batch_files_script}"
         f" --conda_env_name {conda_env_name}"
-        f" --cmip6_directory {cmip6_directory}"
-        f" --regrid_batch_dir {regrid_batch_dir}"
+        f" --cmip6_directory {cmip6_dir}"
+        f" --slurm_dir {slurm_dir}"
         f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
@@ -208,12 +208,12 @@ def validate_scenarios(scenarios_str):
 def run_qc(
     ssh,
     working_dir,
-    cmip6_directory,
-    repo_regridding_directory,
+    cmip6_dir,
+    repo_regridding_dir,
     conda_env_name,
     run_qc_script,
     qc_notebook,
-    vars,
+    variables,
     freqs,
     models,
     scenarios,
@@ -225,9 +225,9 @@ def run_qc(
             f"python {run_qc_script}"
             f" --qc_notebook '{qc_notebook}'"
             f" --conda_env_name '{conda_env_name}'"
-            f" --cmip6_directory '{cmip6_directory}' --working_dir '{working_dir}'"
-            f" --repo_regridding_directory '{repo_regridding_directory}'"
-            f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+            f" --cmip6_directory '{cmip6_dir}' --working_dir '{working_dir}'"
+            f" --repo_regridding_directory '{repo_regridding_dir}'"
+            f" --vars '{variables}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
         ),
     )
 

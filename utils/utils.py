@@ -39,6 +39,8 @@ def exec_command(ssh, cmd):
     - ssh: Paramiko SSHClient object
     - cmd: Command to execute on the remote server
     """
+    logger = get_run_logger()
+    logger.info(f"Executing command: {cmd}")
     stdin_, stdout, stderr = ssh.exec_command(cmd)
 
     # Wait for the command to finish and get the exit status
