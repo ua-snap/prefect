@@ -4,7 +4,7 @@ import paramiko
 
 all_indicators = "rx1day su dw ftc"
 
-all_models = "CESM2 CNRM-CM6-1-HR E3SM-2-0 EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-HR MRI-ESM2-0 NorESM2-MM TaiESM1"
+all_models = "CESM2 CNRM-CM6-1-HR E3SM-1-1 E3SM-2-0 EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-HR MRI-ESM2-0 NorESM2-MM TaiESM1"
 
 all_scenarios = "historical ssp126 ssp245 ssp370 ssp585"
 
