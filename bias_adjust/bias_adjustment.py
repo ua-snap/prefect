@@ -78,8 +78,8 @@ def bias_adjustment(
     variables,
     models,
     scenarios,
-    scratch_dir,  # e.g. /import/beegfs/kmredilla
-    work_dir_name,  # e.g. zarr_bias_adjust_inputs
+    scratch_dir,
+    work_dir_name,
     partition,
 ):
     variables = cmip6.validate_vars(variables, return_list=False)

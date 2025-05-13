@@ -203,7 +203,13 @@ def create_cascade_target_grid_file(
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-        utils.exec_command(ssh, cmd)
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(
+                f"Error in creating intermediate grid file for cascade regridding. Error: {stderr}"
+            )
+        if stdout != "":
+            logger.info(stdout)
 
     finally:
         # Close the SSH connection
@@ -283,6 +289,25 @@ def run_regrid_cmip6_again(
     return output_dir
 
 
+@task
+def create_remote_directories(ssh_username, ssh_private_key_path, directories):
+    """Create directories on the remote server. This will be the working directory and slurm directory."""
+    logger = get_run_logger()
+    logger.info(f"Creating the following directories: {directories}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        utils.create_directories(ssh, directories)
+
+    finally:
+        ssh.close()
+
+
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -306,6 +331,13 @@ def downscale_cmip6(
     cmip6_dir = Path(cmip6_dir)
     scratch_dir = Path(scratch_dir)
     working_dir = scratch_dir.joinpath(work_dir_name)
+    slurm_dir = working_dir.joinpath("slurm")
+
+    # this creates the maing working directory
+    directories = [working_dir, slurm_dir]
+    create_remote_directories(
+        ssh_username, ssh_private_key_path, directories=directories
+    )
 
     # to start, we should probably just get every step laid out here
     # TO-DO: add these checks in as able
@@ -318,8 +350,8 @@ def downscale_cmip6(
     # here are some base kwargs that will be recycled across subflows
 
     base_kwargs = {
-        "ssh_host": ssh_host,
-        "ssh_port": ssh_port,
+        # "ssh_host": ssh_host,
+        # "ssh_port": ssh_port,
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "repo_name": repo_name,
@@ -350,7 +382,10 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
     }
-    cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+    # cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+    cascade_target_file = (
+        "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_target.nc"
+    )
 
     intermediate_out_dir_name = "intermediate_regrid"
     regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
@@ -368,12 +403,10 @@ def downscale_cmip6(
             "variables": regrid_variables,
         }
     )
-    intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
-    # intermediate_regrid_dir = (
-    #     "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_regrid"
-    # )
-
-    print("Intermediate regrid dir", intermediate_regrid_dir)
+    # intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
+    intermediate_regrid_dir = (
+        "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_regrid"
+    )
     # return
 
     ### Regridding 2: Regrid CMIP6 data to final grid
@@ -404,9 +437,9 @@ def downscale_cmip6(
         "out_dir_name": regrid_again_out_dir_name,
     }
 
-    final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
-    print("Final regrid dir", final_regrid_dir)
-    return
+    # final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
+    final_regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/final_regrid"
+
     # final_target_file
 
     # regrid_cmip6_4km_kwargs = base_kwargs.copy()
@@ -461,7 +494,7 @@ def downscale_cmip6(
         }
     )
     # cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
-    cmip6_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr"
+    cmip6_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_dtr"
 
     # Note on directory structure:
     # to keep things organized separately for individual tasks/flows,
@@ -476,7 +509,7 @@ def downscale_cmip6(
         "dtr_dir": cmip6_dtr_dir,
         "regrid_dir": final_regrid_dir,
     }
-    # link_dtr_to_regrid(**link_dtr_kwargs)
+    link_dtr_to_regrid(**link_dtr_kwargs)
 
     # ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
@@ -509,7 +542,7 @@ def downscale_cmip6(
     }
     reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
 
-    # convert ERA5 data to zarr
+    ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
     era5_vars = cmip6.cmip6_to_era5_variables(variables)
     convert_era5_to_zarr_kwargs.update(
@@ -521,7 +554,7 @@ def downscale_cmip6(
     # ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
     ref_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_zarr"
 
-    # convert CMIP6 data to zarr
+    ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
@@ -529,6 +562,7 @@ def downscale_cmip6(
     # cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
     cmip6_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_zarr"
 
+    ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
     del train_bias_adjust_kwargs["scenarios"]
     train_bias_adjust_kwargs.update(
@@ -537,9 +571,10 @@ def downscale_cmip6(
             "ref_dir": ref_zarr_dir,
         }
     )
-    # train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-    train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
+    train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+    # train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
 
+    ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
     bias_adjust_kwargs.update(
         {
@@ -547,7 +582,7 @@ def downscale_cmip6(
             "train_dir": train_dir,
         }
     )
-    # bias_adjustment(**bias_adjust_kwargs)
+    bias_adjustment(**bias_adjust_kwargs)
 
 
 if __name__ == "__main__":

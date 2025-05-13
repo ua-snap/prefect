@@ -431,12 +431,11 @@ def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!")
     logger.info(completion_message)
 
 
-@task
 def create_directories(ssh, dir_list):
     """Creates directories if they don't exist, otherwise does nothing.
 
     Parameters:
-    - ssh: Paramiko SSHClient object
+    - ssh: Paramiko SSHClient object, "connected"
     - dir_list: List of directories to create
     """
     logger = get_run_logger()
