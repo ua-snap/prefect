@@ -217,7 +217,6 @@ def normalize_longitudes(longitudes):
     return ((longitudes + 180) % 360) - 180
 
 
-# Create empty grid raster for Alaska domain
 def create_empty_grid(domain, resolution=0.02):
     """Create empty grid array and geotransform for a given domain
 
@@ -334,7 +333,7 @@ def create_geotiff_from_array(output_file, array, geotransform, nodata_value=Non
     nodata_value : float, optional
         No data value
     """
-    # Get array dimensions
+
     y_size, x_size = array.shape
 
     # Create output driver
@@ -346,7 +345,7 @@ def create_geotiff_from_array(output_file, array, geotransform, nodata_value=Non
         x_size,
         y_size,
         1,  # Number of bands
-        gdal.GDT_Float32,  # Data type
+        gdal.GDT_Float32,
         options=["COMPRESS=DEFLATE", "TILED=YES"],  # Compression options
     )
 
