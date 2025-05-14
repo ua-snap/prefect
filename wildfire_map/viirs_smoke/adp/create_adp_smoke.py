@@ -1,5 +1,6 @@
 """
-The script is designed to be used with Prefect to create a daily GeoTIFF snapshot of VIIRS ADP smoke conditions for Alaska, directly from VIIRS data.
+The script is designed to be used with Prefect to create a daily GeoTIFF snapshot of
+VIIRS ADP smoke conditions for Alaska, directly from VIIRS data.
 
 Outputs:
 - Single-band GeoTIFF of smoke intensity
@@ -247,9 +248,12 @@ def create_empty_grid(domain, resolution=0.02):
     return grid_array, geotransform, (x_size, y_size)
 
 
-# Project VIIRS data onto the grid
 def project_data_to_grid(grid_array, geotransform, lon, lat, data, grid_size):
-    """Project data from VIIRS swath coordinates to a regular grid
+    """Project data from VIIRS swath coordinates to a regular grid.
+
+    This function does the "swath to grid" reprojection / binning. Satellite observations
+    with associated lat/lon and data values are inserted into a regular grid so that
+    multiple satellite granules (which are irregular and overlapping) can be mosaicked together.
 
     Parameters:
     -----------
@@ -296,8 +300,8 @@ def project_data_to_grid(grid_array, geotransform, lon, lat, data, grid_size):
     value_counts = np.zeros_like(grid_array, dtype=np.int32)
 
     # For each valid point, compute its position in the grid
+    # Basically converting lat/lon to row/col
     for i in range(len(lats)):
-        # Convert lat/lon to grid row/col
         col = int((lons[i] - x_origin) / pixel_width)
         row = int((y_origin - lats[i]) / -pixel_height)
 
@@ -318,7 +322,6 @@ def project_data_to_grid(grid_array, geotransform, lon, lat, data, grid_size):
     return updated_grid
 
 
-# Create GeoTIFF directly from raster array
 def create_geotiff_from_array(output_file, array, geotransform, nodata_value=None):
     """Create a GeoTIFF file directly from an array
 
@@ -336,7 +339,6 @@ def create_geotiff_from_array(output_file, array, geotransform, nodata_value=Non
 
     y_size, x_size = array.shape
 
-    # Create output driver
     driver = gdal.GetDriverByName("GTiff")
 
     # Create output dataset
@@ -346,13 +348,13 @@ def create_geotiff_from_array(output_file, array, geotransform, nodata_value=Non
         y_size,
         1,  # Number of bands
         gdal.GDT_Float32,
-        options=["COMPRESS=DEFLATE", "TILED=YES"],  # Compression options
+        options=["COMPRESS=DEFLATE", "TILED=YES"],
     )
 
     # Set geotransform and projection
     dataset.SetGeoTransform(geotransform)
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)  # WGS84
+    srs.ImportFromEPSG(4326)
     dataset.SetProjection(srs.ExportToWkt())
 
     # Write data
