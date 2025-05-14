@@ -448,7 +448,7 @@ def main(output_dir):
     # retain for testing and use for output name
     # save_name = f"{sat_name}_viirs_adp_saai_smoke_{observation_date}"
 
-    tif_path = output_dir / f"viirs_adp.tif"
+    tif_path = f"{output_dir}/viirs_adp.tif"
     print(f"Creating GeoTIFF: {tif_path}")
     create_geotiff_from_array(tif_path, grid_array, geotransform, nodata_value=np.nan)
 
