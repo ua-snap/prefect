@@ -273,7 +273,7 @@ def qc(ssh, working_dir, input_dir):
     run_qc_script = f"{working_dir}/cmip6-utils/indicators/run_qc.py"
     qc_script = f"{working_dir}/cmip6-utils/indicators/qc.py"
     output_dir = f"{working_dir}/cmip6_indicators"
-    slurm_dir = f"{working_dir}/slurm"
+    slurm_dir = f"{working_dir}/cmip6_indicators/slurm"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"conda activate cmip6-utils\n"
@@ -314,7 +314,7 @@ def visual_qc_nb(ssh, working_dir, input_dir):
     visual_qc_nb = f"{working_dir}/cmip6-utils/indicators/visual_qc.ipynb"
     run_visual_qc_script = f"{working_dir}/cmip6-utils/indicators/run_visual_qc.py"
     output_nb = f"{working_dir}/cmip6_indicators/qc/visual_qc_out.ipynb"
-    slurm_dir = f"{working_dir}/slurm"
+    slurm_dir = f"{working_dir}/cmip6_indicators/slurm"
 
     stdin, stdout, stderr = ssh.exec_command(
         f"python {run_visual_qc_script} \
