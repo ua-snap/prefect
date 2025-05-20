@@ -168,7 +168,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 @task
 def create_and_run_slurm_script(
-    ssh, indicators, models, scenarios, working_dir, input_dir
+    ssh, indicators, models, scenarios, working_dir, input_dir, hist_dir
 ):
     """
     Task to create and run a Slurm script to run the indicator calculation scripts.
@@ -180,6 +180,7 @@ def create_and_run_slurm_script(
     - scenarios: Space-separated list of scenarios to calculate indicators for
     - working_dir: Directory to where all of the processing takes place
     - input_dir: Directory containing the input data for the indicators
+    - hist_dir: Directory containing the historical data
     """
 
     if indicators == "all":
@@ -192,7 +193,7 @@ def create_and_run_slurm_script(
     slurm_script = f"{working_dir}/cmip6-utils/indicators/slurm.py"
 
     stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_dir}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --hist_dir '{hist_dir}' --working_dir '{working_dir}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -300,7 +301,7 @@ def qc(ssh, working_dir, input_dir):
 
 
 @task
-def visual_qc_nb(ssh, working_dir, input_dir):
+def visual_qc_nb(ssh, working_dir, input_dir, hist_dir):
     """
     Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
 
@@ -319,6 +320,7 @@ def visual_qc_nb(ssh, working_dir, input_dir):
     stdin, stdout, stderr = ssh.exec_command(
         f"python {run_visual_qc_script} \
             --input_dir '{input_dir}' \
+            --hist_dir '{hist_dir}' \
             --slurm_dir '{slurm_dir}' \
             --working_dir '{working_dir}' \
             --visual_qc_nb '{visual_qc_nb}' \

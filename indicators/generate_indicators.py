@@ -19,6 +19,7 @@ def generate_indicators(
     models,
     scenarios,
     input_dir,
+    hist_dir,
 ):
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -40,7 +41,7 @@ def generate_indicators(
         )
 
         indicator_functions.create_and_run_slurm_script(
-            ssh, indicators, models, scenarios, working_directory, input_dir
+            ssh, indicators, models, scenarios, working_directory, input_dir, hist_dir
         )
 
         job_ids = indicator_functions.get_job_ids(ssh, ssh_username)
@@ -53,7 +54,7 @@ def generate_indicators(
 
         indicator_functions.wait_for_jobs_completion(ssh, job_ids)
 
-        indicator_functions.visual_qc_nb(ssh, working_directory, input_dir)
+        indicator_functions.visual_qc_nb(ssh, working_directory, input_dir, hist_dir)
 
         job_ids = indicator_functions.get_job_ids(ssh, ssh_username)
 
@@ -72,6 +73,7 @@ if __name__ == "__main__":
     models = "CESM2 GFDL-ESM4 TaiESM1"
     scenarios = "historical ssp126 ssp245 ssp370 ssp585"
     input_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/regrid/")
+    hist_dir = Path("/import/beegfs/CMIP6/arctic-cmip6/daymet/")
 
     generate_indicators.serve(
         name="generate-indicators",
@@ -85,5 +87,6 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "input_dir": input_dir,
+            "hist_dir": hist_dir,
         },
     )
