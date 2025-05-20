@@ -29,6 +29,6 @@ if __name__ == "__main__":
         tags=["VIIRS Smoke", "Wildfire Map"],
         parameters={
             "working_directory": "/usr/local/prefect/wildfire_map/viirs_smoke",
-            "output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/",
+            "output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/fire_layers/",
         },
     )

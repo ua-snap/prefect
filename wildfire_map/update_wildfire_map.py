@@ -4,6 +4,7 @@ from fire_layers.current_fire_layers import current_fire_layers
 from smokey_bear.smokey_bear_layer import smokey_bear_layer
 from smokey_bear.snow_cover_layer import snow_cover_layer
 from aqi_forecast.generate_daily_aqi_forecast import generate_daily_aqi_forecast
+from viirs_smoke.generate_daily_viirs_smoke import generate_viirs_smoke
 from datetime import datetime
 import boto3
 import json
@@ -54,6 +55,11 @@ def update_wildfire_layers(
         aqi_forecast_netcdf_path,
         shapefile_output_directory,
         aqi_forecast_hour,
+    )
+
+    status["layers"]["viirs_smoke"] = generate_viirs_smoke(
+        f"{working_directory}/viirs_smoke/",
+        shapefile_output_directory,
     )
 
     print("Finished updating AQI forecast")
