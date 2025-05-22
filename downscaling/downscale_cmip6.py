@@ -372,6 +372,58 @@ def derive_cmip6_tasmin(
         ssh.close()
 
 
+@flow
+def derive_era5_tasmin(
+    ssh_username,
+    ssh_private_key_path,
+    era5_zarr_dir,
+    slurm_dir,
+    repo_dir,
+    conda_env_name,
+    partition,
+):
+    """Derive tasmin from CMIP6 data."""
+    logger = get_run_logger()
+    logger.info(f"Deriving tasmin from ERA5 data in {era5_zarr_dir}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        launcher_script = repo_dir.joinpath("derived", "run_wrf_era5_difference.py")
+        worker_script = repo_dir.joinpath("derived", "difference.py")
+        cmd = (
+            f"python {launcher_script} "
+            f"--worker_script {worker_script} "
+            f"--conda_env_name {conda_env_name} "
+            f"--slurm_dir {slurm_dir} "
+            f"--minuend_store {era5_zarr_dir.joinpath('t2max_era5.zarr')} "
+            f"--subtrahend_store {era5_zarr_dir.joinpath('dtr_era5.zarr')} "
+            f"--output_store {era5_zarr_dir.joinpath('tasmin_era5.zarr')} "
+            "--new_var_id tasmin "
+            f"--partition {partition}"
+        )
+
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(
+                f"Error in creating slurm job for deriving ERA5 tasmin. Error: {stderr}"
+            )
+        if stdout != "":
+            logger.info(stdout)
+
+        job_ids = utils.parse_job_ids(stdout)
+
+        utils.wait_for_jobs_completion(ssh, job_ids)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -615,7 +667,7 @@ def downscale_cmip6(
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
     # ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
-    ref_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_zarr"
+    ref_zarr_dir = Path("/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_zarr")
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
@@ -661,7 +713,18 @@ def downscale_cmip6(
         }
     )
 
-    derive_cmip6_tasmin(**derive_tasmin_kwargs)
+    # derive_cmip6_tasmin(**derive_tasmin_kwargs)
+
+    derive_era5_tasmin_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "era5_zarr_dir": ref_zarr_dir,
+        "slurm_dir": slurm_dir,
+        "repo_dir": scratch_dir.joinpath(repo_name),
+        "conda_env_name": conda_env_name,
+        "partition": partition,
+    }
+    derive_era5_tasmin(**derive_era5_tasmin_kwargs)
 
 
 if __name__ == "__main__":
