@@ -308,6 +308,70 @@ def create_remote_directories(ssh_username, ssh_private_key_path, directories):
         ssh.close()
 
 
+@flow
+def derive_cmip6_tasmin(
+    ssh_username,
+    ssh_private_key_path,
+    input_dir,
+    output_dir,
+    slurm_dir,
+    scratch_dir,
+    repo_name,
+    models,
+    scenarios,
+    conda_env_name,
+    partition,
+):
+    """Derive tasmin from CMIP6 data."""
+    logger = get_run_logger()
+    logger.info(f"Deriving tasmin from CMIP6 data in {input_dir}")
+
+    models = cmip6.validate_models(models, return_list=False)
+    scenarios = cmip6.validate_scenarios(scenarios, return_list=False)
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        repo_dir = scratch_dir.joinpath(repo_name)
+        launcher_script = repo_dir.joinpath("derived", "run_cmip6_difference.py")
+        worker_script = repo_dir.joinpath("derived", "difference.py")
+        cmd = (
+            f"python {launcher_script} "
+            f"--worker_script {worker_script} "
+            f"--conda_env_name {conda_env_name} "
+            f"--input_dir {input_dir} "
+            f"--output_dir {output_dir} "
+            f"--slurm_dir {slurm_dir} "
+            "--minuend_tmp_fn tasmax_\${model}_\${scenario}_adjusted.zarr "
+            "--subtrahend_tmp_fn dtr_\${model}_\${scenario}_adjusted.zarr "
+            "--out_tmp_fn tasmin_\${model}_\${scenario}_adjusted.zarr "
+            "--new_var_id tasmin "
+            f"--models '{models}' "
+            f"--scenarios '{scenarios}' "
+            f"--partition {partition}"
+        )
+
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(
+                f"Error in creating slurm job for deriving tasmin. Error: {stderr}"
+            )
+        if stdout != "":
+            logger.info(stdout)
+
+        job_ids = utils.parse_job_ids(stdout)
+
+        utils.wait_for_jobs_completion(ssh, job_ids)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -407,7 +471,6 @@ def downscale_cmip6(
     intermediate_regrid_dir = (
         "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_regrid"
     )
-    # return
 
     ### Regridding 2: Regrid CMIP6 data to final grid
     # first, run the task to create the final target grid file
@@ -509,7 +572,7 @@ def downscale_cmip6(
         "dtr_dir": cmip6_dtr_dir,
         "regrid_dir": final_regrid_dir,
     }
-    link_dtr_to_regrid(**link_dtr_kwargs)
+    # link_dtr_to_regrid(**link_dtr_kwargs)
 
     # ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
@@ -540,7 +603,7 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "working_dir": working_dir,
     }
-    reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
+    # reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
 
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
@@ -571,8 +634,8 @@ def downscale_cmip6(
             "ref_dir": ref_zarr_dir,
         }
     )
-    train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-    # train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
+    # train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+    train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
@@ -582,7 +645,23 @@ def downscale_cmip6(
             "train_dir": train_dir,
         }
     )
-    bias_adjustment(**bias_adjust_kwargs)
+    # adjusted_dir = bias_adjustment(**bias_adjust_kwargs)
+    adjusted_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/adjusted"
+
+    derive_tasmin_kwargs = base_kwargs.copy()
+    del derive_tasmin_kwargs["work_dir_name"]
+    del derive_tasmin_kwargs["variables"]
+    del derive_tasmin_kwargs["branch_name"]
+    tasmin_output_dir = working_dir.joinpath("cmip6_tasmin")
+    derive_tasmin_kwargs.update(
+        {
+            "input_dir": adjusted_dir,
+            "output_dir": tasmin_output_dir,
+            "slurm_dir": slurm_dir,
+        }
+    )
+
+    derive_cmip6_tasmin(**derive_tasmin_kwargs)
 
 
 if __name__ == "__main__":

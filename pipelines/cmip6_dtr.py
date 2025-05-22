@@ -50,7 +50,7 @@ def run_process_dtr(
         len(job_ids) == 1
     ), f"More than one job ID given for batch file generation: {job_ids}"
 
-    print(f"ERA5 processing job submitted! (job ID: {job_ids[0]})")
+    print(f"CMIP6 processing job submitted! (job ID: {job_ids[0]})")
 
     return job_ids
 
@@ -118,7 +118,7 @@ def process_dtr(
         utils.wait_for_jobs_completion(
             ssh,
             job_ids,
-            completion_message="Slurm jobs for regridding complete.",
+            completion_message="Slurm job for processing CMIP6 DTR complete.",
         )
     finally:
         ssh.close()
