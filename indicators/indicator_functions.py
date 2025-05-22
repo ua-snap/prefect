@@ -268,8 +268,6 @@ def qc(ssh, working_dir, input_dir):
     - working_dir: Directory to where all of the processing takes place
     """
 
-    conda_init_script = f"{working_dir}/cmip6-utils/indicators/conda_init.sh"
-
     run_qc_script = f"{working_dir}/cmip6-utils/indicators/run_qc.py"
     qc_script = f"{working_dir}/cmip6-utils/indicators/qc.py"
     output_dir = f"{working_dir}/cmip6_indicators"
