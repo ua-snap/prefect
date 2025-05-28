@@ -15,4 +15,3 @@ dependencies:
   - gdal
   - h5netcdf
   - h5py
-  - osgeo
