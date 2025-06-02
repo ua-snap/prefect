@@ -5,7 +5,7 @@ cached_urls = [
     "/beetles/point/",
     "/elevation/point/",
     "/taspr/point/",
-    "/indicators/base/point/",
+    "/indicators/cmip5/point/",
     "/ncr/permafrost/point/",
     "/eds/hydrology/point/",
     "/alfresco/flammability/area/",
@@ -13,5 +13,5 @@ cached_urls = [
     "/beetles/area/",
     "/elevation/area/",
     "/taspr/area/",
-    "/indicators/base/area/",
+    "/indicators/cmip5/area/",
 ]
