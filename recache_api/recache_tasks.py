@@ -41,19 +41,23 @@ def get_all_route_endpoints(curr_route, curr_type):
     else:
         places_url = (
             GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id,region"
+            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id,area_type"
         )
+        print("Places URL: ", places_url)
+        print("Current type: ", curr_type)
         response = requests.get(places_url)
         places_data = response.json()
         places = places_data["features"]
 
     # For each JSON item in the JSON object array
     for place in places:
-        if (
+        if curr_type == "community" and (
             place["properties"]["region"] == "Alaska"
             or place["properties"]["region"] == "Yukon"
             or place["properties"]["region"] == "Northwest Territories"
         ):
+            get_endpoint(curr_route, curr_type, place["properties"])
+        elif curr_type == "area" and place["properties"]["area_type"] != "HUC12":
             get_endpoint(curr_route, curr_type, place["properties"])
 
 
