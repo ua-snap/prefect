@@ -60,14 +60,6 @@ def update_wildfire_layers(
     print("Finished updating AQI forecast")
     print(status["layers"]["aqi_forecast"])
 
-    status["layers"]["viirs_smoke"] = generate_viirs_smoke(
-        f"{working_directory}/viirs_smoke/",
-        shapefile_output_directory,
-    )
-
-    print("Finished updating VIIRS smoke")
-    print(status["layers"]["viirs_smoke"])
-
     status_json = json.dumps(status)
 
     # Initialize a session using your wildfire credentials

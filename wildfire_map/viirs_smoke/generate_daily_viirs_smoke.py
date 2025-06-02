@@ -1,5 +1,5 @@
 from prefect import flow
-from .viirs_smoke_tasks import *
+from viirs_smoke_tasks import *
 from datetime import datetime
 
 
