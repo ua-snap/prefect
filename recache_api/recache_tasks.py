@@ -47,14 +47,14 @@ def get_all_route_endpoints(curr_route, curr_type):
         places_data = response.json()
         places = places_data["features"]
 
-    # For each JSON item in the JSON object array
+    # We are excluding HUC12 areas because they add a lot of additional caching
+    # that is not used in any of our apps.
     for place in places:
         if (
             curr_type == "community"
             and (
-                place["properties"]["region"] == "Alaska"
-                or place["properties"]["region"] == "Yukon"
-                or place["properties"]["region"] == "Northwest Territories"
+                place["properties"]["region"]
+                in ["Alaska", "Yukon", "Northwest Territories"]
             )
         ) or (curr_type == "area" and place["properties"]["area_type"] != "HUC12"):
             get_endpoint(curr_route, curr_type, place["properties"])
