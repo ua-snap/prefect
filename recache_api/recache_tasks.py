@@ -49,13 +49,14 @@ def get_all_route_endpoints(curr_route, curr_type):
 
     # For each JSON item in the JSON object array
     for place in places:
-        if curr_type == "community" and (
-            place["properties"]["region"] == "Alaska"
-            or place["properties"]["region"] == "Yukon"
-            or place["properties"]["region"] == "Northwest Territories"
-        ):
-            get_endpoint(curr_route, curr_type, place["properties"])
-        elif curr_type == "area" and place["properties"]["area_type"] != "HUC12":
+        if (
+            curr_type == "community"
+            and (
+                place["properties"]["region"] == "Alaska"
+                or place["properties"]["region"] == "Yukon"
+                or place["properties"]["region"] == "Northwest Territories"
+            )
+        ) or (curr_type == "area" and place["properties"]["area_type"] != "HUC12"):
             get_endpoint(curr_route, curr_type, place["properties"])
 
 
