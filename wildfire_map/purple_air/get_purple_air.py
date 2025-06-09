@@ -89,8 +89,8 @@ def fetch_dec_air_data():
     ]
     sensors_to_omit = [
         "Quant_MOD00443",
-        "Quant_MOD00463,"
-        "Quant_MOD00471,"
+        "Quant_MOD00463",
+        "Quant_MOD00471",
         "Quant_MOD00651,"
         "Quant_MOD00652,"
         "Quant_MOD00665,",
