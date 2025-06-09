@@ -74,10 +74,37 @@ def fetch_dec_air_data():
     response.raise_for_status()
     data = response.json()
     returned_data = list()
+
+    # Recategorize or omit sensors based on their sensor_id.
+    # More info here: https://github.com/ua-snap/alaska-wildfires/issues/224
+    conocophillips_sensors = [
+        "Nuiqsut",
+    ]
+    blm_sensors = [
+        "BLM_Kaktovik",
+    ]
+    louden_tribe_sensors = [
+        "Quant_MOD00758",
+        "Quant_MOD00759",
+    ]
+    sensors_to_omit = [
+        "Quant_MOD00443",
+        "Quant_MOD00463,"
+        "Quant_MOD00471,"
+        "Quant_MOD00651,"
+        "Quant_MOD00652,"
+        "Quant_MOD00665,",
+    ]
+
     for feature in data["features"]:
         # If pm25calibrated is None, skip this DEC sensor
         if feature["properties"]["pm25calibrated"] is None:
             continue
+
+        sensor_id = feature["properties"]["sensor_id"]
+        if sensor_id in sensors_to_omit:
+            continue
+
         new_feature = list()
         new_feature.append(feature["properties"]["OBJECTID"])  # objectId
         new_feature.append(
@@ -91,8 +118,19 @@ def fetch_dec_air_data():
         new_feature.append(
             feature["properties"]["pm25calibrated"]
         )  # AQI PM2.5 1hr, this field is already converted to AQI
-        new_feature.append("dec")  # type
+
+        # Assign type for each sensor
+        if sensor_id in conocophillips_sensors:
+            new_feature.append("conocophillips")
+        elif sensor_id in blm_sensors:
+            new_feature.append("blm")
+        elif sensor_id in louden_tribe_sensors:
+            new_feature.append("louden_tribe")
+        else:
+            new_feature.append("dec")
+
         returned_data.append(new_feature)
+
     return returned_data
 
 
