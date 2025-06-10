@@ -50,7 +50,7 @@ def submit_era5_jobs(
         repo_path = working_directory / "wrf-downscaled-era5-curation"
         
         @task
-        def build_and_run_job_submission_script():
+        def build_and_run_job_submission_script(ssh, repo_path, logger, variables, start_year, end_year, max_concurrent, overwrite, no_retry, ERA5_INPUT_DIR, ERA5_OUTPUT_DIR):
             cmd = (
                 f"export ERA5_INPUT_DIR={ERA5_INPUT_DIR} && "
                 f"export ERA5_OUTPUT_DIR={ERA5_OUTPUT_DIR} && "
@@ -70,15 +70,30 @@ def submit_era5_jobs(
     
             logger.info(f"Executing submission command: {cmd}")
 
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            exit_status = stdout.channel.recv_exit_status()
-            if exit_status != 0:
-                error_output = stderr.read().decode("utf-8")
-                raise Exception(f"Error submitting jobs: {error_output}")
-            else:
-                logger.info("Jobs submitted successfully")
+            try:
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                exit_status = stdout.channel.recv_exit_status()
+                if exit_status != 0:
+                    error_output = stderr.read().decode("utf-8")
+                    # Capture full execution log
+                    log_artifact_id = curation_functions.create_full_log_artifact(ssh, repo_path)
+                    logger.error(f"Job submission failed. Full log captured in artifact: {log_artifact_id}")
+                    raise Exception(f"Error submitting jobs: {error_output}\nLogs captured in artifact: {log_artifact_id}")
+                else:
+                    logger.info("Jobs submitted successfully")
+                    # Capture full execution log
+                    log_artifact_id = curation_functions.create_full_log_artifact(ssh, repo_path)
+                    logger.info(f"Full execution log captured in artifact: {log_artifact_id}")
+                    return log_artifact_id
+            except Exception as e:
+                # Final attempt to capture any available logs
+                try:
+                    curation_functions.create_full_log_artifact(ssh, repo_path)
+                except:
+                    logger.warning("Could not capture logs after error")
+                raise
 
-        build_and_run_job_submission_script()
+        build_and_run_job_submission_script(ssh, repo_path, logger, variables, start_year, end_year, max_concurrent, overwrite, no_retry, ERA5_INPUT_DIR, ERA5_OUTPUT_DIR)
 
     except Exception as e:
         logger.error(f"Flow failed: {str(e)}")
