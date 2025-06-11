@@ -385,7 +385,7 @@ class LogCapture:
                 elif 300 <= status_code < 400:
                     emoji = "🔄"
                 elif 400 <= status_code < 500:
-                    emoji = "⚠️"
+                    emoji = "🌐"
                 elif 500 <= status_code < 600:
                     emoji = "❌"
                 else:
@@ -393,29 +393,9 @@ class LogCapture:
                 
                 status_breakdown.append(f"- {emoji} **{status_code} {meaning}** ({category}): {count} requests ({percentage:.1f}%)")
             
-            # Route health assessment
-            healthy_count = stats['status_codes'].get(200, 0) + stats['status_codes'].get(404, 0)
-            route_healthy_rate = (healthy_count / total * 100) if total > 0 else 0
-            
-            # Enhanced health assessment considering 5xx errors
+            # Keep only route_5xx_errors calculation for 5xx table logic
             route_5xx_errors = sum(stats['status_codes'].get(code, 0) for code in stats['status_codes'].keys() 
                                   if 500 <= code < 600)
-            route_5xx_rate = (route_5xx_errors / total * 100) if total > 0 else 0
-            
-            if route_5xx_rate > 10:
-                health_status = "🚨 Critical"
-            elif route_5xx_rate > 5:
-                health_status = "🔴 Poor"
-            elif route_5xx_errors > 0:  # Any 5xx errors
-                health_status = "🟠 Fair" if route_healthy_rate >= 70 else "🔴 Poor"
-            elif route_healthy_rate >= 95:
-                health_status = "🟢 Excellent"
-            elif route_healthy_rate >= 85:
-                health_status = "🟡 Good"
-            elif route_healthy_rate >= 70:
-                health_status = "🟠 Fair"
-            else:
-                health_status = "🔴 Poor"
             
             # Check if this route has 5xx errors and add server error details table
             fivexx_table_section = ""
@@ -437,7 +417,6 @@ class LogCapture:
             
             section = f"""### 📍 **{route}**
 
-**Route Health**: {health_status} (Healthy Response Rate: {route_healthy_rate:.1f}%)
 **Total Requests**: {total:,}
 
 **Status Code Breakdown**:
