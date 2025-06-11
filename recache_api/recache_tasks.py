@@ -492,13 +492,6 @@ class LogCapture:
 
 ---
 
-## 🚨 **Issues & Alerts**
-
-### 🔥 Server Errors (5xx)
-{chr(10).join(critical_5xx_routes) if critical_5xx_routes else "✅ No server errors detected."}
-
----
-
 ## 📋 **Status Code Distribution**
 
 ```
