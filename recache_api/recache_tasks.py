@@ -21,6 +21,7 @@ class LogCapture:
     def capture_request(self, url, status_code):
         """Capture request data for analysis."""
         route = self._extract_route(url)
+        route = self._validate_extracted_route(route, url)  # Add validation
         request_data = {
             'url': url,
             'route': route,
@@ -39,10 +40,28 @@ class LogCapture:
     
     def _extract_route(self, url: str) -> str:
         """Extract the route/endpoint from a full URL."""
-        # Example: https://earthmaps.io/beetles/point/56.6003/-133.0267 -> beetles/point
+        # Capture everything between earthmaps.io/ and the first standalone number (coordinates/IDs)
+        # This handles both coordinates (like 56.6003) and IDs (like 12345)
+        # But preserves numbers within words like "cmip5"
+        # Examples: 
+        # - https://earthmaps.io/beetles/point/56.6003/-133.0267 -> beetles/point
+        # - https://earthmaps.io/alfresco/flammability/local/56.6/-133.0 -> alfresco/flammability/local
+        # - https://earthmaps.io/indicators/cmip5/point/56.6/-133.0 -> indicators/cmip5/point
         import re
-        match = re.search(r'earthmaps\.io/([^/]+/[^/]+)', url)
-        return match.group(1) if match else 'unknown'
+        match = re.search(r'earthmaps\.io/(.+?)/?(?=[-]?\d+\.?\d*/?[-]?\d|[-]?\d+/?$)', url)
+        return match.group(1).rstrip('/') if match else 'unknown'
+    
+    def _validate_extracted_route(self, route: str, original_url: str) -> str:
+        """Validate and potentially adjust extracted route for debugging."""
+        # Remove any trailing slashes for consistency
+        route = route.rstrip('/')
+        
+        # Log potential issues for debugging (only for routes with >3 segments)
+        segments = route.split('/')
+        if len(segments) > 3:
+            print(f"⚠️ Route has more than 3 segments: {route} from {original_url}")
+        
+        return route
     
     def _categorize_status_code(self, code: int) -> str:
         """Categorize status code by its class (1xx, 2xx, etc.)."""
@@ -266,7 +285,7 @@ class LogCapture:
         if has_5xx_errors:
             header_parts.append("5xx Status")
         
-        header_parts.append("Healthy Response Rate")
+        header_parts.append("Healthy (200 or 404) Response Rate")
         
         # Generate route summary table with dynamic columns
         table_rows = []
@@ -322,7 +341,7 @@ class LogCapture:
         # Generate 5xx Critical Alerts Section
         fivexx_critical_section = ""
         
-        # Server Errors (5xx) - Highest Priority
+        # Server Errors (5xx)
         critical_5xx_routes = []
         for route, stats in self.route_stats.items():
             total = stats['total']
@@ -344,7 +363,7 @@ class LogCapture:
                         fivexx_codes_found.append(f"{count}×{code} {meaning}")
                 
                 codes_detail = ", ".join(fivexx_codes_found)
-                critical_5xx_routes.append(f"- **🚨 {route}**: 💥 Critical server errors - {error_rate:.1f}% 5xx responses ({route_5xx_errors}/{total}) - [{codes_detail}]")
+                critical_5xx_routes.append(f"- **🚨 {route}**: Critical server errors - {error_rate:.1f}% 5xx responses ({route_5xx_errors}/{total}) - [{codes_detail}]")
         
         # Generate detailed sections with comprehensive status code analysis
         detailed_sections = []
@@ -469,26 +488,26 @@ class LogCapture:
         
         status_breakdown = '\n'.join(status_breakdown_lines)
         
-        # Build the complete markdown report with enhanced status code analysis
+        # Build the complete markdown report
         markdown_report = f"""# 🔄 Prefect Recaching API Analysis
 
 *Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
 
-## 📊 **Executive Summary**
+## **Executive Summary**
 - **Total Requests**: {total_requests:,}
 {completion_line}{fivexx_summary_line}- **Unique Routes**: {unique_routes}
-- **Overall Healthy Response Rate**: {healthy_response_rate:.1f}%
+- **Overall Healthy (200 or 404) Response Rate**: {healthy_response_rate:.1f}%
 - **Execution Time**: {(self.requests_data[-1]['timestamp'] - self.requests_data[0]['timestamp']).total_seconds():.1f}s
 
 ---
 {fivexx_critical_section}
-## 🎯 **Route Performance Overview**
+## **Route Performance Overview**
 
 {route_table}
 
 ---
 
-## 📈 **Detailed Route Analysis**
+## **Detailed Route Analysis**
 
 {chr(10).join(detailed_sections)}
 
@@ -496,7 +515,7 @@ class LogCapture:
 
 ## 🚨 **Issues & Alerts**
 
-### 🔥 CRITICAL: Server Errors (5xx)
+### 🔥 Server Errors (5xx)
 {chr(10).join(critical_5xx_routes) if critical_5xx_routes else "✅ No server errors detected."}
 
 ---
@@ -507,13 +526,6 @@ class LogCapture:
 Overall Breakdown:
 {status_breakdown}
 ```
-
----
-
-## 📚 **Status Code Reference**
-
-### Encountered Status Codes
-{chr(10).join([f"**{code} {self._get_status_code_meaning(code)}** ({self._categorize_status_code(code)}): {self.all_status_codes_global[code]:,} requests ({(self.all_status_codes_global[code]/total_requests*100):.1f}%)" for code in self.get_all_encountered_status_codes()])}
 
 ---
 """
@@ -584,6 +596,7 @@ The recaching process may have been interrupted or encountered issues.
             'artifact_id': None, 
             'status': 'failed'
         }
+
 
 
 # Global log capture instance
