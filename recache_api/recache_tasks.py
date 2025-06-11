@@ -3,15 +3,12 @@ from prefect import task
 from prefect.artifacts import create_markdown_artifact
 from collections import defaultdict, Counter
 from datetime import datetime
-import io
-import sys
 
 
 class LogCapture:
     """Captures print statements and collects request/response data for analysis."""
     
     def __init__(self):
-        self.captured_output = []
         self.requests_data = []
         self.route_stats = defaultdict(lambda: {
             'total': 0,
@@ -20,8 +17,6 @@ class LogCapture:
         })
         # Enhanced status code tracking
         self.all_status_codes_global = Counter()
-        self.status_code_meanings = {}
-        self.status_code_categories = {}
         
     def capture_request(self, url, status_code):
         """Capture request data for analysis."""
@@ -41,8 +36,6 @@ class LogCapture:
         
         # Enhanced global status code tracking
         self.all_status_codes_global[status_code] += 1
-        self.status_code_categories[status_code] = self._categorize_status_code(status_code)
-        self.status_code_meanings[status_code] = self._get_status_code_meaning(status_code)
     
     def _extract_route(self, url: str) -> str:
         """Extract the route/endpoint from a full URL."""
@@ -169,59 +162,14 @@ class LogCapture:
         total_requests = len(self.requests_data)
         global_5xx_rate = (total_5xx_errors / total_requests * 100) if total_requests > 0 else 0
         
-        # Find most common 5xx code globally
-        global_5xx_codes = {code: count for code, count in self.all_status_codes_global.items() 
-                           if 500 <= code < 600}
-        most_common_5xx_code = max(global_5xx_codes.items(), key=lambda x: x[1])[0] if global_5xx_codes else None
-        
-        # Count critical routes (>10% 5xx rate)
-        critical_routes_count = sum(1 for route_data in routes_with_5xx.values() 
-                                   if route_data['5xx_rate'] > 10)
-        
         return {
             'routes_with_5xx': len(routes_with_5xx),
             'total_5xx_errors': total_5xx_errors,
             'global_5xx_rate': global_5xx_rate,
-            'most_common_5xx_code': most_common_5xx_code,
-            'critical_routes_count': critical_routes_count,
             'total_routes': len(self.route_stats)
         }
     
-    def generate_5xx_recommendations(self, routes_with_5xx: dict) -> list:
-        """Generate targeted recommendations based on 5xx error patterns."""
-        recommendations = []
-        
-        if not routes_with_5xx:
-            return recommendations
-        
-        # Analyze 5xx patterns across all routes
-        all_5xx_codes = set()
-        for route_data in routes_with_5xx.values():
-            all_5xx_codes.update(route_data['5xx_codes'].keys())
-        
-        # Generate code-specific recommendations
-        for code in sorted(all_5xx_codes):
-            meaning = self._get_status_code_meaning(code)
-            
-            if code == 500:
-                recommendations.append("🐛 **Application Bugs Detected**: 500 Internal Server Error indicates application-level issues. Review server logs, recent deployments, and error tracking systems.")
-            elif code == 502:
-                recommendations.append("🌐 **Gateway Issues Detected**: 502 Bad Gateway indicates problems between servers. Check load balancer configuration, upstream server health, and network connectivity.")
-            elif code == 503:
-                recommendations.append("🔧 **Service Unavailable**: 503 errors indicate server overload or maintenance. Check server capacity, scaling settings, and maintenance schedules.")
-            elif code == 504:
-                recommendations.append("⏱️ **Gateway Timeouts**: 504 errors indicate backend performance issues. Investigate database queries, API response times, and network latency.")
-            elif code == 505:
-                recommendations.append("🔧 **Protocol Issues**: 505 HTTP Version Not Supported indicates configuration problems. Verify HTTP version settings and protocol compatibility.")
-            else:
-                recommendations.append(f"⚠️ **{code} {meaning}**: Server-side error detected. Review server configuration and logs for this specific error type.")
-        
-        # Add general 5xx recommendations
-        critical_routes = [route for route, data in routes_with_5xx.items() if data['5xx_rate'] > 10]
-        if critical_routes:
-            recommendations.append(f"🚨 **URGENT**: {len(critical_routes)} route(s) have >10% server error rates. Immediate investigation required: {', '.join(critical_routes)}")
-        
-        return recommendations
+
     
     def get_5xx_urls_for_route(self, route: str) -> list:
         """Get all URLs that returned 5xx errors for a specific route."""
@@ -255,8 +203,8 @@ class LogCapture:
         for stats in self.route_stats.values():
             all_status_codes.update(stats['status_codes'])
         
-        success_count = all_status_codes.get(200, 0)
-        success_rate = (success_count / total_requests * 100) if total_requests > 0 else 0
+        healthy_count = all_status_codes.get(200, 0) + all_status_codes.get(404, 0)
+        healthy_response_rate = (healthy_count / total_requests * 100) if total_requests > 0 else 0
         
         # Determine completion status
         completion_status = ""
@@ -318,14 +266,14 @@ class LogCapture:
         if has_5xx_errors:
             header_parts.append("5xx Status")
         
-        header_parts.append("Success Rate")
+        header_parts.append("Healthy Response Rate")
         
         # Generate route summary table with dynamic columns
         table_rows = []
         for route, stats in sorted(self.route_stats.items()):
             total = stats['total']
-            success_count = stats['status_codes'].get(200, 0)
-            route_success_rate = (success_count / total * 100) if total > 0 else 0
+            healthy_count = stats['status_codes'].get(200, 0) + stats['status_codes'].get(404, 0)
+            route_healthy_rate = (healthy_count / total * 100) if total > 0 else 0
             
             # Determine if this route has 5xx errors and add emoji prefix
             route_display_name = route
@@ -361,7 +309,7 @@ class LogCapture:
             if has_5xx_errors:
                 row_parts.append(fivexx_status)
             
-            row_parts.append(f"{route_success_rate:.1f}%")
+            row_parts.append(f"{route_healthy_rate:.1f}%")
             
             table_rows.append("| " + " | ".join(row_parts) + " |")
         
@@ -373,93 +321,15 @@ class LogCapture:
         
         # Generate 5xx Critical Alerts Section
         fivexx_critical_section = ""
-        if routes_with_5xx:
-            fivexx_recommendations = self.generate_5xx_recommendations(routes_with_5xx)
-            
-            # Create individual route alerts
-            route_alerts = []
-            for route, route_data in sorted(routes_with_5xx.items()):
-                # Get the most critical 5xx code for this route
-                most_critical_code = route_data['most_common_5xx']
-                most_critical_meaning = self._get_status_code_meaning(most_critical_code)
-                
-                # Determine action based on error type
-                if most_critical_code == 500:
-                    action = "Review application logs and recent deployments"
-                elif most_critical_code == 502:
-                    action = "Check load balancer and upstream server health"
-                elif most_critical_code == 503:
-                    action = "Check server capacity and maintenance status"
-                elif most_critical_code == 504:
-                    action = "Investigate backend performance and network latency"
-                elif most_critical_code == 505:
-                    action = "Verify HTTP version configuration"
-                else:
-                    action = "Review server configuration and logs"
-                
-                # Create severity indicator
-                severity = "🚨 **CRITICAL SERVER ERROR**" if route_data['5xx_rate'] > 10 else "⚠️ **SERVER ERROR DETECTED**"
-                
-                alert = f"""| {severity} |
-|------------------------------|
-| **Route**: `{route}`<br>**Error Type**: {most_critical_code} {most_critical_meaning}<br>**Impact**: {route_data['total_5xx']}/{route_data['total_requests']} requests ({route_data['5xx_rate']:.1f}%)<br>**Action**: {action} |"""
-                
-                route_alerts.append(alert)
-            
-            # Group routes by 5xx error type
-            error_type_groups = defaultdict(list)
-            for route, route_data in routes_with_5xx.items():
-                for code, count in route_data['5xx_codes'].items():
-                    error_rate = (count / route_data['total_requests'] * 100)
-                    error_type_groups[code].append((route, count, error_rate))
-            
-            # Generate error type breakdown
-            error_breakdown = []
-            for code in sorted(error_type_groups.keys()):
-                meaning = self._get_status_code_meaning(code)
-                routes_list = error_type_groups[code]
-                
-                # Get emoji for error type
-                if code == 500:
-                    emoji = "💥"
-                elif code == 502:
-                    emoji = "🌐"
-                elif code == 503:
-                    emoji = "🔧"
-                elif code == 504:
-                    emoji = "⏱️"
-                else:
-                    emoji = "❌"
-                
-                error_breakdown.append(f"#### {emoji} {code} {meaning} Routes")
-                for route, count, error_rate in sorted(routes_list, key=lambda x: x[2], reverse=True):
-                    error_breakdown.append(f"- **{route}**: {count} errors ({error_rate:.1f}% of requests)")
-                error_breakdown.append("")  # Add spacing
-            
-            # Build the complete 5xx section
-            fivexx_critical_section = f"""
-## 🚨 **Server Errors (5xx)**
-
-### Routes with Server-Side Issues
-{chr(10).join(route_alerts)}
-
-### 5xx Error Breakdown by Type
-{chr(10).join(error_breakdown)}
-
----
-"""
         
-        # Identify problematic routes with comprehensive analysis
-        problematic_routes = []
-        
-        # CRITICAL: Server Errors (5xx) - Highest Priority
+        # Server Errors (5xx) - Highest Priority
         critical_5xx_routes = []
         for route, stats in self.route_stats.items():
             total = stats['total']
             if total == 0:
                 continue
             
-            # Check for ANY 5xx errors (enhanced from original 500-only logic)
+            # Check for any 5xx errors
             route_5xx_errors = sum(stats['status_codes'].get(code, 0) for code in stats['status_codes'].keys() 
                                   if 500 <= code < 600)
             if route_5xx_errors > 0:
@@ -476,67 +346,12 @@ class LogCapture:
                 codes_detail = ", ".join(fivexx_codes_found)
                 critical_5xx_routes.append(f"- **🚨 {route}**: 💥 Critical server errors - {error_rate:.1f}% 5xx responses ({route_5xx_errors}/{total}) - [{codes_detail}]")
         
-        # HIGH: Performance Issues  
-        high_priority_routes = []
-        for route, stats in self.route_stats.items():
-            total = stats['total']
-            if total == 0:
-                continue
-                
-            # Rate Limiting Detection (429 responses)
-            rate_limit_count = stats['status_codes'].get(429, 0)
-            if rate_limit_count > 0:
-                rate_limit_rate = (rate_limit_count / total * 100)
-                if rate_limit_rate > 10:  # More than 10% rate limited
-                    high_priority_routes.append(f"- **{route}**: 🚨 High rate limiting - {rate_limit_rate:.1f}% 429 responses ({rate_limit_count}/{total})")
-                else:
-                    high_priority_routes.append(f"- **{route}**: ⚠️ Rate limiting detected - {rate_limit_rate:.1f}% 429 responses ({rate_limit_count}/{total})")
-            
-            # Authentication Issues (401/403 responses)
-            auth_errors = stats['status_codes'].get(401, 0) + stats['status_codes'].get(403, 0)
-            if auth_errors > 0:
-                auth_error_rate = (auth_errors / total * 100)
-                if auth_error_rate > 5:  # More than 5% auth errors
-                    high_priority_routes.append(f"- **{route}**: 🔒 Authentication issues - {auth_error_rate:.1f}% auth errors ({auth_errors}/{total})")
-       
-        
-        # MEDIUM: Data Quality Issues
-        medium_priority_routes = []
-        for route, stats in self.route_stats.items():
-            total = stats['total']
-            if total == 0:
-                continue
-            
-            # High Redirect Rates (3xx responses)
-            redirect_codes = [300, 301, 302, 303, 307, 308]
-            redirect_count = sum(stats['status_codes'].get(code, 0) for code in redirect_codes)
-            if redirect_count > 0:
-                redirect_rate = (redirect_count / total * 100)
-                if redirect_rate > 20:  # More than 20% redirects
-                    medium_priority_routes.append(f"- **{route}**: 🔄 High redirect rate - {redirect_rate:.1f}% redirects ({redirect_count}/{total})")
-            
-            # High 404 Rate (original logic enhanced)
-            not_found = stats['status_codes'].get(404, 0)
-            if not_found > 0:
-                not_found_rate = (not_found / total * 100)
-                if not_found_rate > 50:  # More than 50% 404s
-                    medium_priority_routes.append(f"- **{route}**: 🔍 High 404 rate - {not_found_rate:.1f}% not found ({not_found}/{total})")
-            
-            # Generic Client Errors (4xx excluding handled cases)
-            handled_4xx = [401, 403, 404, 429]
-            other_4xx = sum(stats['status_codes'].get(code, 0) for code in stats['status_codes'].keys() 
-                           if 400 <= code < 500 and code not in handled_4xx)
-            if other_4xx > 0:
-                other_4xx_rate = (other_4xx / total * 100)
-                if other_4xx_rate > 10:  # More than 10% other client errors
-                    medium_priority_routes.append(f"- **{route}**: ⚠️ Client errors - {other_4xx_rate:.1f}% other 4xx responses ({other_4xx}/{total})")
-        
         # Generate detailed sections with comprehensive status code analysis
         detailed_sections = []
         for route, stats in sorted(self.route_stats.items()):
             total = stats['total']
             
-            # Enhanced status breakdown with all codes and meanings
+            # Status breakdown with all codes and meanings
             status_breakdown = []
             
             for status_code in sorted(stats['status_codes'].keys()):
@@ -560,8 +375,8 @@ class LogCapture:
                 status_breakdown.append(f"- {emoji} **{status_code} {meaning}** ({category}): {count} requests ({percentage:.1f}%)")
             
             # Route health assessment
-            success_count = stats['status_codes'].get(200, 0)
-            route_success_rate = (success_count / total * 100) if total > 0 else 0
+            healthy_count = stats['status_codes'].get(200, 0) + stats['status_codes'].get(404, 0)
+            route_healthy_rate = (healthy_count / total * 100) if total > 0 else 0
             
             # Enhanced health assessment considering 5xx errors
             route_5xx_errors = sum(stats['status_codes'].get(code, 0) for code in stats['status_codes'].keys() 
@@ -573,12 +388,12 @@ class LogCapture:
             elif route_5xx_rate > 5:
                 health_status = "🔴 Poor"
             elif route_5xx_errors > 0:  # Any 5xx errors
-                health_status = "🟠 Fair" if route_success_rate >= 70 else "🔴 Poor"
-            elif route_success_rate >= 95:
+                health_status = "🟠 Fair" if route_healthy_rate >= 70 else "🔴 Poor"
+            elif route_healthy_rate >= 95:
                 health_status = "🟢 Excellent"
-            elif route_success_rate >= 85:
+            elif route_healthy_rate >= 85:
                 health_status = "🟡 Good"
-            elif route_success_rate >= 70:
+            elif route_healthy_rate >= 70:
                 health_status = "🟠 Fair"
             else:
                 health_status = "🔴 Poor"
@@ -603,7 +418,7 @@ class LogCapture:
             
             section = f"""### 📍 **{route}**
 
-**Route Health**: {health_status} (Success Rate: {route_success_rate:.1f}%)
+**Route Health**: {health_status} (Healthy Response Rate: {route_healthy_rate:.1f}%)
 **Total Requests**: {total:,}
 
 **Status Code Breakdown**:
@@ -654,20 +469,6 @@ class LogCapture:
         
         status_breakdown = '\n'.join(status_breakdown_lines)
         
-        
-        # Performance recommendations
-        success_rate = (success_count / total_requests * 100) if total_requests > 0 else 0
-        
-        # Infrastructure recommendations
-        server_errors = sum(self.all_status_codes_global.get(code, 0) for code in [500, 502, 503, 504])
-        if server_errors > 0:
-            server_percent = (server_errors / total_requests * 100)
-        
-        # Data availability recommendations
-        not_found_count = self.all_status_codes_global.get(404, 0)
-        if not_found_count > 0:
-            not_found_percent = (not_found_count / total_requests * 100)
-        
         # Build the complete markdown report with enhanced status code analysis
         markdown_report = f"""# 🔄 Prefect Recaching API Analysis
 
@@ -676,7 +477,7 @@ class LogCapture:
 ## 📊 **Executive Summary**
 - **Total Requests**: {total_requests:,}
 {completion_line}{fivexx_summary_line}- **Unique Routes**: {unique_routes}
-- **Overall Success Rate**: {success_rate:.1f}%
+- **Overall Healthy Response Rate**: {healthy_response_rate:.1f}%
 - **Execution Time**: {(self.requests_data[-1]['timestamp'] - self.requests_data[0]['timestamp']).total_seconds():.1f}s
 
 ---
@@ -698,12 +499,6 @@ class LogCapture:
 ### 🔥 CRITICAL: Server Errors (5xx)
 {chr(10).join(critical_5xx_routes) if critical_5xx_routes else "✅ No server errors detected."}
 
-### ⚠️ HIGH: Performance Issues
-{chr(10).join(high_priority_routes) if high_priority_routes else "✅ No high-priority performance issues detected."}
-
-### 📊 MEDIUM: Data Quality Issues
-{chr(10).join(medium_priority_routes) if medium_priority_routes else "✅ No data quality issues detected."}
-
 ---
 
 ## 📋 **Status Code Distribution**
@@ -721,9 +516,8 @@ Overall Breakdown:
 {chr(10).join([f"**{code} {self._get_status_code_meaning(code)}** ({self._categorize_status_code(code)}): {self.all_status_codes_global[code]:,} requests ({(self.all_status_codes_global[code]/total_requests*100):.1f}%)" for code in self.get_all_encountered_status_codes()])}
 
 ---
-
-        *🤖 Auto-generated by Prefect Recaching Flow*"""
-
+"""
+        
         return markdown_report
 
 
