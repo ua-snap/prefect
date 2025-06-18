@@ -1,0 +1,17 @@
+name: viirs_smoke
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.13
+  - s3fs
+  - requests
+  - pandas
+  - xarray
+  - numpy
+  - scipy
+  - matplotlib
+  - cartopy
+  - gdal
+  - h5netcdf
+  - h5py
