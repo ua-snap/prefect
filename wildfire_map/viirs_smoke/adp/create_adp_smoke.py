@@ -456,7 +456,6 @@ def main(output_dir):
 
 
 if __name__ == "__main__":
-    # TODO Need a way to pass in the working directory to work with Prefect
     parser = argparse.ArgumentParser(
         description="Fetch VIIRS Smoke ADP data and create GeoTIFF."
     )

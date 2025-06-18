@@ -16,7 +16,7 @@ def snow_cover_layer(
 
         check_for_admin_pass(f"{home_directory}", admin_password.get())
 
-        # TODO: Uncomment this when a fix can be found for why this Conda environment is not
+        # This is referenced in Github issue: https://github.com/ua-snap/prefect/issues/67
         #       being found correctly.
         # install_conda_environment(
         #     "smokeybear", f"{working_directory}/smokey_bear/environment.yml"

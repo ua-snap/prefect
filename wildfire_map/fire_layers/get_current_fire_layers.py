@@ -382,7 +382,6 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
 
 
 if __name__ == "__main__":
-    # TODO Need a way to pass in the working directory to work with Prefect
     parser = argparse.ArgumentParser(
         description="Fetch Alaska Wildfire map fire, heat spot, and lightning data + process it."
     )
