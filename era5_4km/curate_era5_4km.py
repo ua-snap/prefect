@@ -9,6 +9,28 @@ import curation_functions
 SSH_HOST = "chinook04.rcs.alaska.edu"
 SSH_PORT = 22
 
+"""
+ERA5 Data Processing Flow
+
+This flow orchestrates ERA5 data processing on Chinook HPC with a focus on processing only.
+
+PROCESSING FOCUS:
+=================
+
+This flow is focused purely on ERA5 data processing on Chinook HPC.
+
+For archiving completed data, use the separate `archive_era5_simple.py` flow.
+
+SEPARATION OF CONCERNS:
+======================
+
+- **Processing Flow** (`curate_era5_4km.py`): Handles data processing on Chinook
+- **Archival Flow** (`archive_era5_simple.py`): Handles completed data archival to Poseidon
+
+This separation eliminates race conditions and provides better control over when
+archiving occurs.
+"""
+
 
 @flow(name="era5-processing",
       description="Orchestrate ERA5 data processing on Chinook HPC",
@@ -27,6 +49,35 @@ def submit_era5_jobs(
     overwrite: bool = False,
     no_retry: bool = False
 ):
+    """
+    Execute ERA5 data processing jobs on Chinook HPC
+    
+    This flow focuses solely on data processing. For archiving completed data,
+    use the separate archive_era5_simple.py flow.
+    
+    Args:
+        ssh_username: Username for SSH connections to Chinook HPC
+        ssh_private_key_path: Path to SSH private key file for authentication
+        branch_name: Git branch to clone and use for processing scripts
+        working_directory: Working directory on Chinook for repository and processing
+        variables: Comma-separated list of variables to process (e.g., "t2_mean,t2_min,t2_max")
+        ERA5_INPUT_DIR: Directory containing input ERA5 data on Chinook
+        ERA5_OUTPUT_DIR: Directory where processed data will be written on Chinook
+        start_year: First year to process (inclusive)
+        end_year: Last year to process (inclusive)  
+        max_concurrent: Maximum number of simultaneous processing jobs on Slurm
+        overwrite: Whether to overwrite existing output files (default: False)
+        no_retry: Skip retry logic for failed jobs (default: False)
+        
+    Returns:
+        None: Flow completes when processing is finished
+        
+    Artifacts:
+        Creates Prefect artifacts containing detailed execution logs and summaries
+        
+    Next Steps:
+        After this flow completes, use archive_era5_simple() to archive the processed data
+    """
     logger = get_run_logger()
 
     # Create an SSH client
@@ -93,7 +144,12 @@ def submit_era5_jobs(
                     logger.warning("Could not capture logs after error")
                 raise
 
-        build_and_run_job_submission_script(ssh, repo_path, logger, variables, start_year, end_year, max_concurrent, overwrite, no_retry, ERA5_INPUT_DIR, ERA5_OUTPUT_DIR)
+        # Execute main ERA5 processing
+        log_artifact_id = build_and_run_job_submission_script(ssh, repo_path, logger, variables, start_year, end_year, max_concurrent, overwrite, no_retry, ERA5_INPUT_DIR, ERA5_OUTPUT_DIR)
+        
+        logger.info("✅ ERA5 processing completed successfully!")
+        logger.info("💡 To archive the processed data, use the separate archive_era5_simple.py flow")
+        logger.info(f"📋 Processing logs captured in artifact: {log_artifact_id}")
 
     except Exception as e:
         logger.error(f"Flow failed: {str(e)}")
@@ -116,6 +172,6 @@ if __name__ == "__main__":
             "end_year": 2019,
             "max_concurrent": 60,
             "overwrite": False,
-            "no_retry": False,
+            "no_retry": False
         }
     )
