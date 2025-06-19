@@ -32,7 +32,7 @@ def smokey_bear_layer(
         check_for_admin_pass(f"{home_directory}", admin_password.get())
 
         install_conda_environment(
-            "smokeybear2",
+            "smokeybear",
             f"{working_directory}/smokey_bear/environment.yml",
             conda_local_environment,
         )
@@ -40,7 +40,7 @@ def smokey_bear_layer(
         execute_local_script(
             f"{working_directory}/smokey_bear/{script_name}",
             output_directory,
-            "smokeybear2",
+            "smokeybear",
             conda_local_environment,
         )
         return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
