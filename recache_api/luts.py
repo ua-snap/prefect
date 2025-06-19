@@ -1,5 +1,4 @@
-cached_urls = [
-    "/eds/all/",
+ncr_cached_urls = [
     "/alfresco/flammability/local/",
     "/alfresco/veg_type/local/",
     "/beetles/point/",
@@ -15,3 +14,5 @@ cached_urls = [
     "/taspr/area/",
     "/indicators/cmip5/area/",
 ]
+
+eds_cached_url = "/eds/all/"
