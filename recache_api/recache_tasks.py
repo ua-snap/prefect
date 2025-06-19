@@ -65,7 +65,7 @@ def get_all_route_endpoints(curr_route, curr_type, cache_url):
 
 def get_endpoint(curr_route, curr_type, place, cache_url):
     """Requests a specific endpoint of the API with parameters coming from
-    the JSON of communities, HUCs, or protected areas.
+    the JSON of communities or areas.
 
      Args:
          curr_route - Current route ex. /taspr/huc/
