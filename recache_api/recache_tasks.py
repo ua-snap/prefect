@@ -2,8 +2,6 @@ import requests
 from prefect import task
 from luts import eds_cached_url, ncr_cached_urls
 
-CACHE_HOSTNAME = "https://earthmaps.io"
-
 
 @task(name="Recache API")
 def recache_api(cached_apps, cache_url):
