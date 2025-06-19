@@ -60,7 +60,7 @@ if __name__ == "__main__":
             "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "script_name": "update_smokey_bear.sh",
-            "output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/smokey_bear",
+            "output_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires/",
             "conda_local_environment": False,
         },
     )
