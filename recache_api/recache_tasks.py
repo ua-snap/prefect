@@ -33,7 +33,7 @@ def get_all_route_endpoints(curr_route, curr_type):
     if curr_type == "community":
         places_url = (
             GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_communities&outputFormat=application/json&propertyName=latitude,longitude,region"
+            + "wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_communities&outputFormat=application/json&propertyName=latitude,longitude,region"
         )
         response = requests.get(places_url)
         places_data = response.json()
@@ -41,7 +41,7 @@ def get_all_route_endpoints(curr_route, curr_type):
     else:
         places_url = (
             GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id,area_type"
+            + "wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id,area_type"
         )
         response = requests.get(places_url)
         places_data = response.json()
@@ -51,12 +51,20 @@ def get_all_route_endpoints(curr_route, curr_type):
     # that is not used in any of our apps.
     for place in places:
         if (
-            curr_type == "community"
-            and (
-                place["properties"]["region"]
-                in ["Alaska", "Yukon", "Northwest Territories"]
+            (
+                curr_type == "community"
+                and curr_route.find("eds") != -1
+                and place["properties"]["region"] == "Alaska"
             )
-        ) or (curr_type == "area" and place["properties"]["area_type"] != "HUC12"):
+            or (
+                curr_type == "community"
+                and (
+                    place["properties"]["region"]
+                    in ["Alaska", "Yukon", "Northwest Territories"]
+                )
+            )
+            or (curr_type == "area" and place["properties"]["area_type"] != "HUC12")
+        ):
             get_endpoint(curr_route, curr_type, place["properties"])
 
 
