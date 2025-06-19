@@ -12,7 +12,7 @@ def execute_local_script(
     else:
         conda_source = ". /opt/miniconda3/bin/activate"
     process = subprocess.Popen(
-        f"{conda_source} {conda_env_name} && python {script_path} --out-dir {output_path}",
+        f"{conda_source}; conda activate {conda_env_name}; python {script_path} --out-dir {output_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
