@@ -27,6 +27,11 @@ sub vcl_recv {
     #
     # Typically you clean up the request here, removing cookies you don't need,
     # rewriting the request, etc.
+
+    # Allows for any host pointed at the cache to access the cache as if they were
+    # named earthmaps.io
+    set req.http.Host = "earthmaps.io";
+
     if (req.url ~ "^/places.*") {
         return (pass);
     }
@@ -45,8 +50,6 @@ sub vcl_backend_response {
     #
     # Here you clean the response headers, removing silly Set-Cookie headers
     # and other mistakes your backend does.
-    #set beresp.grace = 24h;
-    #set beresp.keep = 24h;
     set beresp.ttl = 104w;
 
     if (beresp.status == 500 || beresp.status == 502 || beresp.status == 503 || beresp.status == 504) {
