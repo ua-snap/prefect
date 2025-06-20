@@ -30,7 +30,7 @@ def get_all_route_endpoints(curr_route, curr_type, cache_url):
     """Generates all possible endpoints given a particular route & type
 
     Args:
-        curr_route - Current route ex. /taspr/huc/
+        curr_route - Current route ex. /taspr/area/
         curr_type - Either community or area
         cache_url - The base URL for the API cache, e.g., https://earthmaps.io
 
@@ -68,7 +68,7 @@ def get_endpoint(curr_route, curr_type, place, cache_url):
     the JSON of communities or areas.
 
      Args:
-         curr_route - Current route ex. /taspr/huc/
+         curr_route - Current route ex. /taspr/area/
          curr_type - Either community or area.
          place - One community or area from the API response.
          cache_url - The base URL for the API cache, e.g., https://earthmaps.io
