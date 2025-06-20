@@ -1,6 +1,10 @@
 import requests
-from prefect import task
+import time
+from prefect import task, get_run_logger
 from luts import eds_cached_url, ncr_cached_urls
+
+status_counts = {}
+error_urls = {}
 
 
 # Helper: get the list of places to construct URLs for various endpoints,
@@ -45,6 +49,16 @@ def recache_api(cached_apps, cache_url):
     if "ncr" in cached_apps:
         recache_ncr(cache_url)
 
+    logger = get_run_logger()
+    logger.info(f"Status code summary: {status_counts}")
+    for code, urls in error_urls.items():
+        logger.info(f"URLs with status {code}:")
+        for url in urls:
+            if code == 404 or code == 422:
+                logger.warning(f"  {url}")
+            else:
+                logger.error(f"  {url}")
+
 
 def recache_eds(cache_url):
     # Fetch the list of places to cache: all Alaska communities
@@ -84,14 +98,54 @@ def get_endpoint(route, place, route_type, cache_url):
          Nothing.
 
     """
+    logger = get_run_logger()
+
     # Build the URL to query based on type
     if route_type == "community":
         url = cache_url + route + str(place["latitude"]) + "/" + str(place["longitude"])
     else:
         url = cache_url + route + str(place["id"])
 
-    print(f"Running URL: {url}")
+    logger.info(f"Running URL: {url}")
+
+    start_time = time.perf_counter()
 
     # Collects returned status from GET request
     status = requests.get(url)
-    print(f"Status Response: {status}")
+
+    end_time = time.perf_counter()
+
+    # Count status code
+    code = status.status_code
+
+    # Initializes the status_counts diectionary for a given status code
+    # and increments the count for that status code.
+    status_counts[code] = status_counts.get(code, 0) + 1
+
+    # Track any non-200 URLs
+    if code != 200:
+        # setdefault initializes the list if the key does not exist
+        # Append the URL to the list for this status code
+        error_urls.setdefault(code, []).append(url)
+
+    # If the status code is 200, we print out the status code, the content size.
+    if code == 200:
+        # Size of the response content in bytes
+        size_in_bytes = len(status.content)
+
+        logger.info(
+            f"Successfully recached {url}\nStatus Code: {status.status_code}\nSize of response: {size_in_bytes} bytes\nTime taken for request: {end_time - start_time:.1f} seconds"
+        )
+    elif code == 404:
+        logger.warning(
+            f"No data available at {url}\nStatus Code: {status.status_code}\nTime taken for request: {end_time - start_time:.1f} seconds"
+        )
+    elif code == 422:
+        logger.warning(
+            f"Outside of bounding box at {url}\nStatus Code: {status.status_code}\nTime taken for request: {end_time - start_time:.1f} seconds"
+        )
+    else:
+        # Catch all for 5XX errors
+        logger.error(
+            f"Failed to recache {url}\nStatus Code: {status.status_code}\nTime taken for request: {end_time - start_time:.1f} seconds"
+        )
