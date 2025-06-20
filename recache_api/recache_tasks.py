@@ -5,9 +5,9 @@ from luts import eds_cached_url, ncr_cached_urls
 
 # Helper: get the list of places to construct URLs for various endpoints,
 # throw an error if there was a problem
-def get_places(places_url): 
+def get_places(places_url):
     response = requests.get(places_url)
-    if(response.status_code == 200):
+    if response.status_code == 200:
         return response.json()
     else:
         # Everything is hopeless, run away
@@ -15,7 +15,7 @@ def get_places(places_url):
 
 
 # Helper, return true if place type (community, area) matches route type (community, area).
-def route_type_matches_place_type(route_type, place)
+def route_type_matches_place_type(route_type, place):
     # If the route needs a community, skip if the place isn't a community
     if route_type == "community" and place["type"] != "community":
         return False
@@ -40,11 +40,11 @@ def recache_api(cached_apps, cache_url):
 
     """
     if "eds" in cached_apps:
-        recache_eds()
+        recache_eds(cache_url)
 
     if "ncr" in cached_apps:
-        recache_ncr()
- 
+        recache_ncr(cache_url)
+
 
 def recache_eds(cache_url):
     # Fetch the list of places to cache: all Alaska communities
@@ -54,7 +54,7 @@ def recache_eds(cache_url):
 
 def recache_ncr(cache_url):
     places_url = cache_url + "/places/all?tags=ncr"
-    places = get_places(places_url) # has both communities (points) and areas
+    places = get_places(places_url)  # has both communities (points) and areas
 
     # Iterate over the list of URLs that need to be cached
     for route, route_type in ncr_cached_urls.items():
@@ -66,7 +66,7 @@ def recache_ncr(cache_url):
 # This is because some endpoints can only take areas or points.
 def get_matching_endpoints(places, route, route_type, cache_url):
     for place in places:
-        if(route_type_matches_place_type(route_type, place)):
+        if route_type_matches_place_type(route_type, place):
             get_endpoint(route, place, route_type, cache_url)
 
 
@@ -86,13 +86,7 @@ def get_endpoint(route, place, route_type, cache_url):
     """
     # Build the URL to query based on type
     if route_type == "community":
-        url = (
-            cache_url
-            + route
-            + str(place["latitude"])
-            + "/"
-            + str(place["longitude"])
-        )
+        url = cache_url + route + str(place["latitude"]) + "/" + str(place["longitude"])
     else:
         url = cache_url + route + str(place["id"])
 
