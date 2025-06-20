@@ -1,89 +1,94 @@
 import requests
 from prefect import task
+from luts import eds_cached_url, ncr_cached_urls
+
+
+# Helper: get the list of places to construct URLs for various endpoints,
+# throw an error if there was a problem
+def get_places(places_url):
+    response = requests.get(places_url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        # Everything is hopeless, run away
+        exit(1)
+
+
+# Helper, return true if place type (community, area) matches route type (community, area).
+def route_type_matches_place_type(route_type, place):
+    # If the route needs a community, skip if the place isn't a community
+    if route_type == "community" and place["type"] != "community":
+        return False
+
+    # If the route needs an area, skip if the place is a community
+    if route_type == "area" and place["type"] == "community":
+        return False
+
+    return True
 
 
 @task(name="Recache API")
-def recache_api(cached_urls):
-
-    for route in cached_urls:
-        if (
-            route.find("point") != -1
-            or route.find("local") != -1
-            or route.find("all") != -1
-        ) and (route.find("lat") == -1):
-            get_all_route_endpoints(route, "community")
-        elif route.find("area") != -1 and route.find("var_id") == -1:
-            get_all_route_endpoints(route, "area")
-
-
-def get_all_route_endpoints(curr_route, curr_type):
-    """Generates all possible endpoints given a particular route & type
+def recache_api(cached_apps, cache_url):
+    """Recaches the API endpoints for the given applications.
 
     Args:
-        curr_route - Current route ex. https://earthmaps.io/taspr/huc/
-        curr_type - One of the many types availabe such as community or huc.
+        cached_apps - List of applications to recache, e.g., ["eds", "ncr"]
+        cache_url - The base URL for the API cache, e.g., https://earthmaps.io
 
     Returns:
-        Nothing.
+        Nothing. Prints the URLs being recached and their status code.
+
     """
-    GS_BASE_URL = "https://gs.earthmaps.io/geoserver/"
+    if "eds" in cached_apps:
+        recache_eds(cache_url)
 
-    # Opens the JSON file for the current type and replaces the "variable" portions
-    # of the route to allow for the JSON items to fill in those fields.
-    if curr_type == "community":
-        places_url = (
-            GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_communities&outputFormat=application/json&propertyName=latitude,longitude,region"
-        )
-        response = requests.get(places_url)
-        places_data = response.json()
-        places = places_data["features"]
-    else:
-        places_url = (
-            GS_BASE_URL
-            + f"wfs?service=WFS&version=2.0.0&request=GetFeature&typeName=all_boundaries:all_areas&outputFormat=application/json&propertyName=id,area_type"
-        )
-        response = requests.get(places_url)
-        places_data = response.json()
-        places = places_data["features"]
+    if "ncr" in cached_apps:
+        recache_ncr(cache_url)
 
-    # We are excluding HUC12 areas because they add a lot of additional caching
-    # that is not used in any of our apps.
+
+def recache_eds(cache_url):
+    # Fetch the list of places to cache: all Alaska communities
+    places = get_places(cache_url + "/places/communities?tags=eds")
+    get_matching_endpoints(places, eds_cached_url, "community", cache_url)
+
+
+def recache_ncr(cache_url):
+    places_url = cache_url + "/places/all?tags=ncr"
+    places = get_places(places_url)  # has both communities (points) and areas
+
+    # Iterate over the list of URLs that need to be cached
+    for route, route_type in ncr_cached_urls.items():
+        get_matching_endpoints(places, route, route_type, cache_url)
+
+
+# For a list of places, request every endpoint
+# where the route type (community or area) matches the place type.
+# This is because some endpoints can only take areas or points.
+def get_matching_endpoints(places, route, route_type, cache_url):
     for place in places:
-        if (
-            curr_type == "community"
-            and (
-                place["properties"]["region"]
-                in ["Alaska", "Yukon", "Northwest Territories"]
-            )
-        ) or (curr_type == "area" and place["properties"]["area_type"] != "HUC12"):
-            get_endpoint(curr_route, curr_type, place["properties"])
+        if route_type_matches_place_type(route_type, place):
+            get_endpoint(route, place, route_type, cache_url)
 
 
-def get_endpoint(curr_route, curr_type, place):
+def get_endpoint(route, place, route_type, cache_url):
     """Requests a specific endpoint of the API with parameters coming from
-    the JSON of communities, HUCs, or protected areas.
+    the JSON of communities or areas.
 
      Args:
-         curr_route - Current route ex. https://earthmaps.io/taspr/huc/
-         curr_type - One of three types: community, huc, or pa
-         place - One item of the JSON for community, huc, or protected area
+         route - Current route ex. /taspr/area/
+         place - One community or area from the API response.
+         route_type - Either community or area.
+         cache_url - The base URL for the API cache, e.g., https://earthmaps.io
 
      Returns:
          Nothing.
 
     """
     # Build the URL to query based on type
-    if curr_type == "community":
-        url = (
-            "https://earthmaps.io"
-            + curr_route
-            + str(place["latitude"])
-            + "/"
-            + str(place["longitude"])
-        )
+    if route_type == "community":
+        url = cache_url + route + str(place["latitude"]) + "/" + str(place["longitude"])
     else:
-        url = "https://earthmaps.io" + curr_route + str(place["id"])
+        url = cache_url + route + str(place["id"])
 
     print(f"Running URL: {url}")
 
