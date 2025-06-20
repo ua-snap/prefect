@@ -4,7 +4,7 @@ ncr_cached_urls = [
     "/beetles/point/",
     "/elevation/point/",
     "/taspr/point/",
-    "/indicators/cmip5/point/",
+    "/indicators/base/point/",
     "/ncr/permafrost/point/",
     "/eds/hydrology/point/",
     "/alfresco/flammability/area/",
@@ -12,7 +12,7 @@ ncr_cached_urls = [
     "/beetles/area/",
     "/elevation/area/",
     "/taspr/area/",
-    "/indicators/cmip5/area/",
+    "/indicators/base/area/",
 ]
 
 eds_cached_url = "/eds/all/"
