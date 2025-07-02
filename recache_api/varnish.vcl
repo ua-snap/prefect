@@ -43,6 +43,10 @@ sub vcl_recv {
     if (req.url ~ "^/fire/.*") {
         return (pass);
     }
+
+    if (req.url ~ "^/seaice/enddate/) {
+        return (pass);
+    }
 }
 
 sub vcl_backend_response {
