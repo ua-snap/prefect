@@ -44,7 +44,7 @@ sub vcl_recv {
         return (pass);
     }
 
-    if (req.url ~ "^/seaice/enddate/) {
+    if (req.url ~ "^/seaice/enddate/") {
         return (pass);
     }
 }
