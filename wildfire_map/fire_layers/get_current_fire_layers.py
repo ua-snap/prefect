@@ -303,7 +303,7 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
         layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
         layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
         field = ogr.FieldDefn("SUMMARY", ogr.OFTString)
-        field.SetWidth(1000)
+        field.SetWidth(8192)
         layer.CreateField(field)
 
     elif feature_type == "fire_polygons":
@@ -321,7 +321,7 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
         layer.CreateField(ogr.FieldDefn("CAUSE", ogr.OFTString))
         layer.CreateField(ogr.FieldDefn("discovered", ogr.OFTString))
         field = ogr.FieldDefn("SUMMARY", ogr.OFTString)
-        field.SetWidth(1000)
+        field.SetWidth(8192)
         layer.CreateField(field)
 
     elif feature_type == "lightning":
