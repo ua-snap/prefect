@@ -59,7 +59,7 @@ def run_train_bias_adjustment(
         logger.info(stdout)
 
     job_ids = utils.parse_job_ids(stdout)
-    logger.info(f"CMIP6 bias adjustment job submitted! (job ID: {job_ids})")
+    logger.info(f"CMIP6 bias-adjustment-training job submitted! (job ID: {job_ids})")
 
     return job_ids
 
