@@ -310,7 +310,7 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
         layer = datasource.CreateLayer(
             "fire_polygons",
             srs=spatial_ref,
-            geom_type=ogr.wkbPolygon,
+            geom_type=ogr.wkbMultiPolygon,
             options=["GEOMETRY_NAME=the_geom"],
         )
         layer.CreateField(ogr.FieldDefn("NAME", ogr.OFTString))
