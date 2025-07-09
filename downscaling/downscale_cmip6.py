@@ -89,7 +89,7 @@ def ensure_reference_data_in_scratch(
             logger.info(
                 f"Reference data not found in scratch_dir. Copying from {reference_dir}."
             )
-            ref_scratch_dir = working_dir.joinpath("ref_netcdf")
+            ref_scratch_dir = working_dir.joinpath("ref_netcdf/daily_era5_4km_3338")
             utils.rsync(ssh, reference_dir, ref_scratch_dir)
             logger.info(
                 f"Copied reference data from {reference_dir} to {ref_scratch_dir}"
@@ -498,10 +498,10 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
     }
-    # cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
-    cascade_target_file = (
-        "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_target.nc"
-    )
+    cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+    # cascade_target_file = (
+    #     "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_target.nc"
+    # )
 
     intermediate_out_dir_name = "intermediate_regrid"
     regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
@@ -519,10 +519,10 @@ def downscale_cmip6(
             "variables": regrid_variables,
         }
     )
-    # intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
-    intermediate_regrid_dir = (
-        "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_regrid"
-    )
+    intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
+    # intermediate_regrid_dir = (
+    #     "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/intermediate_regrid"
+    # )
 
     ### Regridding 2: Regrid CMIP6 data to final grid
     # first, run the task to create the final target grid file
@@ -552,8 +552,8 @@ def downscale_cmip6(
         "out_dir_name": regrid_again_out_dir_name,
     }
 
-    # final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
-    final_regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/final_regrid"
+    final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
+    # final_regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/final_regrid"
 
     # final_target_file
 
@@ -608,8 +608,8 @@ def downscale_cmip6(
             "input_dir": final_regrid_dir,
         }
     )
-    # cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
-    cmip6_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_dtr"
+    cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
+    # cmip6_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_dtr"
 
     # Note on directory structure:
     # to keep things organized separately for individual tasks/flows,
@@ -624,7 +624,7 @@ def downscale_cmip6(
         "dtr_dir": cmip6_dtr_dir,
         "regrid_dir": final_regrid_dir,
     }
-    # link_dtr_to_regrid(**link_dtr_kwargs)
+    link_dtr_to_regrid(**link_dtr_kwargs)
 
     # ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
@@ -636,8 +636,8 @@ def downscale_cmip6(
             "era5_dir": reference_dir,
         }
     )
-    # era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
-    era5_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_dtr"
+    era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
+    # era5_dtr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_dtr"
 
     era5_target_dtr_dir = reference_dir.joinpath("dtr")
     link_era5_dtr_kwargs = {
@@ -646,7 +646,7 @@ def downscale_cmip6(
         "src_dir": era5_dtr_dir,
         "target_dir": era5_target_dtr_dir,
     }
-    # link_dir(**link_era5_dtr_kwargs)
+    link_dir(**link_era5_dtr_kwargs)
 
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
@@ -655,7 +655,7 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "working_dir": working_dir,
     }
-    # reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
+    reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
 
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
@@ -666,16 +666,16 @@ def downscale_cmip6(
     )
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
-    # ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
-    ref_zarr_dir = Path("/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_zarr")
+    ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
+    # ref_zarr_dir = Path("/center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_zarr")
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
     )
-    # cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
-    cmip6_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_zarr"
+    cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+    # cmip6_zarr_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/cmip6_zarr"
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
@@ -686,8 +686,8 @@ def downscale_cmip6(
             "ref_dir": ref_zarr_dir,
         }
     )
-    # train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-    train_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/trained_datasets"
+    train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+    # train_dir = "/center1/CMIP6/crstephenson/cmip6_4km_downscaling/trained_datasets"
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
@@ -697,8 +697,8 @@ def downscale_cmip6(
             "train_dir": train_dir,
         }
     )
-    # adjusted_dir = bias_adjustment(**bias_adjust_kwargs)
-    adjusted_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/adjusted"
+    adjusted_dir = bias_adjustment(**bias_adjust_kwargs)
+    # adjusted_dir = "/center1/CMIP6/crstephenson/cmip6_4km_downscaling/adjusted"
 
     derive_tasmin_kwargs = base_kwargs.copy()
     del derive_tasmin_kwargs["work_dir_name"]
@@ -713,7 +713,7 @@ def downscale_cmip6(
         }
     )
 
-    # derive_cmip6_tasmin(**derive_tasmin_kwargs)
+    derive_cmip6_tasmin(**derive_tasmin_kwargs)
 
     derive_era5_tasmin_kwargs = {
         "ssh_username": ssh_username,
@@ -760,6 +760,6 @@ if __name__ == "__main__":
         "target_grid_source_file": target_grid_source_file,
     }
     downscale_cmip6.serve(
-        name="downscale-cmip6",
+        name="downscale-cmip6-crstephenson",
         parameters=params_dict,
     )
