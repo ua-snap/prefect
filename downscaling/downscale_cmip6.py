@@ -89,8 +89,8 @@ def ensure_reference_data_in_scratch(
             logger.info(
                 f"Reference data not found in scratch_dir. Copying from {reference_dir}."
             )
-            ref_scratch_dir = working_dir.joinpath("ref_netcdf/daily_era5_4km_3338")
-            utils.rsync(ssh, reference_dir, ref_scratch_dir)
+            ref_scratch_dir = working_dir.joinpath("ref_netcdf")
+            utils.rsync(ssh, f"{reference_dir}/", str(ref_scratch_dir))
             logger.info(
                 f"Copied reference data from {reference_dir} to {ref_scratch_dir}"
             )
