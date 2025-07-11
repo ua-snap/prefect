@@ -1,7 +1,14 @@
+"""
+This flow orchestrates ERA5 data processing on Chinook
+For archiving completed data, use the separate `archive_era5_simple.py` flow.
+"""
+
 from pathlib import Path
+
 import paramiko
 from prefect import flow, task, get_run_logger
 
+from utils import utils
 import curation_functions
 
 
@@ -9,32 +16,12 @@ import curation_functions
 SSH_HOST = "chinook04.rcs.alaska.edu"
 SSH_PORT = 22
 
-"""
-ERA5 Data Processing Flow
 
-This flow orchestrates ERA5 data processing on Chinook HPC with a focus on processing only.
-
-PROCESSING FOCUS:
-=================
-
-This flow is focused purely on ERA5 data processing on Chinook HPC.
-
-For archiving completed data, use the separate `archive_era5_simple.py` flow.
-
-SEPARATION OF CONCERNS:
-======================
-
-- **Processing Flow** (`curate_era5_4km.py`): Handles data processing on Chinook
-- **Archival Flow** (`archive_era5_simple.py`): Handles completed data archival to Poseidon
-
-This separation eliminates race conditions and provides better control over when
-archiving occurs.
-"""
-
-
-@flow(name="era5-processing",
-      description="Orchestrate ERA5 data processing on Chinook HPC",
-      log_prints=True)
+@flow(
+    name="era5-processing",
+    description="Orchestrate ERA5 data processing on Chinook HPC",
+    log_prints=True,
+)
 def submit_era5_jobs(
     ssh_username: str,
     ssh_private_key_path: Path,
@@ -47,16 +34,13 @@ def submit_era5_jobs(
     end_year: int,
     max_concurrent: int,
     overwrite: bool = False,
-    no_retry: bool = False
+    no_retry: bool = False,
 ):
     """
-    Execute ERA5 data processing jobs on Chinook HPC
-    
-    This flow focuses solely on data processing. For archiving completed data,
-    use the separate archive_era5_simple.py flow.
-    
+    Execute ERA5 data processing jobs on Chinook.
+
     Args:
-        ssh_username: Username for SSH connections to Chinook HPC
+        ssh_username: Username for SSH connections to Chinook
         ssh_private_key_path: Path to SSH private key file for authentication
         branch_name: Git branch to clone and use for processing scripts
         working_directory: Working directory on Chinook for repository and processing
@@ -64,17 +48,17 @@ def submit_era5_jobs(
         ERA5_INPUT_DIR: Directory containing input ERA5 data on Chinook
         ERA5_OUTPUT_DIR: Directory where processed data will be written on Chinook
         start_year: First year to process (inclusive)
-        end_year: Last year to process (inclusive)  
+        end_year: Last year to process (inclusive)
         max_concurrent: Maximum number of simultaneous processing jobs on Slurm
         overwrite: Whether to overwrite existing output files (default: False)
         no_retry: Skip retry logic for failed jobs (default: False)
-        
+
     Returns:
         None: Flow completes when processing is finished
-        
+
     Artifacts:
         Creates Prefect artifacts containing detailed execution logs and summaries
-        
+
     Next Steps:
         After this flow completes, use archive_era5_simple() to archive the processed data
     """
@@ -90,18 +74,33 @@ def submit_era5_jobs(
         # Connect to the SSH server using key-based authentication
         ssh.connect(SSH_HOST, SSH_PORT, ssh_username, pkey=private_key)
 
-        curation_functions.clone_github_repository(ssh, branch_name, working_directory)
-
-        curation_functions.check_for_nfs_mount(ssh, "/import/beegfs")
-
-        curation_functions.install_conda_environment(
-            ssh, "snap-geo", f"{working_directory}/wrf-downscaled-era5-curation/environment.yml"
+        utils.clone_github_repository(
+            ssh, "wrf-downscaled-era5-curation", branch_name, working_directory
+        )
+        utils.check_for_nfs_mount(ssh, "/import/beegfs")
+        utils.ensure_conda(ssh)
+        utils.ensure_conda_env(
+            ssh,
+            "snap-geo",
+            f"{working_directory}/wrf-downscaled-era5-curation/environment.yml",
         )
 
         repo_path = working_directory / "wrf-downscaled-era5-curation"
-        
+
         @task
-        def build_and_run_job_submission_script(ssh, repo_path, logger, variables, start_year, end_year, max_concurrent, overwrite, no_retry, ERA5_INPUT_DIR, ERA5_OUTPUT_DIR):
+        def build_and_run_job_submission_script(
+            ssh,
+            repo_path,
+            logger,
+            variables,
+            start_year,
+            end_year,
+            max_concurrent,
+            overwrite,
+            no_retry,
+            ERA5_INPUT_DIR,
+            ERA5_OUTPUT_DIR,
+        ):
             cmd = (
                 f"export ERA5_INPUT_DIR={ERA5_INPUT_DIR} && "
                 f"export ERA5_OUTPUT_DIR={ERA5_OUTPUT_DIR} && "
@@ -113,12 +112,12 @@ def submit_era5_jobs(
                 f"--end_year {end_year} "
                 f"--max_concurrent {max_concurrent} "
             )
-    
+
             if overwrite:
                 cmd += "--overwrite "
             if no_retry:
                 cmd += "--no_retry"
-    
+
             logger.info(f"Executing submission command: {cmd}")
 
             try:
@@ -127,14 +126,24 @@ def submit_era5_jobs(
                 if exit_status != 0:
                     error_output = stderr.read().decode("utf-8")
                     # Capture full execution log
-                    log_artifact_id = curation_functions.create_full_log_artifact(ssh, repo_path)
-                    logger.error(f"Job submission failed. Full log captured in artifact: {log_artifact_id}")
-                    raise Exception(f"Error submitting jobs: {error_output}\nLogs captured in artifact: {log_artifact_id}")
+                    log_artifact_id = curation_functions.create_full_log_artifact(
+                        ssh, repo_path
+                    )
+                    logger.error(
+                        f"Job submission failed. Full log captured in artifact: {log_artifact_id}"
+                    )
+                    raise Exception(
+                        f"Error submitting jobs: {error_output}\nLogs captured in artifact: {log_artifact_id}"
+                    )
                 else:
                     logger.info("Jobs submitted successfully")
                     # Capture full execution log
-                    log_artifact_id = curation_functions.create_full_log_artifact(ssh, repo_path)
-                    logger.info(f"Full execution log captured in artifact: {log_artifact_id}")
+                    log_artifact_id = curation_functions.create_full_log_artifact(
+                        ssh, repo_path
+                    )
+                    logger.info(
+                        f"Full execution log captured in artifact: {log_artifact_id}"
+                    )
                     return log_artifact_id
             except Exception as e:
                 # Final attempt to capture any available logs
@@ -145,10 +154,24 @@ def submit_era5_jobs(
                 raise
 
         # Execute main ERA5 processing
-        log_artifact_id = build_and_run_job_submission_script(ssh, repo_path, logger, variables, start_year, end_year, max_concurrent, overwrite, no_retry, ERA5_INPUT_DIR, ERA5_OUTPUT_DIR)
-        
+        log_artifact_id = build_and_run_job_submission_script(
+            ssh,
+            repo_path,
+            logger,
+            variables,
+            start_year,
+            end_year,
+            max_concurrent,
+            overwrite,
+            no_retry,
+            ERA5_INPUT_DIR,
+            ERA5_OUTPUT_DIR,
+        )
+
         logger.info("✅ ERA5 processing completed successfully!")
-        logger.info("💡 To archive the processed data, use the separate archive_era5_simple.py flow")
+        logger.info(
+            "💡 To archive the processed data, use the separate archive_era5_simple.py flow"
+        )
         logger.info(f"📋 Processing logs captured in artifact: {log_artifact_id}")
 
     except Exception as e:
@@ -158,12 +181,13 @@ def submit_era5_jobs(
         ssh.close()
         logger.info("SSH connection closed")
 
+
 if __name__ == "__main__":
     submit_era5_jobs.serve(
         parameters={
             "ssh_username": "snapdata",
             "ssh_private_key_path": "/Users/cparr/.ssh/id_rsa",
-            "branch_name": "batch_io",
+            "branch_name": "main",
             "working_directory": Path("/beegfs/CMIP6/snapdata"),
             "variables": "t2_mean,t2_min,t2_max",
             "ERA5_INPUT_DIR": Path("/beegfs/CMIP6/wrf_era5/04km"),
@@ -172,6 +196,6 @@ if __name__ == "__main__":
             "end_year": 2019,
             "max_concurrent": 60,
             "overwrite": False,
-            "no_retry": False
+            "no_retry": False,
         }
     )
