@@ -18,49 +18,12 @@ import paramiko
 from prefect import flow, task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
 
+import curation_functions
 
-# SSH connection details for Chinook HPC
+
+# SSH connection details for Chinook
 SSH_HOST = "chinook04.rcs.alaska.edu"
 SSH_PORT = 22
-
-
-def execute_ssh_with_logging(
-    ssh: paramiko.SSHClient,
-    command: str,
-    description: str,
-    remote_name: str = "chinook",
-):
-    """Execute a single SSH command with logging, with agent forwarding."""
-    logger = get_run_logger()
-    logger.info(f"[{remote_name}] {description}")
-    logger.debug(f"{remote_name} CMD: {command}")
-
-    # Open a new channel for the session from the existing transport
-    channel = ssh.get_transport().open_session()
-
-    # Set up the agent request handler to handle agent requests from the server
-    paramiko.agent.AgentRequestHandler(channel)
-
-    # Execute the command on the channel
-    channel.exec_command(command)
-
-    # Read output, error, and exit status from the channel
-    exit_status = channel.recv_exit_status()
-    out = channel.makefile("r", -1).read().decode("utf-8").strip()
-    err = channel.makefile_stderr("r", -1).read().decode("utf-8").strip()
-
-    if exit_status != 0:
-        msg = f"SSH command failed – {description} (exit {exit_status})\nCMD: {command}"
-        if err:
-            msg += f"\nSTDERR: {err}"
-        if out:
-            msg += f"\nSTDOUT: {out}"
-        raise Exception(msg)
-
-    if out:
-        logger.debug(f"{remote_name} output: {out}")
-
-    return out, err
 
 
 @task
@@ -82,7 +45,7 @@ def discover_available_variables(ssh, source_directory: Path) -> list:
 
     # CP note: list subdirectories - some assumptions made re depth and naming, but I'm good with it
     cmd = f"find '{source_dir}' -maxdepth 1 -type d -exec basename {{}} \\; | grep -v '^curated_wrf_era5-04km$' | sort"
-    stdout, _ = execute_ssh_with_logging(ssh, cmd, "List variable directories")
+    stdout, _ = curation_functions.execute_ssh_with_logging(ssh, cmd, "List variable directories")
 
     if not stdout:
         return []
@@ -96,7 +59,7 @@ def discover_available_variables(ssh, source_directory: Path) -> list:
         check_cmd = f"find '{var_path}' -name '*.nc' | head -1"
 
         try:
-            file_check, _ = execute_ssh_with_logging(
+            file_check, _ = curation_functions.execute_ssh_with_logging(
                 ssh, check_cmd, f"Check for data in {var}"
             )
             if file_check:  # Found at least one .nc file
@@ -130,13 +93,13 @@ def estimate_archive_size(ssh, source_directory: Path, variable_name: str) -> di
     try:
         # Get directory size
         cmd = f"du -sh '{var_path}' | cut -f1"
-        size_str, _ = execute_ssh_with_logging(
+        size_str, _ = curation_functions.execute_ssh_with_logging(
             ssh, cmd, f"Get size for {variable_name}"
         )
 
         # Count files
         cmd = f"find '{var_path}' -name '*.nc' | wc -l"
-        file_count, _ = execute_ssh_with_logging(
+        file_count, _ = curation_functions.execute_ssh_with_logging(
             ssh, cmd, f"Count files for {variable_name}"
         )
 
@@ -191,10 +154,10 @@ def archive_single_variable(
     try:
         # Step 1: Validate source directory exists and has content
         logger.info("📋 Validating source directory...")
-        execute_ssh_with_logging(
+        curation_functions.execute_ssh_with_logging(
             ssh, f"test -d '{var_path}'", f"Verify {variable_name} directory exists"
         )
-        execute_ssh_with_logging(
+        curation_functions.execute_ssh_with_logging(
             ssh,
             f"test \"$(ls -A '{var_path}' 2>/dev/null)\"",
             f"Verify {variable_name} has content",
@@ -202,36 +165,36 @@ def archive_single_variable(
 
         # Step 2: Remove any existing tar file to avoid conflicts
         logger.info("🧹 Cleaning up any existing archive...")
-        execute_ssh_with_logging(ssh, f"rm -f '{tar_path}'", "Remove existing tar file")
+        curation_functions.execute_ssh_with_logging(ssh, f"rm -f '{tar_path}'", "Remove existing tar file")
 
         # Step 3: Create tar archive
         logger.info(f"📦 Creating archive: {tar_filename}")
         cmd = f"cd '{source_dir}' && tar -czf '{tar_filename}' '{variable_name}/'"
-        execute_ssh_with_logging(ssh, cmd, f"Create tar archive for {variable_name}")
+        curation_functions.execute_ssh_with_logging(ssh, cmd, f"Create tar archive for {variable_name}")
 
         # Step 4: Verify archive was created and get size
-        execute_ssh_with_logging(
+        curation_functions.execute_ssh_with_logging(
             ssh, f"test -f '{tar_path}'", "Verify tar file was created"
         )
         size_cmd = f"ls -lh '{tar_path}' | awk '{{print $5}}'"
-        archive_size, _ = execute_ssh_with_logging(ssh, size_cmd, "Get archive size")
+        archive_size, _ = curation_functions.execute_ssh_with_logging(ssh, size_cmd, "Get archive size")
         logger.info(f"📦 Archive created: {archive_size.strip()}")
 
         # Step 5: Create destination directory on Poseidon
         logger.info("📁 Creating destination directory on Poseidon...")
         cmd = f"ssh {ssh_username}@poseidon.snap.uaf.edu 'mkdir -p \"{dest_var_dir}\"'"
-        execute_ssh_with_logging(ssh, cmd, "Create destination directory on Poseidon")
+        curation_functions.execute_ssh_with_logging(ssh, cmd, "Create destination directory on Poseidon", use_agent_forwarding=True)
 
         # Step 6: Transfer archive to Poseidon
         logger.info("📤 Transferring archive to Poseidon...")
         cmd = f"scp '{tar_path}' {ssh_username}@poseidon.snap.uaf.edu:'{dest_var_dir}/'"
-        execute_ssh_with_logging(ssh, cmd, "Transfer archive to Poseidon")
+        curation_functions.execute_ssh_with_logging(ssh, cmd, "Transfer archive to Poseidon", use_agent_forwarding=True)
 
         # Step 7: Verify transfer completed
         logger.info("✅ Verifying transfer...")
         cmd = f'ssh {ssh_username}@poseidon.snap.uaf.edu \'test -f "{dest_tar_path}" && ls -lh "{dest_tar_path}" | awk "{{print \\$5}}"\''
-        remote_size, _ = execute_ssh_with_logging(
-            ssh, cmd, "Verify file exists on Poseidon"
+        remote_size, _ = curation_functions.execute_ssh_with_logging(
+            ssh, cmd, "Verify file exists on Poseidon", use_agent_forwarding=True
         )
 
         if not remote_size:
@@ -242,7 +205,7 @@ def archive_single_variable(
         # Step 8: Optional cleanup
         if cleanup_source_archive:
             logger.info("🧹 Cleaning up source archive...")
-            execute_ssh_with_logging(
+            curation_functions.execute_ssh_with_logging(
                 ssh, f"rm -f '{tar_path}'", "Remove source tar file"
             )
             logger.info("✅ Source archive cleaned up")
@@ -274,7 +237,7 @@ def archive_single_variable(
 
         # Attempt cleanup on failure
         try:
-            execute_ssh_with_logging(
+            curation_functions.execute_ssh_with_logging(
                 ssh, f"rm -f '{tar_path}'", "Cleanup failed archive"
             )
         except:

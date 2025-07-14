@@ -6,6 +6,65 @@ import paramiko
 from prefect import task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
 
+@task
+def execute_ssh_with_logging(
+    ssh: paramiko.SSHClient,
+    command: str,
+    description: str,
+    remote_name: str = "chinook",
+    use_agent_forwarding: bool = False,
+) -> tuple[str, str]:
+    """
+    Execute a single SSH command with logging and error handling.
+    
+    Args:
+        ssh: Paramiko SSHClient object
+        command: Command to execute on remote system
+        description: Human-readable description for logging
+        remote_name: Name of remote system for logging context
+        use_agent_forwarding: Whether to use SSH agent forwarding for multi-hop connections
+        
+    Returns:
+        tuple: (stdout, stderr) output from command execution
+        
+    Raises:
+        Exception: If command exits with non-zero status, includes full error context
+    """
+    logger = get_run_logger()
+    logger.info(f"[{remote_name}] {description}")
+    logger.debug(f"{remote_name} CMD: {command}")
+
+    if use_agent_forwarding:
+        # Use channel-based execution with SSH agent forwarding
+        # This is needed when the remote system needs to SSH to other systems
+        channel = ssh.get_transport().open_session()
+        paramiko.agent.AgentRequestHandler(channel)
+        channel.exec_command(command)
+        
+        exit_status = channel.recv_exit_status()
+        out = channel.makefile("r", -1).read().decode("utf-8").strip()
+        err = channel.makefile_stderr("r", -1).read().decode("utf-8").strip()
+    else:
+        # Standard SSH execution
+        stdin, stdout, stderr = ssh.exec_command(command)
+        exit_status = stdout.channel.recv_exit_status()
+        out = stdout.read().decode("utf-8").strip()
+        err = stderr.read().decode("utf-8").strip()
+
+    if exit_status != 0:
+        msg = f"SSH command failed – {description} (exit {exit_status})\nCMD: {command}"
+        if err:
+            msg += f"\nSTDERR: {err}"
+        if out:
+            msg += f"\nSTDOUT: {out}"
+        logger.error(f"[{remote_name}] {msg}")
+        raise Exception(msg)
+
+    if out:
+        logger.debug(f"{remote_name} output: {out}")
+
+    return out, err
+
 
 @task
 def capture_remote_logs(ssh, repo_path: Path, log_file_path: str = None) -> dict:
@@ -374,3 +433,4 @@ Unable to generate automated summary: {str(e)}
     artifact_id = create_markdown_artifact(markdown_content)
     logger.info(f"Created log artifact with summary: {artifact_id}")
     return artifact_id
+

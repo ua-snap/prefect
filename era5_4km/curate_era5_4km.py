@@ -11,7 +11,7 @@ from utils import utils
 import curation_functions
 
 
-# SSH connection details for Chinook HPC
+# SSH connection details for Chinook
 SSH_HOST = "chinook04.rcs.alaska.edu"
 SSH_PORT = 22
 
@@ -111,40 +111,36 @@ def submit_era5_jobs(
             if no_retry:
                 cmd += "--no_retry"
 
-            logger.info(f"Executing submission command: {cmd}")
-
             try:
-                stdin, stdout, stderr = ssh.exec_command(cmd)
-                exit_status = stdout.channel.recv_exit_status()
-                if exit_status != 0:
-                    error_output = stderr.read().decode("utf-8")
-                    # Capture full execution log
-                    log_artifact_id = curation_functions.create_full_log_artifact(
-                        ssh, repo_path
-                    )
-                    logger.error(
-                        f"Job submission failed. Full log captured in artifact: {log_artifact_id}"
-                    )
-                    raise Exception(
-                        f"Error submitting jobs: {error_output}\nLogs captured in artifact: {log_artifact_id}"
-                    )
-                else:
-                    logger.info("Jobs submitted successfully")
-                    # Capture full execution log
-                    log_artifact_id = curation_functions.create_full_log_artifact(
-                        ssh, repo_path
-                    )
-                    logger.info(
-                        f"Full execution log captured in artifact: {log_artifact_id}"
-                    )
-                    return log_artifact_id
+                stdout, stderr = curation_functions.execute_ssh_with_logging(
+                    ssh=ssh,
+                    command=cmd,
+                    description="Submit ERA5 processing jobs",
+                    remote_name="chinook",
+                    use_agent_forwarding=False  # Standard execution for job submission
+                )
+                
+                logger.info("Jobs submitted successfully")
+                # Capture full execution log
+                log_artifact_id = curation_functions.create_full_log_artifact(
+                    ssh, repo_path
+                )
+                logger.info(
+                    f"Full execution log captured in artifact: {log_artifact_id}"
+                )
+                return log_artifact_id
             except Exception as e:
                 # Final attempt to capture any available logs
                 try:
-                    curation_functions.create_full_log_artifact(ssh, repo_path)
+                    log_artifact_id = curation_functions.create_full_log_artifact(ssh, repo_path)
+                    logger.error(
+                        f"Job submission failed. Full log captured in artifact: {log_artifact_id}"
+                    )
+                    # Re-raise with enhanced error message
+                    raise Exception(f"Error submitting jobs: {str(e)}\nLogs captured in artifact: {log_artifact_id}")
                 except:
                     logger.warning("Could not capture logs after error")
-                raise
+                    raise
 
         # Execute main ERA5 processing
         log_artifact_id = build_and_run_job_submission_script(
