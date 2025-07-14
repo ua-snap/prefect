@@ -305,9 +305,9 @@ def generate_log_summary(parsed_data: dict) -> str:
     completion_rate = parsed_data.get("completion_rate", 0)
 
     # Build summary
-    summary = f"""## 📊 ERA5 Processing Executive Summary
+    summary = f"""## ERA5 Curation Summary
 
-### 🎯 Quick Overview
+### Overview
 | Metric | Value |
 |--------|-------|
 | **Status** | {status_icon} {parsed_data["status"]} |
@@ -316,7 +316,7 @@ def generate_log_summary(parsed_data: dict) -> str:
 | **Total Jobs** | {parsed_data["jobs"]["submitted"]} submitted |
 | **Duration** | {duration} |
 
-### 📈 Performance Metrics
+### Performance
 | Metric | Value |
 |--------|-------|
 | **Success Rate** | {completion_rate}% |
