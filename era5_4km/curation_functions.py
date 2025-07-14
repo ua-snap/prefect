@@ -7,39 +7,6 @@ from prefect import task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
 
 
-def execute_ssh_with_logging(
-    ssh: paramiko.SSHClient,
-    command: str,
-    description: str,
-    remote_name: str = "remote",
-):
-    """Execute a single SSH command with detailed Prefect-style logging.
-
-    Returns tuple(stdout, stderr). Raises Exception on non-zero exit.
-    """
-    logger = get_run_logger()
-    logger.info(f"[{remote_name}] {description}")
-    logger.debug(f"{remote_name} CMD: {command}")
-
-    stdin, stdout, stderr = ssh.exec_command(command)
-    exit_status = stdout.channel.recv_exit_status()
-    out = stdout.read().decode().strip()
-    err = stderr.read().decode().strip()
-
-    if exit_status != 0:
-        msg = f"SSH command failed – {description} (exit {exit_status})\nCMD: {command}"
-        if err:
-            msg += f"\nSTDERR: {err}"
-        if out:
-            msg += f"\nSTDOUT: {out}"
-        raise Exception(msg)
-
-    if out:
-        logger.debug(out)
-
-    return out, err
-
-
 @task
 def capture_remote_logs(ssh, repo_path: Path, log_file_path: str = None) -> dict:
     """
@@ -360,7 +327,7 @@ All processing completed without warnings or errors.
 
 @task
 def create_full_log_artifact(ssh, repo_path: Path) -> str:
-    """Create complete log file artifact with intelligent summary"""
+    """Create complete log file artifact with summary"""
     logger = get_run_logger()
 
     log_result = capture_remote_logs(ssh, repo_path)
@@ -402,35 +369,8 @@ Unable to generate automated summary: {str(e)}
 ```bash
 {log_content}
 ```
-
----
-*Complete log captured by ERA5 Curation Flow*
 """
 
     artifact_id = create_markdown_artifact(markdown_content)
-    logger.info(f"Created enhanced log artifact with summary: {artifact_id}")
+    logger.info(f"Created log artifact with summary: {artifact_id}")
     return artifact_id
-
-
-@task
-def log_system_state(ssh, era5_output_dir: str, variables_list: list):
-    """Log current system state for debugging"""
-    logger = get_run_logger()
-
-    try:
-        # Check overall disk usage
-        stdout, _ = execute_ssh_with_logging(
-            ssh, f"df -h {era5_output_dir}", "Check disk usage"
-        )
-        logger.info(f"Disk usage: {stdout}")
-
-        # Check file counts per variable
-        for var in variables_list:
-            var_dir = f"{era5_output_dir}/{var}"
-            stdout, _ = execute_ssh_with_logging(
-                ssh, f"find '{var_dir}' -name '*.nc' | wc -l", f"Count files in {var}"
-            )
-            logger.info(f"File count for {var}: {stdout.strip()} files")
-
-    except Exception as e:
-        logger.warning(f"Could not gather diagnostic info: {e}")

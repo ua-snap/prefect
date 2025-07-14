@@ -1,6 +1,5 @@
 """
-This flow orchestrates ERA5 data processing on Chinook
-For archiving completed data, use the separate `archive_era5_simple.py` flow.
+Orchestrate WRF-Downscaled ERA5 data processing on Chinook
 """
 
 from pathlib import Path
@@ -19,7 +18,7 @@ SSH_PORT = 22
 
 @flow(
     name="era5-processing",
-    description="Orchestrate ERA5 data processing on Chinook HPC",
+    description="Orchestrate ERA5 data processing on Chinook",
     log_prints=True,
 )
 def submit_era5_jobs(
@@ -55,12 +54,6 @@ def submit_era5_jobs(
 
     Returns:
         None: Flow completes when processing is finished
-
-    Artifacts:
-        Creates Prefect artifacts containing detailed execution logs and summaries
-
-    Next Steps:
-        After this flow completes, use archive_era5_simple() to archive the processed data
     """
     logger = get_run_logger()
 
@@ -170,7 +163,7 @@ def submit_era5_jobs(
 
         logger.info("✅ ERA5 processing completed successfully!")
         logger.info(
-            "💡 To archive the processed data, use the separate archive_era5_simple.py flow"
+            "To archive the processed data, use the separate archive_era5.py flow"
         )
         logger.info(f"📋 Processing logs captured in artifact: {log_artifact_id}")
 
