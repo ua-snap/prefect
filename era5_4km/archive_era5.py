@@ -45,7 +45,9 @@ def discover_available_variables(ssh, source_directory: Path) -> list:
 
     # CP note: list subdirectories - some assumptions made re depth and naming, but I'm good with it
     cmd = f"find '{source_dir}' -maxdepth 1 -type d -exec basename {{}} \\; | grep -v '^curated_wrf_era5-04km$' | sort"
-    stdout, _ = curation_functions.execute_ssh_with_logging(ssh, cmd, "List variable directories")
+    stdout, _ = curation_functions.execute_ssh_with_logging(
+        ssh, cmd, "List variable directories"
+    )
 
     if not stdout:
         return []
@@ -165,30 +167,43 @@ def archive_single_variable(
 
         # Step 2: Remove any existing tar file to avoid conflicts
         logger.info("🧹 Cleaning up any existing archive...")
-        curation_functions.execute_ssh_with_logging(ssh, f"rm -f '{tar_path}'", "Remove existing tar file")
+        curation_functions.execute_ssh_with_logging(
+            ssh, f"rm -f '{tar_path}'", "Remove existing tar file"
+        )
 
         # Step 3: Create tar archive
         logger.info(f"📦 Creating archive: {tar_filename}")
         cmd = f"cd '{source_dir}' && tar -czf '{tar_filename}' '{variable_name}/'"
-        curation_functions.execute_ssh_with_logging(ssh, cmd, f"Create tar archive for {variable_name}")
+        curation_functions.execute_ssh_with_logging(
+            ssh, cmd, f"Create tar archive for {variable_name}"
+        )
 
         # Step 4: Verify archive was created and get size
         curation_functions.execute_ssh_with_logging(
             ssh, f"test -f '{tar_path}'", "Verify tar file was created"
         )
         size_cmd = f"ls -lh '{tar_path}' | awk '{{print $5}}'"
-        archive_size, _ = curation_functions.execute_ssh_with_logging(ssh, size_cmd, "Get archive size")
+        archive_size, _ = curation_functions.execute_ssh_with_logging(
+            ssh, size_cmd, "Get archive size"
+        )
         logger.info(f"📦 Archive created: {archive_size.strip()}")
 
         # Step 5: Create destination directory on Poseidon
         logger.info("📁 Creating destination directory on Poseidon...")
         cmd = f"ssh {ssh_username}@poseidon.snap.uaf.edu 'mkdir -p \"{dest_var_dir}\"'"
-        curation_functions.execute_ssh_with_logging(ssh, cmd, "Create destination directory on Poseidon", use_agent_forwarding=True)
+        curation_functions.execute_ssh_with_logging(
+            ssh,
+            cmd,
+            "Create destination directory on Poseidon",
+            use_agent_forwarding=True,
+        )
 
         # Step 6: Transfer archive to Poseidon
         logger.info("📤 Transferring archive to Poseidon...")
         cmd = f"scp '{tar_path}' {ssh_username}@poseidon.snap.uaf.edu:'{dest_var_dir}/'"
-        curation_functions.execute_ssh_with_logging(ssh, cmd, "Transfer archive to Poseidon", use_agent_forwarding=True)
+        curation_functions.execute_ssh_with_logging(
+            ssh, cmd, "Transfer archive to Poseidon", use_agent_forwarding=True
+        )
 
         # Step 7: Verify transfer completed
         logger.info("✅ Verifying transfer...")

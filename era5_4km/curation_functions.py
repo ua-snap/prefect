@@ -6,6 +6,7 @@ import paramiko
 from prefect import task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
 
+
 @task
 def execute_ssh_with_logging(
     ssh: paramiko.SSHClient,
@@ -16,17 +17,17 @@ def execute_ssh_with_logging(
 ) -> tuple[str, str]:
     """
     Execute a single SSH command with logging and error handling.
-    
+
     Args:
         ssh: Paramiko SSHClient object
         command: Command to execute on remote system
         description: Human-readable description for logging
         remote_name: Name of remote system for logging context
         use_agent_forwarding: Whether to use SSH agent forwarding for multi-hop connections
-        
+
     Returns:
         tuple: (stdout, stderr) output from command execution
-        
+
     Raises:
         Exception: If command exits with non-zero status, includes full error context
     """
@@ -40,7 +41,7 @@ def execute_ssh_with_logging(
         channel = ssh.get_transport().open_session()
         paramiko.agent.AgentRequestHandler(channel)
         channel.exec_command(command)
-        
+
         exit_status = channel.recv_exit_status()
         out = channel.makefile("r", -1).read().decode("utf-8").strip()
         err = channel.makefile_stderr("r", -1).read().decode("utf-8").strip()
@@ -433,4 +434,3 @@ Unable to generate automated summary: {str(e)}
     artifact_id = create_markdown_artifact(markdown_content)
     logger.info(f"Created log artifact with summary: {artifact_id}")
     return artifact_id
-

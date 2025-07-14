@@ -117,9 +117,9 @@ def submit_era5_jobs(
                     command=cmd,
                     description="Submit ERA5 processing jobs",
                     remote_name="chinook",
-                    use_agent_forwarding=False  # Standard execution for job submission
+                    use_agent_forwarding=False,  # Standard execution for job submission
                 )
-                
+
                 logger.info("Jobs submitted successfully")
                 # Capture full execution log
                 log_artifact_id = curation_functions.create_full_log_artifact(
@@ -132,12 +132,16 @@ def submit_era5_jobs(
             except Exception as e:
                 # Final attempt to capture any available logs
                 try:
-                    log_artifact_id = curation_functions.create_full_log_artifact(ssh, repo_path)
+                    log_artifact_id = curation_functions.create_full_log_artifact(
+                        ssh, repo_path
+                    )
                     logger.error(
                         f"Job submission failed. Full log captured in artifact: {log_artifact_id}"
                     )
                     # Re-raise with enhanced error message
-                    raise Exception(f"Error submitting jobs: {str(e)}\nLogs captured in artifact: {log_artifact_id}")
+                    raise Exception(
+                        f"Error submitting jobs: {str(e)}\nLogs captured in artifact: {log_artifact_id}"
+                    )
                 except:
                     logger.warning("Could not capture logs after error")
                     raise
