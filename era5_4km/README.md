@@ -18,6 +18,13 @@ Start a local Prefect server, something like:
 prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
 prefect server start
 ```
+
+When developing these flows, Prefect yelled about not being able to cache some objects (like SSH connections, which makes sense) - and while these warnings didn't prohibit successful execution, they were annoying and made it hard for me to read the logs so I squashed them like this, and you will likely want to do the same:
+
+```sh
+ export PREFECT_TASKS_DEFAULT_NO_CACHE=true
+ ```
+
 Once the server is running, serve the flow(s):
 ```sh
 python curate_era5_4km.py
