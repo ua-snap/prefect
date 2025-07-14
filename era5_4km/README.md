@@ -1,4 +1,4 @@
-# WRF-Downscaled ERA5 4km Data Curation Flows
+# WRF-Downscaled ERA5 4km Flows
 
 This directory contains Prefect flows for processing and archiving ERA5 downscaled data.
 
@@ -24,12 +24,18 @@ python curate_era5_4km.py
 ```
 or
 ```sh
-python archive_era5_simple.py
+python archive_era5.py
 ```
 or, to serve both flows at once:
 ```sh
-python curate_era5_4km.py & python archive_era5_simple.py &
+python curate_era5_4km.py & python archive_era5.py &
+```
+
+### SSH Agent Forwarding
+The archival flow requires SSH access to both Chinook and Poseidon - what I've been doing on my laptop is to ensure that the SSH agent is running and loaded with my key:
+```sh
+ssh-add ~/.ssh/id_rsa
 ```
 
 ## Reports
-Both flows generate Prefect artifacts that can be examined in the Artifact tab of the Prefect UI.
+Both flows generate Prefect artifact objects that can be examined in the "Artifact" tab of the Prefect UI.
