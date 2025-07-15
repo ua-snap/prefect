@@ -66,7 +66,7 @@ def get_community_coords():
     return community_coords
 
 
-def get_frequently_used_communities():
+def connect_to_umami_db():
     umami_website_ids = (
         "1f4a98e7-d5cb-4295-82fc-5a4d41328038",  # EDS
         "2e69a077-ba5f-49c5-b076-09a44ab6fafd",  # NCR
@@ -97,6 +97,10 @@ def get_frequently_used_communities():
     cursor.execute(sql, params)
     rows = cursor.fetchall()
     conn.close()
+    return rows
+
+
+def sort_out_communities(rows):
     communities = []
     for row in rows:
         path = row[0]
@@ -106,6 +110,11 @@ def get_frequently_used_communities():
     communities = list(set(communities))
     communities.sort(key=lambda x: (x[:2], int(x[2:])))
     return communities
+
+
+def get_frequently_used_communities():
+    rows = connect_to_umami_db()
+    return sort_out_communities(rows)
 
 
 def is_f_string(route):
@@ -161,7 +170,11 @@ def recache_ncr(cache_url):
 
 
 def recache_ardac(cache_url):
+    # Uses the GVV to get community coordinates
     community_coords = get_community_coords()
+
+    # We query the Umami database to get frequently used communities
+    # This was because of the large number of communities that ARDAC can access.
     places = get_frequently_used_communities()
 
     for place in places:
