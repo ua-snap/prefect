@@ -17,7 +17,6 @@ ncr_cached_urls = {
 
 eds_cached_url = "/eds/all/"
 
-# ARDAC endpoints
 ardac_cached_urls = [
     "/cmip6/point/{latitude}/{longitude}?vars=tas,tasmax,tasmin",
     "/cmip6/point/{latitude}/{longitude}?vars=sfcWind,uas,vas",

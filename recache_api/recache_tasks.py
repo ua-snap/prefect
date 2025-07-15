@@ -178,10 +178,10 @@ def recache_ardac(cache_url):
     places = get_frequently_used_communities()
 
     for place in places:
+        community_coord = community_coords.get(place)
+        if not community_coord:
+            continue
         for route in ardac_cached_urls:
-            community_coord = community_coords.get(place)
-            if not community_coord:
-                continue
             get_endpoint(route, community_coord, "community", cache_url)
 
 
