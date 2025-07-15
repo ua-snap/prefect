@@ -4,14 +4,24 @@ Notes
 - This flow is designed to be run on the Chinook cluster.
 - It makes use of /center1/CMIP6 for more robust processing with Dask,
 because we have had issues with Dask + IO on the /beegfs filesystem.
+It does not have the abundance of storage we are used to with /beegfs
 
-Thus, the following space is needed on /center1/CMIP6:
-~ 40 GB for 50 years of daily 4km ERA5 data for 3 variables
-~ 40 GB for converted Zarr store of that ERA5 data
+I don't have an exact number yet, but you will need to ensure there is enough
+space in /center1/CMIP6 before running this flow for a single model. I think
+a safe number is 1TB for all four variables (tasmax, dtr, pr, tasmin) and all possible scenarios.
 
-which does not have the abundance of storage we are used to with / beegfs
-
-Downscaled data is written to <scratch_dir>/<work_dir_name>/downscaled
+The flow consists of the following steps:
+1. Create the intermediate target grid file for the first regridding step.
+2. Regrid CMIP6 data to the intermediate grid.
+3. Regrid CMIP6 data to the final grid from the intermediate grid.
+4. Process DTR from the regridded CMIP6 data.
+5. Ensure ERA5 reference data is in scratch space (copy if not).
+6. Process DTR from the ERA5 data (this could be removed if DTR processing is brought to ERA5 preprocessing repo)
+7. Convert ERA5 data to Zarr format.
+8. Convert CMIP6 data to Zarr format.
+9. Train bias adjustment model using historical data only. Weights/ adjustment factors are saved on a model + variable basis.
+10. Apply bias adjustment to the regridded CMIP6 data using the trained model.
+11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if DTR is requested in flow parameters)
 """
 
 from prefect import flow, task
@@ -418,7 +428,9 @@ def derive_era5_tasmin(
     conda_env_name,
     partition,
 ):
-    """Derive tasmin from CMIP6 data."""
+    # I honestly don't remember why I made a function for this. ERA5 tasmin (t2min) exists separately
+    # and does not need to be derived again, could just be converted to zarr.
+    """Derive tasmin from ERA5 data."""
     logger = get_run_logger()
     logger.info(f"Deriving tasmin from ERA5 data in {era5_zarr_dir}")
 
@@ -490,6 +502,7 @@ def downscale_cmip6(
     create_remote_directories(
         ssh_username, ssh_private_key_path, directories=directories
     )
+
 
     clone_and_install_kwargs = {
         "ssh_username": ssh_username,
@@ -566,7 +579,7 @@ def downscale_cmip6(
     intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
 
     ### Regridding 2: Regrid CMIP6 data to final grid
-    # first, run the task to create the final target grid file
+
     # TO-DO: take target grid file from the reference data, e.g.:
     # target_grid_source_file = reference_dir.joinpath(
     #     "t2max/t2max_2014_era5_4km_3338.nc"
@@ -650,6 +663,7 @@ def downscale_cmip6(
     )
     cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
 
+
     # Note on directory structure:
     # to keep things organized separately for individual tasks/flows,
     # we will not be writing outputs to the same child directories,
@@ -665,7 +679,7 @@ def downscale_cmip6(
     }
     link_dtr_to_regrid(**link_dtr_kwargs)
 
-    # ERA5 DTR processing
+    ### ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
     del process_era5_dtr_kwargs["variables"]
     del process_era5_dtr_kwargs["models"]
@@ -686,6 +700,7 @@ def downscale_cmip6(
     }
     link_dir(**link_era5_dtr_kwargs)
 
+
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
@@ -705,6 +720,7 @@ def downscale_cmip6(
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
     ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
+
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
