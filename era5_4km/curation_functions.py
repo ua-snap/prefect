@@ -137,8 +137,7 @@ def parse_era5_log(log_content: str) -> dict:
                 "existing_files": 0,
                 "missing_files": 0,
             },
-            "issues": [],
-            "raw_stats": {},
+            "issues": []
         }
 
         lines = log_content.split("\n")
