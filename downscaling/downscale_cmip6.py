@@ -60,6 +60,42 @@ def get_regrid_variables(variables):
     return regrid_variables
 
 
+@flow
+def clone_and_install_repo(
+    ssh_username,
+    ssh_private_key_path,
+    repo_name,
+    conda_env_name,
+    branch_name,
+    destination_directory,
+):
+    logger = get_run_logger()
+    logger.info(f"Checking that {repo_name} repo has been cloned")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        logger.info(f"Checking that {repo_name} repo has been cloned")
+        utils.clone_github_repository(
+            ssh, repo_name, branch_name, destination_directory
+        )
+
+        repo_path = destination_directory.joinpath(repo_name)
+
+        logger.info(f"Ensuring conda and conda environment {conda_env_name} are set up")
+        utils.ensure_conda(ssh)
+        utils.ensure_conda_env(
+            ssh, conda_env_name, repo_path.joinpath("environment.yml")
+        )
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+
 @task
 def ensure_reference_data_in_scratch(
     ssh_username,
@@ -454,6 +490,17 @@ def downscale_cmip6(
     create_remote_directories(
         ssh_username, ssh_private_key_path, directories=directories
     )
+
+    clone_and_install_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "repo_name": repo_name,
+        "branch_name": branch_name,
+        "destination_directory": scratch_dir,
+        "conda_env_name": conda_env_name,
+    }
+
+    clone_and_install_repo(**clone_and_install_kwargs)
 
     # to start, we should probably just get every step laid out here
     # TO-DO: add these checks in as able
