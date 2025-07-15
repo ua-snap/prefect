@@ -16,3 +16,29 @@ ncr_cached_urls = {
 }
 
 eds_cached_url = "/eds/all/"
+
+# ARDAC endpoints
+ardac_cached_urls = [
+    "/cmip6/point/{latitude}/{longitude}?vars=tas,tasmax,tasmin",
+    "/cmip6/point/{latitude}/{longitude}?vars=sfcWind,uas,vas",
+    "/cmip6/point/{latitude}/{longitude}?vars=psl,ts",
+    "/cmip6/point/{latitude}/{longitude}?vars=pr",
+    "/cmip6/point/{latitude}/{longitude}?vars=evspsbl",
+    "/cmip6/point/{latitude}/{longitude}?vars=rsds,rlds,hfss,hfls,clt",
+    "/cmip6/point/{latitude}/{longitude}?vars=prsn,snw",
+    "/indicators/cmip6/point/",
+    "/indicators/base/point/",
+    "/temperature_anomalies/point/",
+    "/permafrost/point/gipl/",
+    "/alfresco/flammability/local/",
+    "/alfresco/veg_type/local/",
+    "/landfastice/point/",
+    "/degree_days/heating/",
+    "/degree_days/below_zero/",
+    "/degree_days/thawing_index/",
+    "/degree_days/freezing_index/",
+    "/beetles/point/",
+    "/precipitation/frequency/point/",
+    "/seaice/point/",
+    "/hydrology/point/",
+]
