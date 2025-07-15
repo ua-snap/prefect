@@ -154,6 +154,8 @@ def clone_github_repository(ssh, repo_name, branch_name, destination_directory):
     """
 
     target_directory = Path(f"{destination_directory}/{repo_name}")
+    git_pull_command = f"cd {target_directory} && git pull origin {branch_name}"
+
     exit_status, stdout, stderr = exec_command(
         ssh, f"if [ -d '{target_directory}' ]; then echo 'true'; else echo 'false'; fi"
     )
@@ -206,7 +208,6 @@ def clone_github_repository(ssh, repo_name, branch_name, destination_directory):
         print(f"Pulling the GitHub repository on branch {branch_name}...")
 
         # Run the Git pull command to pull the repository
-        git_pull_command = f"cd {target_directory} && git pull origin {branch_name}"
         exit_status, stdout, stderr = exec_command(ssh, git_pull_command)
 
         # Check the exit status for errors
@@ -332,7 +333,6 @@ def ensure_slurm(ssh):
             raise Exception("Unable to load slurm module on remote server.")
 
 
-@task
 def create_conda_environment(ssh, conda_env_name, conda_env_file):
     """
     Task to create a conda environment from and environment file spec.

@@ -11,7 +11,7 @@ ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
 
 # name of folder in working_dir where dtr data is written
-out_dir_name = "era5_dtr"
+out_dir_name = "ref_netcdf/dtr"
 
 
 @task
