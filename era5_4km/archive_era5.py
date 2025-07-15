@@ -271,7 +271,7 @@ def archive_single_variable(
 @task
 def create_archive_report(results: dict, size_estimates: list) -> str:
     """
-    Create asummary report
+    Create a summary report
 
     Args:
         results: Dictionary with 'success' and 'failed' lists
