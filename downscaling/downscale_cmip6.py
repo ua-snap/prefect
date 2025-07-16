@@ -488,6 +488,7 @@ def downscale_cmip6(
     scenarios,
     partition,
     target_grid_source_file,
+    flow_steps,
 ):
     # logger = get_run_logger()
 
@@ -496,13 +497,15 @@ def downscale_cmip6(
     scratch_dir = Path(scratch_dir)
     working_dir = scratch_dir.joinpath(work_dir_name)
     slurm_dir = working_dir.joinpath("slurm")
+    flow_steps_list = flow_steps.split()
 
     # this creates the maing working directory
     directories = [working_dir, slurm_dir]
-    create_remote_directories(
-        ssh_username, ssh_private_key_path, directories=directories
-    )
 
+    if flow_steps == "all" or "create_remote_directories" in flow_steps_list:
+        create_remote_directories(
+            ssh_username, ssh_private_key_path, directories=directories
+        )
 
     clone_and_install_kwargs = {
         "ssh_username": ssh_username,
@@ -513,7 +516,8 @@ def downscale_cmip6(
         "conda_env_name": conda_env_name,
     }
 
-    clone_and_install_repo(**clone_and_install_kwargs)
+    if flow_steps == "all" or "clone_and_install_repo" in flow_steps_list:
+        clone_and_install_repo(**clone_and_install_kwargs)
 
     # to start, we should probably just get every step laid out here
     # TO-DO: add these checks in as able
@@ -558,7 +562,11 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
     }
-    cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+
+    if flow_steps == "all" or "create_cascade_target_grid_file" in flow_steps_list:
+        cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+    else:
+        cascade_target_file = f"{scratch_dir}/{work_dir_name}/intermediate_target.nc"
 
     intermediate_out_dir_name = "intermediate_regrid"
     regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
@@ -576,7 +584,11 @@ def downscale_cmip6(
             "variables": regrid_variables,
         }
     )
-    intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
+
+    if flow_steps == "all" or "regrid_cmip6" in flow_steps_list:
+        intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
+    else:
+        intermediate_regrid_dir = f"{scratch_dir}/{work_dir_name}/intermediate_regrid"
 
     ### Regridding 2: Regrid CMIP6 data to final grid
 
@@ -606,7 +618,10 @@ def downscale_cmip6(
         "out_dir_name": regrid_again_out_dir_name,
     }
 
-    final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
+    if flow_steps == "all" or "run_regrid_cmip6_again" in flow_steps_list:
+        final_regrid_dir = run_regrid_cmip6_again(**regrid_again_kwargs)
+    else:
+        final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
 
     # final_target_file
 
@@ -661,8 +676,11 @@ def downscale_cmip6(
             "input_dir": final_regrid_dir,
         }
     )
-    cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
 
+    if flow_steps == "all" or "process_dtr" in flow_steps_list:
+        cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
+    else:
+        cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
 
     # Note on directory structure:
     # to keep things organized separately for individual tasks/flows,
@@ -677,7 +695,9 @@ def downscale_cmip6(
         "dtr_dir": cmip6_dtr_dir,
         "regrid_dir": final_regrid_dir,
     }
-    link_dtr_to_regrid(**link_dtr_kwargs)
+
+    if flow_steps == "all" or "link_dtr_to_regrid" in flow_steps_list:
+        link_dtr_to_regrid(**link_dtr_kwargs)
 
     ### ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
@@ -689,7 +709,11 @@ def downscale_cmip6(
             "era5_dir": reference_dir,
         }
     )
-    era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
+
+    if flow_steps == "all" or "process_era5_dtr" in flow_steps_list:
+        era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
+    else:
+        era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
 
     era5_target_dtr_dir = reference_dir.joinpath("dtr")
     link_era5_dtr_kwargs = {
@@ -698,8 +722,9 @@ def downscale_cmip6(
         "src_dir": era5_dtr_dir,
         "target_dir": era5_target_dtr_dir,
     }
-    link_dir(**link_era5_dtr_kwargs)
 
+    if flow_steps == "all" or "link_dir" in flow_steps_list:
+        link_dir(**link_era5_dtr_kwargs)
 
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
@@ -708,7 +733,11 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "working_dir": working_dir,
     }
-    reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
+
+    if flow_steps == "all" or "ensure_reference_data_in_scratch" in flow_steps_list:
+        reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
+    else:
+        reference_dir = f"{scratch_dir}/{work_dir_name}/ref_netcdf"
 
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
@@ -719,15 +748,22 @@ def downscale_cmip6(
     )
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
-    ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
 
+    if flow_steps == "all" or "convert_era5_to_zarr" in flow_steps_list:
+        ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
+    else:
+        ref_zarr_dir = Path(f"{scratch_dir}/{work_dir_name}/era5_zarr")
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
     )
-    cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+
+    if flow_steps == "all" or "convert_cmip6_to_zarr" in flow_steps_list:
+        cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+    else:
+        cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
@@ -738,7 +774,11 @@ def downscale_cmip6(
             "ref_dir": ref_zarr_dir,
         }
     )
-    train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+
+    if flow_steps == "all" or "train_bias_adjustment" in flow_steps_list:
+        train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+    else:
+        train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
@@ -748,7 +788,11 @@ def downscale_cmip6(
             "train_dir": train_dir,
         }
     )
-    adjusted_dir = bias_adjustment(**bias_adjust_kwargs)
+
+    if flow_steps == "all" or "bias_adjustment" in flow_steps_list:
+        adjusted_dir = bias_adjustment(**bias_adjust_kwargs)
+    else:
+        adjusted_dir = f"{scratch_dir}/{work_dir_name}/adjusted"
 
     derive_tasmin_kwargs = base_kwargs.copy()
     del derive_tasmin_kwargs["work_dir_name"]
@@ -763,7 +807,8 @@ def downscale_cmip6(
         }
     )
 
-    derive_cmip6_tasmin(**derive_tasmin_kwargs)
+    if flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list:
+        derive_cmip6_tasmin(**derive_tasmin_kwargs)
 
     derive_era5_tasmin_kwargs = {
         "ssh_username": ssh_username,
@@ -774,7 +819,9 @@ def downscale_cmip6(
         "conda_env_name": conda_env_name,
         "partition": partition,
     }
-    derive_era5_tasmin(**derive_era5_tasmin_kwargs)
+
+    if flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list:
+        derive_era5_tasmin(**derive_era5_tasmin_kwargs)
 
 
 if __name__ == "__main__":
@@ -793,6 +840,25 @@ if __name__ == "__main__":
     partition = "t2small"
     target_grid_source_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
 
+    # If not "all", specify any of these flow steps as a space-separated string:
+    # - create_remote_directories
+    # - clone_and_install_repo
+    # - create_cascade_target_grid_file
+    # - regrid_cmip6
+    # - run_regrid_cmip6_again
+    # - process_dtr
+    # - link_dtr_to_regrid
+    # - process_era5_dtr
+    # - link_dir
+    # - ensure_reference_data_in_scratch
+    # - convert_era5_to_zarr
+    # - convert_cmip6_to_zarr
+    # - train_bias_adjustment
+    # - bias_adjustment
+    # - derive_cmip6_tasmin
+    # - derive_era5_tasmin
+    flow_steps = "all"
+
     params_dict = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
@@ -808,6 +874,7 @@ if __name__ == "__main__":
         "scenarios": scenarios,
         "partition": partition,
         "target_grid_source_file": target_grid_source_file,
+        "flow_steps": flow_steps,
     }
     downscale_cmip6.serve(
         name="downscale-cmip6",
