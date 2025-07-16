@@ -80,7 +80,6 @@ def submit_era5_jobs(
 
         repo_path = working_directory / "wrf-downscaled-era5-curation"
 
-        @task
         def build_and_run_job_submission_script(
             ssh,
             repo_path,
@@ -177,6 +176,7 @@ def submit_era5_jobs(
 
 if __name__ == "__main__":
     submit_era5_jobs.serve(
+        name="era5-4k-curation",
         parameters={
             "ssh_username": "snapdata",
             "ssh_private_key_path": "/Users/cparr/.ssh/id_rsa",
@@ -190,5 +190,5 @@ if __name__ == "__main__":
             "max_concurrent": 60,
             "overwrite": False,
             "no_retry": False,
-        }
+        },
     )

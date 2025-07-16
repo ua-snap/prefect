@@ -515,7 +515,7 @@ if __name__ == "__main__":
             "destination_directory": Path(
                 "/workspace/Shared/Tech_Projects/daily_wrf_downscaled_era5_4km"
             ),
-            "variables": "t2_mean,t2_min,t2_max",  # or "all"
+            "variables": "all",
             "cleanup_source_archives": True,
         },
     )

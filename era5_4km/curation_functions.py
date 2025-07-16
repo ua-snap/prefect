@@ -7,7 +7,6 @@ from prefect import task, get_run_logger
 from prefect.artifacts import create_markdown_artifact
 
 
-@task
 def execute_ssh_with_logging(
     ssh: paramiko.SSHClient,
     command: str,
@@ -67,7 +66,6 @@ def execute_ssh_with_logging(
     return out, err
 
 
-@task
 def capture_remote_logs(ssh, repo_path: Path, log_file_path: str = None) -> dict:
     """
     Capture logs from remote HPC and create Prefect artifacts
@@ -137,7 +135,7 @@ def parse_era5_log(log_content: str) -> dict:
                 "existing_files": 0,
                 "missing_files": 0,
             },
-            "issues": []
+            "issues": [],
         }
 
         lines = log_content.split("\n")
@@ -384,7 +382,6 @@ All processing completed without warnings or errors.
     return summary
 
 
-@task
 def create_full_log_artifact(ssh, repo_path: Path) -> str:
     """Create complete log file artifact with summary"""
     logger = get_run_logger()
