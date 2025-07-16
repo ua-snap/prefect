@@ -484,6 +484,7 @@ def archive_era5(
             logger.error(
                 f"❌ Archival failed completely! All {failed_count} variables failed."
             )
+            raise
         else:
             logger.warning(
                 f"⚠️ Partial success: {success_count} succeeded, {failed_count} failed."
