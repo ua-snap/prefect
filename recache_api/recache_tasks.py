@@ -117,11 +117,6 @@ def get_frequently_used_communities():
     return sort_out_communities(rows)
 
 
-def is_f_string(route):
-    """Checks if the given route is an f-string."""
-    return isinstance(route, str) and "{" in route and "}" in route
-
-
 @task(name="Recache API")
 def recache_api(cached_apps, cache_url):
     """Recaches the API endpoints for the given applications.
@@ -212,21 +207,9 @@ def get_endpoint(route, place, route_type, cache_url):
 
     # Build the URL to query based on type
     if route_type == "community":
-        # If the route has latitude and longitude placeholders,
-        if is_f_string(route):
-            url = cache_url + route.format(
-                latitude=place["latitude"], longitude=place["longitude"]
-            )
-        else:
-            url = (
-                cache_url
-                + route
-                + str(place["latitude"])
-                + "/"
-                + str(place["longitude"])
-            )
+        url = cache_url + route.format(latitude=place["latitude"], longitude=place["longitude"])
     else:
-        url = cache_url + route + str(place["id"])
+        url = cache_url + route.format(areaID=str(place["id"]))
 
     logger.info(f"Running URL: {url}")
 
