@@ -73,13 +73,18 @@ def connect_to_umami_db():
     )
     psql_host = "umami.snap.uaf.edu"
     psql_port = "5432"
-    psql_database = "umami"
-    psql_user = "umami"
 
-    # Load password from Prefect Secret
+    psql_database = Secret.load("umami-database-name")
+    if not psql_database:
+        raise ValueError("Database name not found in Prefect Secret.")
+    
+    psql_user = Secret.load("umami-database-username").get()
+    if not psql_user:
+        raise ValueError("Database username not found in Prefect Secret.")
+
     psql_password = Secret.load("umami-psql-password").get()
     if not psql_password:
-        raise ValueError("Environment variable 'PSQL_PASSWORD' is not set.")
+        raise ValueError("Database password not found in Prefect Secret.")
 
     # Query Umami DB for community IDs
     conn = psycopg2.connect(
