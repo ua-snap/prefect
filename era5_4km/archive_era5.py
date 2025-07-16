@@ -484,6 +484,7 @@ def archive_era5(
             logger.error(
                 f"❌ Archival failed completely! All {failed_count} variables failed."
             )
+            raise
         else:
             logger.warning(
                 f"⚠️ Partial success: {success_count} succeeded, {failed_count} failed."
@@ -515,7 +516,7 @@ if __name__ == "__main__":
             "destination_directory": Path(
                 "/workspace/Shared/Tech_Projects/daily_wrf_downscaled_era5_4km"
             ),
-            "variables": "t2_mean,t2_min,t2_max",  # or "all"
+            "variables": "all",
             "cleanup_source_archives": True,
         },
     )
