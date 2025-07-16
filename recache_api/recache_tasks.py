@@ -101,12 +101,16 @@ def connect_to_umami_db():
 
 
 def sort_out_communities(rows):
+    """Extracts community IDs from the URL paths in the rows."""
     communities = []
     for row in rows:
         path = row[0]
+        # Use regex to find patterns like "AK124" for community IDs
         match = re.search(r"[A-Z]{2}\d+", path)
+        # If a match is found, append it to the communities list
         if match:
             communities.append(match.group())
+    # Remove duplicates and sort the list
     communities = list(set(communities))
     communities.sort(key=lambda x: (x[:2], int(x[2:])))
     return communities
