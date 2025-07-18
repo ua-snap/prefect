@@ -38,15 +38,16 @@ def route_type_matches_place_type(route_type, place):
 
 
 def get_community_coords():
-    if not os.path.exists("./geospatial-vector-veracity"):
-        subprocess.run(
-            [
-                "git",
-                "clone",
-                "https://github.com/ua-snap/geospatial-vector-veracity.git",
-            ],
-            check=True,
-        )
+    subprocess.run(
+        [
+            "git",
+            "submodule",
+            "update",
+            "--init",
+            "--remote",
+        ],
+        check=True,
+    )
     gvv_vector_path = "./geospatial-vector-veracity/vector_data/point"
 
     community_coords = {}
@@ -73,11 +74,8 @@ def connect_to_umami_db():
     )
     psql_host = "umami.snap.uaf.edu"
     psql_port = "5432"
+    psql_database = "umami"
 
-    psql_database = Secret.load("umami-database-name")
-    if not psql_database:
-        raise ValueError("Database name not found in Prefect Secret.")
-    
     psql_user = Secret.load("umami-database-username").get()
     if not psql_user:
         raise ValueError("Database username not found in Prefect Secret.")
@@ -216,7 +214,9 @@ def get_endpoint(route, place, route_type, cache_url):
 
     # Build the URL to query based on type
     if route_type == "community":
-        url = cache_url + route.format(latitude=place["latitude"], longitude=place["longitude"])
+        url = cache_url + route.format(
+            latitude=place["latitude"], longitude=place["longitude"]
+        )
     else:
         url = cache_url + route.format(areaID=str(place["id"]))
 
