@@ -1,5 +1,6 @@
 import os
 import tarfile
+import shutil
 from prefect import task
 import subprocess
 import zipfile
@@ -74,34 +75,72 @@ def unzip_files(data_directory, zip_file):
 
 
 @task(name="Untar File")
-def untar_file(tar_file, data_directory):
+def untar_file(tar_file, data_directory, flatten=False, rename=None):
+    """
+    Extract a .tar.gz file to a specified directory.
+
+    Parameters
+    ----------
+    tar_file : str
+        Path to the .tar.gz file.
+    data_directory : str
+        Path to the output directory.
+    flatten : bool, optional
+        If True, ignore directory structure in the archive and extract all files directly
+        into a single directory. Default is False.
+    rename : str, optional
+        If provided, rename the extracted directory to this name after extraction.
+        If target exists as a directory, it will be deleted first.
+    """
     extraction_dir = os.path.join(
         data_directory, os.path.splitext(os.path.basename(tar_file))[0]
     )
+
+    if flatten:
+        temp_extract_dir = extraction_dir + "_tmp"
+    else:
+        temp_extract_dir = extraction_dir
 
     with tarfile.open(tar_file, "r:gz") as tar:
         tar_file_names = tar.getnames()
 
     all_files_exist = True
     for file_name in tar_file_names:
-        if not os.path.exists(os.path.join(extraction_dir, file_name)):
+        target_name = os.path.basename(file_name) if flatten else file_name
+        target_path = os.path.join(temp_extract_dir, target_name)
+        if not os.path.exists(target_path):
             all_files_exist = False
             break
 
     if all_files_exist:
-        print(
-            f"All files from {tar_file} already exist in {extraction_dir}. Skipping extraction."
-        )
+        print(f"All files from {tar_file} already exist in {temp_extract_dir}. Skipping extraction.")
         return
 
-    if not os.path.exists(extraction_dir):
-        os.makedirs(extraction_dir)
+    if not os.path.exists(temp_extract_dir):
+        os.makedirs(temp_extract_dir)
 
     with tarfile.open(tar_file, "r:gz") as tar:
-        tar.extractall(extraction_dir)
+        if flatten:
+            for member in tar.getmembers():
+                if member.isfile():
+                    file_obj = tar.extractfile(member)
+                    if file_obj is not None:
+                        out_path = os.path.join(temp_extract_dir, os.path.basename(member.name))
+                        with open(out_path, "wb") as out_file:
+                            out_file.write(file_obj.read())
+        else:
+            tar.extractall(temp_extract_dir)
 
-    print(f"Extracted {tar_file} to {extraction_dir}")
+    # If rename is requested
+    if flatten and rename:
+        final_path = os.path.join(data_directory, rename)
+        if os.path.exists(final_path):
+            shutil.rmtree(final_path)
+        os.rename(temp_extract_dir, final_path)
+        print(f"Extracted {tar_file} to {final_path} (flatten={flatten}, renamed)")
 
+    else:
+        print(f"Extracted {tar_file} to {temp_extract_dir} (flatten={flatten})")
 
 @task(name="Clone GitHub Repository")
 def clone_github_repository(branch, destination_directory):
