@@ -4,8 +4,7 @@ from prefect import flow
 
 import ingest_tasks
 
-# this flow will have multiple ERA5 variables available for ingest
-
+# this flow can hit multiple ERA5 variables 
 
 @flow(log_prints=True)
 def ingest_wrf_downscaled_era5_4km(
@@ -21,12 +20,11 @@ def ingest_wrf_downscaled_era5_4km(
 
     ingest_tasks.check_for_nfs_mount()
 
-    # for each variable, we'll need to do these steps
-    # copy the data from source to the destination directory (actually destination / $variable_name
-    # untar the file, names are like t2_mean_era5_4km_archive.tar.gz
+    # for each variable, we must
+    # copy the data from the backed up source, and untar it and flatten it
+    # then we need to combine the data into a single file
     # run the ingest command, these are all in the ingest directory with names like this:
     # rainnc_sum_ingest.json  rh2_mean_ingest.json  seaice_max_ingest.json
-    # we need to run the ingest command for each of these files
 
     for variable in era5_variables:
         dest_var_dir = f"{destination_directory}/{variable}"
@@ -35,6 +33,7 @@ def ingest_wrf_downscaled_era5_4km(
 
         ingest_tasks.copy_data_from_nfs_mount(source_var_dir, destination_directory)
         ingest_tasks.untar_file(f"{dest_var_dir}/{variable}_era5_4km_archive.tar.gz", ingest_directory, flatten=True, rename=variable)
+        ingest_tasks.run_python_script(ingest_directory, "combine_netcdfs.py", variable)
         ingest_tasks.run_ingest(ingest_directory, var_ingest_recipe)
         time.sleep(10)
 
