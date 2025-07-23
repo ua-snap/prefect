@@ -1,10 +1,38 @@
 import time
+import subprocess
 
-from prefect import flow
+from prefect import flow, task
 
 import ingest_tasks
 
-# this flow can hit multiple ERA5 variables 
+# this flow can hit multiple ERA5 variables
+
+@task(log_prints=True)
+def run_combine_netcdfs_script(ingest_directory: str, variable_name: str):
+    """
+    Runs the combine_netcdfs.py script for a given variable.
+    The script is expected to be in the ingest_directory.
+    Usage of the script is: python combine_netcdfs.py <variable_name>
+    """
+    script_path = f"{ingest_directory}/combine_netcdfs.py"
+    command = ["python", script_path, variable_name]
+    
+    print(f"Executing command: {' '.join(command)}")
+    
+    # Using check=True will raise a CalledProcessError if the script fails (non-zero exit code)
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=ingest_directory
+    )
+    
+    print("NetCDF combination script execution successful.")
+    print(f"STDOUT:\n{result.stdout}")
+    if result.stderr:
+        print(f"STDERR:\n{result.stderr}")
+
 
 @flow(log_prints=True)
 def ingest_wrf_downscaled_era5_4km(
@@ -33,7 +61,9 @@ def ingest_wrf_downscaled_era5_4km(
 
         ingest_tasks.copy_data_from_nfs_mount(source_var_dir, destination_directory)
         ingest_tasks.untar_file(f"{dest_var_dir}/{variable}_era5_4km_archive.tar.gz", ingest_directory, flatten=True, rename=variable)
-        ingest_tasks.run_python_script(ingest_directory, "combine_netcdfs.py", variable)
+
+        run_combine_netcdfs_script(ingest_directory, variable)
+
         ingest_tasks.run_ingest(ingest_directory, var_ingest_recipe)
         time.sleep(10)
 
