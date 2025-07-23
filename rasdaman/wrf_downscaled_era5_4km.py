@@ -14,9 +14,16 @@ def run_combine_netcdfs_script(ingest_directory: str, variable_name: str):
     The script is expected to be in the ingest_directory.
     Usage of the script is: python combine_netcdfs.py <variable_name>
     """
-    script_path = f"{ingest_directory}/combine_netcdfs.py"
+    script_path = f"{ingest_directory}combine_netcdfs.py"
     command = ["python", script_path, variable_name]
-    
+    # must activate conda
+    command = [
+            "bash",
+            "-i",
+            "-c",
+            f"source /opt/miniconda3/bin/activate rasdaman  && {' '.join(command)}",
+    ]
+
     print(f"Executing command: {' '.join(command)}")
     
     # Using check=True will raise a CalledProcessError if the script fails (non-zero exit code)
