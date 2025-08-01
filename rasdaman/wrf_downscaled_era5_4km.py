@@ -26,11 +26,8 @@ def run_combine_netcdfs_script(ingest_directory: str, variable_name: str):
 
     print(f"Executing command: {' '.join(command)}")
     
-    # Using check=True will raise a CalledProcessError if the script fails (non-zero exit code)
     result = subprocess.run(
         command,
-        #capture_output=True,
-        #text=True,
         check=True,
         cwd=ingest_directory
     )
