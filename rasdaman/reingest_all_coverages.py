@@ -34,7 +34,7 @@ from ncar12km_indicators_era_summaries import ncar12km_indicators_era_summaries
 from tas_2km_historical import tas_2km_historical
 from tas_2km_projected import tas_2km_projected
 from wet_days_per_year import wet_days_per_year
-
+from wrf_downscaled_era5_4km import ingest_wrf_downscaled_era5_4km
 
 @flow(log_prints=True)
 def reingest_all_coverages(branch_name, reingest_these_coverages, delete_coverages):
