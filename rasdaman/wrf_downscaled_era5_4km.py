@@ -2,6 +2,7 @@ import time
 import subprocess
 
 from prefect import flow, task
+from prefect.artifacts import create_link_artifact
 
 import ingest_tasks
 
@@ -71,6 +72,28 @@ def ingest_wrf_downscaled_era5_4km(
         run_combine_netcdfs_script(ingest_directory, variable)
 
         ingest_tasks.run_ingest(ingest_directory, var_ingest_recipe)
+        
+        # for each ingest build a WMS link artifact
+        wms_url = (
+            "https://zeus.snap.uaf.edu/rasdaman/ows"
+            "?service=WMS&version=1.3.0&request=GetMap"
+            f"&layers=era5_4km_daily_{variable}"
+            "&bbox=-1000000,600000,1000000,2500000"
+            "&crs=EPSG:3338"
+            "&time=\"2001-11-04T00:00:00.000Z\""
+            "&width=1000&height=800"
+            "&format=image/png&transparent=true&styles="
+        )
+
+        create_link_artifact(
+            wms_url,
+            link_text=f"WMS preview: {variable}",
+            description=(
+                "GetMap request for the "
+                f"`era5_4km_daily_{variable}` coverage"
+            )
+        )
+
         time.sleep(10)
 
 if __name__ == "__main__":
