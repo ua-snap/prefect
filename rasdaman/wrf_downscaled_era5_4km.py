@@ -37,7 +37,7 @@ def run_combine_netcdfs_script(ingest_directory: str, variable_name: str):
 
 @flow(log_prints=True)
 def ingest_wrf_downscaled_era5_4km(
-    branch_name="era5wrf",
+    branch_name="main",
     working_directory="/opt/rasdaman/user_data/snapdata/",
     ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/daily_wrf_downscaled_era5/",
     source_directory="/workspace/Shared/Tech_Projects/daily_wrf_downscaled_era5_4km/",
@@ -114,11 +114,11 @@ if __name__ == "__main__":
         name="Rasdaman Coverage: ERA5 4km Daily Summaries (era5_4km_daily_$variable)",
         tags=["ARDAC", "ERA5"],
         parameters={
-            "branch_name": "era5wrf",
-            "working_directory": "/opt/rasdaman/user_data/snapdata/cp_dev_ras_ingest",
-            "ingest_directory": "/opt/rasdaman/user_data/snapdata/cp_dev_ras_ingest/rasdaman-ingest/ardac/daily_wrf_downscaled_era5/",
+            "branch_name": "main",
+            "working_directory": "/opt/rasdaman/user_data/snapdata/",
+            "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/daily_wrf_downscaled_era5/",
             "source_directory": "/workspace/Shared/Tech_Projects/daily_wrf_downscaled_era5_4km/",
-            "destination_directory": "/opt/rasdaman/user_data/snapdata/cp_dev_ras_ingest/rasdaman-ingest/ardac/daily_wrf_downscaled_era5",
+            "destination_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/daily_wrf_downscaled_era5",
             "era5_variables": era5_variables,
         },
     )
