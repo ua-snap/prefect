@@ -27,7 +27,9 @@ def run_combine_netcdfs_script(ingest_directory: str, variable_name: str):
 
     print(f"Executing command: {' '.join(command)}")
 
-    result = subprocess.run(command, check=True, cwd=ingest_directory)
+    result = subprocess.run(
+        command, check=True, cwd=ingest_directory, capture_output=True, text=True
+    )
 
     print("NetCDF combination script execution successful.")
     print(f"STDOUT:\n{result.stdout}")
