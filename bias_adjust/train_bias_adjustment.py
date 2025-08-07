@@ -110,8 +110,8 @@ def train_bias_adjustment(
         launcher_script = repo_path.joinpath("bias_adjust", "run_train_qm.py")
         worker_script = repo_path.joinpath("bias_adjust", "train_qm.py")
         scratch_dir = Path(scratch_dir)
-        tmp_dir = scratch_dir.joinpath("tmp")
         working_dir = scratch_dir.joinpath(work_dir_name)
+        tmp_dir = working_dir.joinpath("tmp")
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
