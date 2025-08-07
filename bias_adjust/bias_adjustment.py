@@ -25,6 +25,7 @@ def run_bias_adjustment(
     launcher_script,
     partition,
     worker_script,
+    tmp_dir,
     sim_dir,
     train_dir,
     output_dir,
@@ -42,6 +43,7 @@ def run_bias_adjustment(
         f"--partition {partition} "
         f"--conda_env_name {conda_env_name} "
         f"--worker_script {worker_script} "
+        f"--tmp_dir {tmp_dir} "
         f"--sim_dir {sim_dir} "
         f"--train_dir {train_dir} "
         f"--output_dir {output_dir} "
@@ -112,11 +114,12 @@ def bias_adjustment(
         launcher_script = repo_path.joinpath("bias_adjust", "run_bias_adjust.py")
         worker_script = repo_path.joinpath("bias_adjust", "bias_adjust.py")
         scratch_dir = Path(scratch_dir)
+        tmp_dir = working_dir.joinpath("tmp")
         working_dir = scratch_dir.joinpath(work_dir_name)
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
-        utils.create_directories(ssh, [output_dir, slurm_dir])
+        utils.create_directories(ssh, [tmp_dir, output_dir, slurm_dir])
 
         kwargs = {
             "ssh": ssh,
@@ -124,6 +127,7 @@ def bias_adjustment(
             "conda_env_name": conda_env_name,
             "partition": partition,
             "worker_script": worker_script,
+            "tmp_dir": tmp_dir,
             "sim_dir": sim_dir,
             "train_dir": train_dir,
             "output_dir": output_dir,
