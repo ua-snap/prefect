@@ -24,6 +24,7 @@ The flow consists of the following steps:
 11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if DTR is requested in flow parameters)
 """
 
+import time
 from prefect import flow, task
 from prefect.logging import get_run_logger
 import paramiko
@@ -503,7 +504,6 @@ def downscale_cmip6(
         ssh_username, ssh_private_key_path, directories=directories
     )
 
-
     clone_and_install_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
@@ -663,7 +663,6 @@ def downscale_cmip6(
     )
     cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
 
-
     # Note on directory structure:
     # to keep things organized separately for individual tasks/flows,
     # we will not be writing outputs to the same child directories,
@@ -700,7 +699,6 @@ def downscale_cmip6(
     }
     link_dir(**link_era5_dtr_kwargs)
 
-
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
@@ -721,13 +719,14 @@ def downscale_cmip6(
     del convert_era5_to_zarr_kwargs["scenarios"]
     ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
 
-
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
     )
     cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+
+    time.sleep(1800)
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
@@ -739,6 +738,8 @@ def downscale_cmip6(
         }
     )
     train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+
+    time.sleep(1800)
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
