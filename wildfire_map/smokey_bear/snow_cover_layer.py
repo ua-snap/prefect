@@ -16,9 +16,11 @@ def snow_cover_layer(
 
         check_for_admin_pass(f"{home_directory}", admin_password.get())
 
-        install_conda_environment(
-            "smokeybear", f"{working_directory}/smokey_bear/environment.yml"
-        )
+        # This is referenced in Github issue: https://github.com/ua-snap/prefect/issues/67
+        #       being found correctly.
+        # install_conda_environment(
+        #     "smokeybear", f"{working_directory}/smokey_bear/environment.yml"
+        # )
 
         execute_local_script(f"{working_directory}/smokey_bear/{script_name}")
         return {"updated": datetime.now().strftime("%Y%m%d%H"), "succeeded": True}
@@ -35,7 +37,7 @@ if __name__ == "__main__":
         name="Update Snow Cover Layer",
         tags=["snow_cover_layer", "wildfire_map"],
         parameters={
-            "home_directory": "/home/prefect",
+            "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "script_name": "update_snow_cover.sh",
         },
