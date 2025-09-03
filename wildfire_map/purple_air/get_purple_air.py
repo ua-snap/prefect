@@ -59,7 +59,79 @@ def fetch_purple_air_data():
     response = requests.get(api_url, params=query_params, headers=headers)
     response.raise_for_status()
 
-    return response.json()
+    data = response.json()
+
+    for sensor in data["data"]:
+        sensor.append(0)  # AQI 2.5 PM 1 hour
+        sensor.append("pa")  # type
+
+    return data
+
+
+def fetch_dec_air_data():
+    api_url = "https://services.arcgis.com/8MMg7skvEbOESlSM/ArcGIS/rest/services/AQ_Sites_Public/FeatureServer/0/query?where=1=1&outFields=*&f=geojson"
+    response = requests.get(api_url)
+    response.raise_for_status()
+    data = response.json()
+    returned_data = list()
+
+    # Recategorize or omit sensors based on their sensor_id.
+    # More info here: https://github.com/ua-snap/alaska-wildfires/issues/224
+    conocophillips_sensors = [
+        "Nuiqsut",
+    ]
+    blm_sensors = [
+        "BLM_Kaktovik",
+    ]
+    louden_tribe_sensors = [
+        "Quant_MOD00758",
+        "Quant_MOD00759",
+    ]
+    sensors_to_omit = [
+        "Quant_MOD00443",
+        "Quant_MOD00463",
+        "Quant_MOD00471",
+        "Quant_MOD00651",
+        "Quant_MOD00652",
+        "Quant_MOD00665",
+    ]
+
+    for feature in data["features"]:
+        # If pm25calibrated is None, skip this DEC sensor
+        if feature["properties"]["pm25calibrated"] is None:
+            continue
+
+        sensor_id = feature["properties"]["sensor_id"]
+        if sensor_id in sensors_to_omit:
+            continue
+
+        new_feature = list()
+        new_feature.append(feature["properties"]["OBJECTID"])  # objectId
+        new_feature.append(
+            round(feature["properties"]["time_stamp"] / 1000)
+        )  # lastupdate
+        new_feature.append(0)  # outdoor sensor
+        new_feature.append(feature["geometry"]["coordinates"][1])  # latitude
+        new_feature.append(feature["geometry"]["coordinates"][0])  # longitude
+        new_feature.append(0)  # pm2.5_10m
+        new_feature.append(0)  # pm2.5_24hr
+        new_feature.append(
+            feature["properties"]["pm25calibrated"]
+        )  # AQI PM2.5 1hr, this field is already converted to AQI
+
+        # Assign type for each sensor
+        if sensor_id in conocophillips_sensors:
+            new_feature.append("conocophillips")
+        elif sensor_id in blm_sensors:
+            new_feature.append("blm")
+        elif sensor_id in louden_tribe_sensors:
+            new_feature.append("louden_tribe")
+        else:
+            new_feature.append("dec")
+
+        returned_data.append(new_feature)
+
+    return returned_data
 
 
 def create_shapefile(data, output_path):
@@ -78,6 +150,8 @@ def create_shapefile(data, output_path):
             "aqi_10m": round(calculate_aqi(sensor[5])),
             "pm2_5_24hr": round(sensor[6]),
             "aqi_24hr": round(calculate_aqi(sensor[6])),
+            "aqi_1hr": round(sensor[7]),
+            "type": sensor[8],
         }
 
         point = Point(lon, lat)
@@ -92,6 +166,10 @@ def create_shapefile(data, output_path):
 
 def main(out_dir):
     data = fetch_purple_air_data()
+
+    # Add DEC Air data to the Purple Air data
+    data["data"] = data["data"] + fetch_dec_air_data()
+
     output_path = os.path.join(out_dir, "purple_air_pm25.shp")
     create_shapefile(data, output_path)
     print(f"Shapefile created at {output_path}")
@@ -99,7 +177,7 @@ def main(out_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Fetch Purple Air AQI data + process it."
+        description="Fetch Purple Air AQI data with DEC Air data + process it."
     )
     parser.add_argument(
         "--out-dir",

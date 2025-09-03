@@ -24,6 +24,7 @@ The flow consists of the following steps:
 11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if DTR is requested in flow parameters)
 """
 
+import time
 from prefect import flow, task
 from prefect.logging import get_run_logger
 import paramiko
@@ -765,6 +766,8 @@ def downscale_cmip6(
     else:
         cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
 
+    time.sleep(1800)
+
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
     del train_bias_adjust_kwargs["scenarios"]
@@ -779,6 +782,8 @@ def downscale_cmip6(
         train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
     else:
         train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
+
+    time.sleep(1800)
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()

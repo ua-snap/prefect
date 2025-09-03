@@ -2,9 +2,9 @@ from time import sleep
 from prefect import task
 import paramiko
 
-all_indicators = "rx1day su dw ftc"
+all_indicators = "rx1day rx5day r10mm su dw ftc cdd cwd hd cd csdi wsdi"
 
-all_models = "CESM2 CESM2-WACCM CNRM-CM6-1-HR EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-LR NorESM2-MM TaiESM1"
+all_models = "CESM2 CNRM-CM6-1-HR E3SM-2-0 EC-Earth3-Veg GFDL-ESM4 HadGEM3-GC31-LL HadGEM3-GC31-MM KACE-1-0-G MIROC6 MPI-ESM1-2-HR MRI-ESM2-0 NorESM2-MM TaiESM1"
 
 all_scenarios = "historical ssp126 ssp245 ssp370 ssp585"
 
@@ -168,7 +168,7 @@ def install_conda_environment(ssh, conda_env_name, conda_env_file):
 
 @task
 def create_and_run_slurm_script(
-    ssh, indicators, models, scenarios, working_directory, input_dir
+    ssh, indicators, models, scenarios, working_dir, input_dir
 ):
     """
     Task to create and run a Slurm script to run the indicator calculation scripts.
@@ -178,7 +178,7 @@ def create_and_run_slurm_script(
     - indicators: Space-separated list of indicators to calculate
     - models: Space-separated list of models to calculate indicators for
     - scenarios: Space-separated list of scenarios to calculate indicators for
-    - working_directory: Directory to where all of the processing takes place
+    - working_dir: Directory to where all of the processing takes place
     - input_dir: Directory containing the input data for the indicators
     """
 
@@ -189,10 +189,10 @@ def create_and_run_slurm_script(
     if scenarios == "all":
         scenarios = all_scenarios
 
-    slurm_script = f"{working_directory}/cmip6-utils/indicators/slurm.py"
+    slurm_script = f"{working_dir}/cmip6-utils/indicators/slurm.py"
 
     stdin, stdout, stderr = ssh.exec_command(
-        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_directory}'"
+        f"export PATH=$PATH:/opt/slurm-22.05.4/bin:/opt/slurm-22.05.4/sbin:$HOME/miniconda3/bin && python {slurm_script} --indicators '{indicators}' --models '{models}' --scenarios '{scenarios}' --input_dir '{input_dir}' --working_dir '{working_dir}'"
     )
 
     # Wait for the command to finish and get the exit status
@@ -259,30 +259,28 @@ def wait_for_jobs_completion(ssh, job_ids):
 
 
 @task
-def qc(ssh, working_directory, input_dir):
+def qc(ssh, working_dir, input_dir):
     """
     Task to run the quality control (QC) script to check the output of the indicator calculations.
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - working_directory: Directory to where all of the processing takes place
+    - working_dir: Directory to where all of the processing takes place
     """
 
-    conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
-
-    qc_script = f"{working_directory}/cmip6-utils/indicators/qc.py"
-    output_dir = f"{working_directory}/output/"
+    run_qc_script = f"{working_dir}/cmip6-utils/indicators/run_qc.py"
+    qc_script = f"{working_dir}/cmip6-utils/indicators/qc.py"
+    output_dir = f"{working_dir}/cmip6_indicators"
+    slurm_dir = f"{working_dir}/cmip6_indicators/slurm"
 
     stdin, stdout, stderr = ssh.exec_command(
-        f"source {conda_init_script}\n"
         f"conda activate cmip6-utils\n"
-        f"python {qc_script} --out_dir '{output_dir}' --in_dir '{input_dir}'"
+        f"python {run_qc_script} \
+            --qc_script '{qc_script}' \
+            --in_dir '{input_dir}' \
+            --out_dir '{output_dir}' \
+            --slurm_dir '{slurm_dir}'"
     )
-
-    # Collect output from QC script above and print it
-    lines = stdout.readlines()
-    for line in lines:
-        print(line)
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -292,37 +290,39 @@ def qc(ssh, working_directory, input_dir):
         error_output = stderr.read().decode("utf-8")
         raise Exception(f"Error running QC script. Error: {error_output}")
 
-    print("QC script run successfully")
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
+
+    print("Indicators QC job submitted")
 
 
 @task
-def visual_qc_nb(ssh, working_directory, input_directory):
+def visual_qc_nb(ssh, working_dir, input_dir):
     """
     Task to run the visual quality control (QC) notebook to check the output of the indicator calculations.
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - working_directory: Directory where all of the processing takes place
-    - input_directory: Directory containing source input data collection
+    - working_dir: Directory where all of the processing takes place
+    - input_dir: Directory containing source input data collection
     """
 
-    conda_init_script = f"{working_directory}/cmip6-utils/indicators/conda_init.sh"
-    repo_indicators_dir = f"{working_directory}/cmip6-utils/indicators"
-    visual_qc_nb = f"{working_directory}/cmip6-utils/indicators/visual_qc.ipynb"
-    output_nb = f"{working_directory}/output/qc/visual_qc_out.ipynb"
+    repo_indicators_dir = f"{working_dir}/cmip6-utils/indicators"
+    visual_qc_nb = f"{working_dir}/cmip6-utils/indicators/visual_qc.ipynb"
+    run_visual_qc_script = f"{working_dir}/cmip6-utils/indicators/run_visual_qc.py"
+    output_nb = f"{working_dir}/cmip6_indicators/qc/visual_qc_out.ipynb"
+    slurm_dir = f"{working_dir}/cmip6_indicators/slurm"
 
     stdin, stdout, stderr = ssh.exec_command(
-        f"source {conda_init_script}\n"
-        f"conda activate cmip6-utils\n"
-        f"cd {repo_indicators_dir}\n"
-        f"papermill {visual_qc_nb} {output_nb} -r working_directory '{working_directory}' -r input_directory '{input_directory}'\n"
-        f"jupyter nbconvert --to html {output_nb}"
+        f"python {run_visual_qc_script} \
+            --input_dir '{input_dir}' \
+            --slurm_dir '{slurm_dir}' \
+            --working_dir '{working_dir}' \
+            --visual_qc_nb '{visual_qc_nb}' \
+            --output_nb '{output_nb}' \
+            --repo_indicators_dir '{repo_indicators_dir}'"
     )
-
-    # Collect output from QC script above and print it
-    lines = stdout.readlines()
-    for line in lines:
-        print(line)
 
     # Wait for the command to finish and get the exit status
     exit_status = stdout.channel.recv_exit_status()
@@ -332,4 +332,8 @@ def visual_qc_nb(ssh, working_directory, input_directory):
         error_output = stderr.read().decode("utf-8")
         raise Exception(f"Error running Visual QC script. Error: {error_output}")
 
-    print(f"Visual QC notebook created successfully. See {output_nb} for results.")
+    lines = stdout.readlines()
+    for line in lines:
+        print(line)
+
+    print(f"Visual QC notebook job submitted. See {output_nb} for results.")
