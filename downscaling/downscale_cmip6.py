@@ -763,10 +763,9 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "convert_cmip6_to_zarr" in flow_steps_list:
         cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
+        time.sleep(1800)
     else:
         cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
-
-    time.sleep(1800)
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
@@ -780,10 +779,9 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "train_bias_adjustment" in flow_steps_list:
         train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
+        time.sleep(1800)
     else:
         train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
-
-    time.sleep(1800)
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
