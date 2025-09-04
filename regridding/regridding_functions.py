@@ -2,18 +2,17 @@ from time import sleep
 from prefect import task
 import paramiko
 from utils import utils
-from luts import *
+from regridding.luts import *
 
 
 @task
 def run_generate_batch_files(
     ssh,
-    conda_init_script,
     conda_env_name,
     generate_batch_files_script,
     run_generate_batch_files_script,
-    cmip6_directory,
-    regrid_batch_dir,
+    cmip6_dir,
+    slurm_dir,
     vars,
     freqs,
     models,
@@ -24,12 +23,11 @@ def run_generate_batch_files(
 
     Parameters:
     - ssh: Paramiko SSHClient object
-    - conda_init_script: Script to initialize conda during slurm jobs
     - conda_env_name: Name of the Conda environment to activate for processing
     - generate_batch_files_script: Location of the script to generate batch files
     - run_generate_batch_files_script: Location of the script to run the batch file generation script
-    - cmip6_directory: Path to the CMIP6 data directory
-    - regrid_batch_dir: Directory to save the batch files
+    - cmip6_dir: Path to the CMIP6 data directory
+    - slurm_dir: Directory for all slurm files
     - vars: Variables to regrid
     - freqs: Frequencies to regrid
     - models: Models to regrid
@@ -38,10 +36,9 @@ def run_generate_batch_files(
     cmd = (
         f"python {run_generate_batch_files_script}"
         f" --generate_batch_files_script {generate_batch_files_script}"
-        f" --conda_init_script {conda_init_script}"
         f" --conda_env_name {conda_env_name}"
-        f" --cmip6_directory {cmip6_directory}"
-        f" --regrid_batch_dir {regrid_batch_dir}"
+        f" --cmip6_directory {cmip6_dir}"
+        f" --slurm_dir {slurm_dir}"
         f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
@@ -67,18 +64,19 @@ def run_regridding(
     slurm_dir,
     regrid_dir,
     regrid_batch_dir,
-    conda_init_script,
     conda_env_name,
     regrid_script,
-    target_grid_fp,
+    target_grid_file,
     no_clobber,
-    vars,
+    variables,
     interp_method,
     freqs,
     models,
     scenarios,
     rasdafy,
     target_sftlf_fp=None,
+    cascade_file=None,
+    partition="t2small",
 ):
     """
     Task to create and submit Slurm scripts to regrid batches of CMIP6 data.
@@ -89,18 +87,19 @@ def run_regridding(
     - slurm_dir: Directory to save slurm sbatch files
     - regrid_dir: Path to directory where regridded files are written
     - regrid_batch_dir: Directory of batch files
-    - conda_init_script: Script to initialize conda during slurm jobs
     - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
     - target_grid_fp: Path to file used as the regridding target
     - no_clobber: Do not overwrite regridded files if they exist
-    - vars: Variables to regrid
+    - variables: Variables to regrid
     - interp_method: Interpolation method to use
     - freqs: Frequencies to regrid
     - models: Models to regrid
     - scenarios: Scenarios to regrid
     - rasdafy: Boolean to determine if the regridded files should be prepared for Rasdaman
     - target_sftlf_fp: Path to file with target land fraction data
+    - cascade_file: Path to intermediate file for cascade regridding
+    - partition: Slurm partition to use
     """
 
     cmd = (
@@ -108,12 +107,12 @@ def run_regridding(
         f" --slurm_dir {slurm_dir}"
         f" --regrid_dir {regrid_dir}"
         f" --regrid_batch_dir {regrid_batch_dir}"
-        f" --conda_init_script {conda_init_script}"
         f" --conda_env_name {conda_env_name}"
         f" --regrid_script {regrid_script}"
-        f" --target_grid_fp {target_grid_fp}"
+        f" --target_grid_fp {target_grid_file}"
         f" --interp_method {interp_method}"
-        f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+        f" --partition {partition}"
+        f" --vars '{variables}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
     )
 
     if target_sftlf_fp:
@@ -140,7 +139,7 @@ def run_regridding(
     return job_ids
 
 
-@task
+@task(name="rf_validate_vars")
 def validate_vars(vars):
     """
     Task to validate strings of variables. Variables are checked against the lists in luts.py.
@@ -177,7 +176,7 @@ def validate_freqs(freq_str):
         return freq_str
 
 
-@task
+@task(name="rf_validate_models")
 def validate_models(models_str):
     """Task to validate string of models to work on.
     Parameters:
@@ -191,7 +190,7 @@ def validate_models(models_str):
         return models_str
 
 
-@task
+@task(name="rf_validate_scenarios")
 def validate_scenarios(scenarios_str):
     """Task to validate string of scenarios to work on.
     Parameters:
@@ -208,14 +207,13 @@ def validate_scenarios(scenarios_str):
 @task
 def run_qc(
     ssh,
-    output_directory,
-    cmip6_directory,
-    repo_regridding_directory,
-    conda_init_script,
+    working_dir,
+    cmip6_dir,
+    repo_regridding_dir,
     conda_env_name,
     run_qc_script,
     qc_notebook,
-    vars,
+    variables,
     freqs,
     models,
     scenarios,
@@ -226,10 +224,10 @@ def run_qc(
         (
             f"python {run_qc_script}"
             f" --qc_notebook '{qc_notebook}'"
-            f" --conda_init_script '{conda_init_script}' --conda_env_name '{conda_env_name}'"
-            f" --cmip6_directory '{cmip6_directory}' --output_directory '{output_directory}'"
-            f" --repo_regridding_directory '{repo_regridding_directory}'"
-            f" --vars '{vars}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
+            f" --conda_env_name '{conda_env_name}'"
+            f" --cmip6_directory '{cmip6_dir}' --working_dir '{working_dir}'"
+            f" --repo_regridding_directory '{repo_regridding_dir}'"
+            f" --vars '{variables}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
         ),
     )
 
