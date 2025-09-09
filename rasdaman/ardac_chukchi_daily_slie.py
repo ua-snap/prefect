@@ -22,7 +22,7 @@ def ardac_chukchi_daily_slie(
 
 if __name__ == "__main__":
     ardac_chukchi_daily_slie.serve(
-        name="Rasdaman Coverage: ardac_chukchi_daily_slie",
+        name="Rasdaman Coverages: ardac_chukchi_daily_slie, ardac_chukchi_daily_slie_wcs",
         tags=["ARDAC", "Landfast Sea Ice"],
         parameters={
             "branch_name": "main",

@@ -22,7 +22,7 @@ def ardac_beaufort_daily_slie(
 
 if __name__ == "__main__":
     ardac_beaufort_daily_slie.serve(
-        name="Rasdaman Coverage: ardac_beaufort_daily_slie",
+        name="Rasdaman Coverages: ardac_beaufort_daily_slie, ardac_beaufort_daily_slie_wcs",
         tags=["ARDAC", "Landfast Sea Ice"],
         parameters={
             "branch_name": "main",
