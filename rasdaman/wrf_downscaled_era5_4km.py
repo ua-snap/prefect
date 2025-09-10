@@ -54,13 +54,13 @@ def ingest_wrf_downscaled_era5_4km(
     # for each variable, we must
     # copy the data from the backed up source, and untar it and flatten it
     # then we need to combine the data into a single file
-    # run the ingest command, these are all in the ingest directory with names like this:
-    # t2_min_ingest.json  rh2_mean_ingest.json  seaice_max_ingest.json
-
+    # run two ingest commands, one for the "normal" coverage and one for the WCS optimized coverage 
+    # name scheme: t2_min_ingest.json, t2_min__ingest_wcs_only.json
     for variable in era5_variables:
         dest_var_dir = f"{destination_directory}/{variable}"
         source_var_dir = f"{source_directory}/{variable}"
         var_ingest_recipe = f"{variable}_ingest.json"
+        var_ingest_recipe_wcs_only = f"{variable}_ingest_wcs_only.json"
 
         ingest_tasks.copy_data_from_nfs_mount(source_var_dir, destination_directory)
         ingest_tasks.untar_file(
@@ -73,6 +73,8 @@ def ingest_wrf_downscaled_era5_4km(
         run_combine_netcdfs_script(ingest_directory, variable)
 
         ingest_tasks.run_ingest(ingest_directory, var_ingest_recipe)
+
+        ingest_tasks.run_ingest(ingest_directory, var_ingest_recipe_wcs_only)
 
         # for each ingest build a WMS link artifact
         wms_url = (
@@ -113,7 +115,7 @@ if __name__ == "__main__":
     ]
 
     ingest_wrf_downscaled_era5_4km.serve(
-        name="Rasdaman Coverage: ERA5 4km Daily Summaries (era5_4km_daily_$variable)",
+        name="Rasdaman Coverage: ERA5 4km Daily Summaries Inlcuding WCS Optimized Versions(era5_4km_daily_$variable, era5_4km_daily_$variable_wcs)",
         tags=["ARDAC", "ERA5"],
         parameters={
             "branch_name": "main",
