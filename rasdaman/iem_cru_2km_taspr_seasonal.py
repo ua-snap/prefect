@@ -4,9 +4,9 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def iem_cru_2km_taspr_seasonal(
-    branch_name,
-    working_directory,
-    ingest_directory,
+    branch_name="main",
+    working_directory="/opt/rasdaman/user_data/snapdata/",
+    ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/iem/tas_pr_2km/",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
