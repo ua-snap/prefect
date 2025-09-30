@@ -572,7 +572,7 @@ def downscale_cmip6(
     intermediate_out_dir_name = "intermediate_regrid"
     regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
     regrid_variables = get_regrid_variables(variables)
-    interp_method = "bilinear"
+    interp_method = "patch"
     regrid_cmip6_intermediate_kwargs.update(
         {
             "cmip6_dir": cmip6_dir,
