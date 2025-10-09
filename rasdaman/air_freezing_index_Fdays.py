@@ -1,3 +1,4 @@
+import os
 from prefect import flow
 import ingest_tasks
 
@@ -7,21 +8,20 @@ def air_freezing_index_Fdays(
     branch_name="main",
     working_directory="/opt/rasdaman/user_data/snapdata/",
     ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/",
-    source_file="/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/air_freezing_index.zip",
+    source_directory="/opt/rasdaman-storage/coverage_data/air_freezing_index_Fdays/",
     zip_file="air_freezing_index.zip",
     python_script="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/merge.py",
 ):
     ingest_tasks.clone_github_repository(branch_name, working_directory)
 
-    ingest_tasks.check_for_nfs_mount("/workspace/Shared")
+    if not os.path.exists(
+        os.path.join(source_directory, "air_freezing_index_Fdays.nc")
+    ):
+        ingest_tasks.unzip_files(source_directory, zip_file)
 
-    ingest_tasks.copy_data_from_nfs_mount(source_file, ingest_directory)
-
-    ingest_tasks.unzip_files(ingest_directory, zip_file)
-
-    ingest_tasks.run_python_script(
-        python_script, ingest_directory, "air_freezing_index"
-    )
+        ingest_tasks.run_python_script(
+            python_script, source_directory, "air_freezing_index"
+        )
 
     ingest_tasks.run_ingest(ingest_directory)
 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
             "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/",
-            "source_file": "/workspace/Shared/Tech_Projects/Degree_Days_NCAR12km/air_freezing_index.zip",
+            "source_directory": "/opt/rasdaman-storage/coverage_data/air_freezing_index_Fdays/",
             "zip_file": "air_freezing_index.zip",
             "python_script": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/arctic_eds/degree_days/air_freezing_index_Fdays/merge.py",
         },
