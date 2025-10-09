@@ -226,11 +226,11 @@ def link_dir(
 
 
 @task
-def create_cascade_target_grid_file(
+def create_first_regrid_target_file(
     ssh_username,
     ssh_private_key_path,
     cascade_grid_script,
-    cascade_grid_source_file,
+    first_regrid_source_file,
     scratch_dir,
     work_dir_name,
     step,
@@ -246,7 +246,7 @@ def create_cascade_target_grid_file(
     # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/first_regrid_target.nc
     cmd = f"conda activate cmip6-utils && \
             python {cascade_grid_script} \
-            --src_file {cascade_grid_source_file} \
+            --src_file {first_regrid_source_file} \
             --out_file {cascade_target_file} \
             --step {step}"
     try:
@@ -553,35 +553,40 @@ def downscale_cmip6(
     cascade_grid_script = scratch_dir.joinpath(
         repo_name, "downscaling", "make_intermediate_target_grid_file.py"
     )
-    cascade_grid_source_file = cmip6_dir.joinpath(
+
+    first_regrid_source_file = cmip6_dir.joinpath(
         "ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
     )
 
-    cascade_kwargs = {
+    first_regrid_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
-        "cascade_grid_source_file": cascade_grid_source_file,
+        "first_regrid_source_file": first_regrid_source_file,
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": "0.5",
     }
 
-    if flow_steps == "all" or "create_cascade_target_grid_file" in flow_steps_list:
-        cascade_target_file = create_cascade_target_grid_file(**cascade_kwargs)
+    if flow_steps == "all" or "create_first_regrid_target_file" in flow_steps_list:
+        first_cascade_target_file = create_first_regrid_target_file(
+            **first_regrid_kwargs
+        )
     else:
-        cascade_target_file = f"{scratch_dir}/{work_dir_name}/first_regrid_target.nc"
+        first_cascade_target_file = (
+            f"{scratch_dir}/{work_dir_name}/first_regrid_target.nc"
+        )
 
-    intermediate_out_dir_name = "first_regrid"
-    regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
+    first_regrid_out_dir_name = "first_regrid"
+    first_regrid_kwargs = base_kwargs.copy()
     regrid_variables = get_regrid_variables(variables)
     interp_method = "bilinear"
-    regrid_cmip6_intermediate_kwargs.update(
+    first_regrid_kwargs.update(
         {
             "cmip6_dir": cmip6_dir,
-            "target_grid_file": cascade_target_file,
+            "target_grid_file": first_cascade_target_file,
             "interp_method": interp_method,
-            "out_dir_name": intermediate_out_dir_name,
+            "out_dir_name": first_regrid_out_dir_name,
             "freqs": "day",
             "rasdafy": False,
             "no_clobber": False,
@@ -589,8 +594,8 @@ def downscale_cmip6(
         }
     )
 
-    if flow_steps == "all" or "first_regrid_cmip6" in flow_steps_list:
-        intermediate_regrid_dir = regrid_cmip6(**regrid_cmip6_intermediate_kwargs)
+    if flow_steps == "all" or "first_cmip6_regrid" in flow_steps_list:
+        intermediate_regrid_dir = regrid_cmip6(**first_regrid_kwargs)
     else:
         intermediate_regrid_dir = f"{scratch_dir}/{work_dir_name}/first_regrid"
 
@@ -601,19 +606,19 @@ def downscale_cmip6(
     #     "t2max/t2max_2014_era5_4km_3338.nc"
     # )
 
-    regrid_again_script = scratch_dir.joinpath(
+    final_regrid_script = scratch_dir.joinpath(
         repo_name, "regridding", "run_regrid_again.py"
     )
     regrid_script = scratch_dir.joinpath(repo_name, "regridding", "regrid.py")
 
     regrid_again_out_dir_name = "final_regrid"
     target_grid_file = target_grid_source_file
-    regrid_again_kwargs = {
+    final_regrid_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "conda_env_name": conda_env_name,
         "partition": partition,
-        "launcher_script": regrid_again_script,
+        "launcher_script": final_regrid_script,
         "regrid_script": regrid_script,
         "interp_method": interp_method,
         "target_grid_file": target_grid_file,
@@ -623,7 +628,7 @@ def downscale_cmip6(
     }
 
     if flow_steps == "all" or "final_cmip6_regrid" in flow_steps_list:
-        final_regrid_dir = final_cmip6_regrid(**regrid_again_kwargs)
+        final_regrid_dir = final_cmip6_regrid(**final_regrid_kwargs)
     else:
         final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
 
@@ -849,8 +854,8 @@ if __name__ == "__main__":
     # If not "all", specify any of these flow steps as a space-separated string:
     # - create_remote_directories
     # - clone_and_install_repo
-    # - create_cascade_target_grid_file
-    # - first_regrid_cmip6
+    # - create_first_regrid_target_file
+    # - first_cmip6_regrid
     # - final_cmip6_regrid
     # - process_dtr
     # - link_dtr_to_regrid
