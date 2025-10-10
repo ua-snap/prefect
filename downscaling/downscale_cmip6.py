@@ -235,19 +235,21 @@ def create_first_regrid_target_file(
     work_dir_name,
     step,
 ):
-    cascade_target_file = scratch_dir.joinpath(work_dir_name, "first_regrid_target.nc")
+    first_regrid_target_file = scratch_dir.joinpath(
+        work_dir_name, "first_regrid_target_file.nc"
+    )
 
     logger = get_run_logger()
-    logger.info(f"Creating target grid file {cascade_target_file}")
+    logger.info(f"Creating target grid file {first_regrid_target_file}")
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/first_regrid_target.nc
+    # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/first_regrid_target_file.nc
     cmd = f"conda activate cmip6-utils && \
             python {cascade_grid_script} \
             --src_file {first_regrid_source_file} \
-            --out_file {cascade_target_file} \
+            --out_file {first_regrid_target_file} \
             --step {step}"
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
@@ -264,7 +266,51 @@ def create_first_regrid_target_file(
         # Close the SSH connection
         ssh.close()
 
-    return cascade_target_file
+    return first_regrid_target_file
+
+
+@task
+def create_second_regrid_target_file(
+    ssh_username,
+    ssh_private_key_path,
+    cascade_grid_script,
+    second_regrid_source_file,
+    scratch_dir,
+    work_dir_name,
+    step,
+):
+    second_regrid_target_file = scratch_dir.joinpath(
+        work_dir_name, "second_regrid_target_file.nc"
+    )
+
+    logger = get_run_logger()
+    logger.info(f"Creating target grid file {second_regrid_target_file}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/second_regrid_target_file.nc
+    cmd = f"conda activate cmip6-utils && \
+            python {cascade_grid_script} \
+            --src_file {second_regrid_source_file} \
+            --out_file {second_regrid_target_file} \
+            --step {step}"
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(
+                f"Error in creating intermediate grid file for cascade regridding. Error: {stderr}"
+            )
+        if stdout != "":
+            logger.info(stdout)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+    return second_regrid_target_file
 
 
 @flow
@@ -574,7 +620,7 @@ def downscale_cmip6(
         )
     else:
         first_cascade_target_file = (
-            f"{scratch_dir}/{work_dir_name}/first_regrid_target.nc"
+            f"{scratch_dir}/{work_dir_name}/first_regrid_target_file.nc"
         )
 
     first_regrid_out_dir_name = "first_regrid"
@@ -595,9 +641,56 @@ def downscale_cmip6(
     )
 
     if flow_steps == "all" or "first_cmip6_regrid" in flow_steps_list:
-        intermediate_regrid_dir = regrid_cmip6(**first_regrid_kwargs)
+        first_regrid_dir = regrid_cmip6(**first_regrid_kwargs)
     else:
-        intermediate_regrid_dir = f"{scratch_dir}/{work_dir_name}/first_regrid"
+        first_regrid_dir = f"{scratch_dir}/{work_dir_name}/{first_regrid_out_dir_name}"
+
+    second_regrid_source_file = cmip6_dir.joinpath(
+        "ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
+    )
+
+    second_regrid_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "cascade_grid_script": cascade_grid_script,
+        "second_regrid_source_file": second_regrid_source_file,
+        "scratch_dir": scratch_dir,
+        "work_dir_name": work_dir_name,
+        "step": "0.25",
+    }
+
+    if flow_steps == "all" or "create_second_regrid_target_file" in flow_steps_list:
+        second_cascade_target_file = create_second_regrid_target_file(
+            **second_regrid_kwargs
+        )
+    else:
+        second_cascade_target_file = (
+            f"{scratch_dir}/{work_dir_name}/second_regrid_target_file.nc"
+        )
+
+    second_regrid_out_dir_name = "second_regrid"
+    second_regrid_kwargs = base_kwargs.copy()
+    regrid_variables = get_regrid_variables(variables)
+    interp_method = "bilinear"
+    second_regrid_kwargs.update(
+        {
+            "cmip6_dir": first_regrid_dir,
+            "target_grid_file": second_cascade_target_file,
+            "interp_method": interp_method,
+            "out_dir_name": second_regrid_out_dir_name,
+            "freqs": "day",
+            "rasdafy": False,
+            "no_clobber": False,
+            "variables": regrid_variables,
+        }
+    )
+
+    if flow_steps == "all" or "second_cmip6_regrid" in flow_steps_list:
+        second_regrid_dir = regrid_cmip6(**second_regrid_kwargs)
+    else:
+        second_regrid_dir = (
+            f"{scratch_dir}/{work_dir_name}/{second_regrid_out_dir_name}"
+        )
 
     ### Regridding 2: Regrid CMIP6 data to final grid
 
@@ -623,7 +716,7 @@ def downscale_cmip6(
         "interp_method": interp_method,
         "target_grid_file": target_grid_file,
         "working_dir": working_dir,
-        "regridded_dir": intermediate_regrid_dir,
+        "regridded_dir": second_regrid_dir,
         "out_dir_name": regrid_again_out_dir_name,
     }
 
@@ -856,6 +949,8 @@ if __name__ == "__main__":
     # - clone_and_install_repo
     # - create_first_regrid_target_file
     # - first_cmip6_regrid
+    # - create_second_regrid_target_file
+    # - second_cmip6_regrid
     # - final_cmip6_regrid
     # - process_dtr
     # - link_dtr_to_regrid
