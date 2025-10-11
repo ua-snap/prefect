@@ -538,6 +538,8 @@ def downscale_cmip6(
     partition,
     target_grid_source_file,
     flow_steps,
+    first_regrid_linspace_step,
+    second_regrid_linspace_step,
 ):
     # logger = get_run_logger()
 
@@ -611,7 +613,7 @@ def downscale_cmip6(
         "first_regrid_source_file": first_regrid_source_file,
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
-        "step": "0.5",
+        "step": first_regrid_linspace_step,
     }
 
     if flow_steps == "all" or "create_first_regrid_target_file" in flow_steps_list:
@@ -656,7 +658,7 @@ def downscale_cmip6(
         "second_regrid_source_file": second_regrid_source_file,
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
-        "step": "0.25",
+        "step": second_regrid_linspace_step,
     }
 
     if flow_steps == "all" or "create_second_regrid_target_file" in flow_steps_list:
@@ -943,6 +945,8 @@ if __name__ == "__main__":
     scenarios = "all"
     partition = "t2small"
     target_grid_source_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
+    first_regrid_linspace_step = 0.5
+    second_regrid_linspace_step = 0.25
 
     # If not "all", specify any of these flow steps as a space-separated string:
     # - create_remote_directories
@@ -981,6 +985,8 @@ if __name__ == "__main__":
         "partition": partition,
         "target_grid_source_file": target_grid_source_file,
         "flow_steps": flow_steps,
+        "first_regrid_linspace_step": first_regrid_linspace_step,
+        "second_regrid_linspace_step": second_regrid_linspace_step,
     }
     downscale_cmip6.serve(
         name="downscale-cmip6",
