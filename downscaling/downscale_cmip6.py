@@ -38,6 +38,7 @@ from downscaling.convert_cmip6_to_zarr import convert_cmip6_to_zarr
 from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 from bias_adjust.train_bias_adjustment import train_bias_adjustment
 from bias_adjust.bias_adjustment import bias_adjustment
+from regridding import regridding_functions as rf
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
@@ -529,7 +530,6 @@ def downscale_cmip6(
     # if no, rsync from reference_dir
 
     # here are some base kwargs that will be recycled across subflows
-
     base_kwargs = {
         # "ssh_host": ssh_host,
         # "ssh_port": ssh_port,
@@ -545,6 +545,72 @@ def downscale_cmip6(
         "variables": variables,
         "partition": partition,
     }
+
+    if flow_steps == "all" or "generate_batch_files" in flow_steps_list:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        if scenarios == "all":
+            scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+
+        try:
+            # Load the private key for key-based authentication
+            private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+
+            # Connect to the SSH server using key-based authentication
+            ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+            repo_path = utils.clone_github_repository(
+                ssh, repo_name, branch_name, scratch_dir
+            )
+
+            utils.check_for_nfs_mount(ssh, "/import/beegfs")
+
+            utils.ensure_slurm(ssh)
+
+            utils.ensure_conda(ssh)
+
+            utils.ensure_conda_env(
+                ssh, conda_env_name, repo_path.joinpath("environment.yml")
+            )
+
+            generate_batch_files_script = (
+                f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
+            )
+            run_generate_batch_files_script = (
+                f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+            )
+
+            freqs = "day"
+            batch_file_kwargs = {
+                "ssh": ssh,
+                "conda_env_name": conda_env_name,
+                "generate_batch_files_script": generate_batch_files_script,
+                "run_generate_batch_files_script": run_generate_batch_files_script,
+                "cmip6_dir": cmip6_dir,
+                "slurm_dir": slurm_dir,
+                "vars": variables,
+                "freqs": freqs,
+                "models": models,
+                "scenarios": scenarios,
+            }
+            batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
+        finally:
+            ssh.close()
+
+    ### CMIP6 DTR processing
+    process_dtr_kwargs = base_kwargs.copy()
+    del process_dtr_kwargs["variables"]
+    process_dtr_kwargs.update(
+        {
+            "input_dir": cmip6_dir,
+        }
+    )
+
+    if flow_steps == "all" or "process_dtr" in flow_steps_list:
+        cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
+    else:
+        cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
 
     ### Regridding 1: Regrid CMIP6 data to intermediate grid
     # first, run the task to create the intermediate target grid file
@@ -572,7 +638,7 @@ def downscale_cmip6(
     intermediate_out_dir_name = "intermediate_regrid"
     regrid_cmip6_intermediate_kwargs = base_kwargs.copy()
     regrid_variables = get_regrid_variables(variables)
-    interp_method = "patch"
+    interp_method = "bilinear"
     regrid_cmip6_intermediate_kwargs.update(
         {
             "cmip6_dir": cmip6_dir,
@@ -667,21 +733,6 @@ def downscale_cmip6(
     # if missing_regrid_data:
     #     regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
     # regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
-
-    ### CMIP6 DTR processing
-    # This is done after we have regridded the data to the final grid
-    process_dtr_kwargs = base_kwargs.copy()
-    del process_dtr_kwargs["variables"]
-    process_dtr_kwargs.update(
-        {
-            "input_dir": final_regrid_dir,
-        }
-    )
-
-    if flow_steps == "all" or "process_dtr" in flow_steps_list:
-        cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
-    else:
-        cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
 
     # Note on directory structure:
     # to keep things organized separately for individual tasks/flows,
@@ -846,10 +897,11 @@ if __name__ == "__main__":
     # If not "all", specify any of these flow steps as a space-separated string:
     # - create_remote_directories
     # - clone_and_install_repo
+    # - generate_batch_files
+    # - process_dtr
     # - create_cascade_target_grid_file
     # - regrid_cmip6
     # - run_regrid_cmip6_again
-    # - process_dtr
     # - link_dtr_to_regrid
     # - process_era5_dtr
     # - link_dir
