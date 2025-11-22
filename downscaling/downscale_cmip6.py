@@ -39,6 +39,7 @@ from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 from bias_adjust.train_bias_adjustment import train_bias_adjustment
 from bias_adjust.bias_adjustment import bias_adjustment
 from regridding import regridding_functions as rf
+import os
 
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
@@ -58,7 +59,7 @@ def get_regrid_variables(variables):
         str: String representation of variables list for regridding
     """
     var_list = cmip6.validate_vars(variables, return_list=True)
-    drop_vars = ["dtr"]  # dtr is not a variable in the CMIP6 data
+    drop_vars = []
     regrid_variables_list = [var for var in var_list if var not in drop_vars]
 
     if "dtr" in var_list:
@@ -595,15 +596,23 @@ def downscale_cmip6(
                 "scenarios": scenarios,
             }
             batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
+
+            utils.wait_for_jobs_completion(
+                ssh,
+                batch_job_ids,
+                completion_message="Slurm jobs for batch file generation complete.",
+            )
         finally:
             ssh.close()
+
+    batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/regrid_batch_files"
 
     ### CMIP6 DTR processing
     process_dtr_kwargs = base_kwargs.copy()
     del process_dtr_kwargs["variables"]
     process_dtr_kwargs.update(
         {
-            "input_dir": cmip6_dir,
+            "input_dir": batch_files_dir,
         }
     )
 
@@ -611,6 +620,43 @@ def downscale_cmip6(
         cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
     else:
         cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+    ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+    generate_batch_files_script = (
+        f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
+    )
+    run_generate_batch_files_script = (
+        f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+    )
+
+    if scenarios == "all":
+        scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+
+    # Add DTR files to batch files for regridding
+    freqs = "day"
+    batch_file_kwargs = {
+        "ssh": ssh,
+        "conda_env_name": conda_env_name,
+        "generate_batch_files_script": generate_batch_files_script,
+        "run_generate_batch_files_script": run_generate_batch_files_script,
+        "cmip6_dir": cmip6_dtr_dir,
+        "slurm_dir": slurm_dir,
+        "vars": "dtr",
+        "freqs": freqs,
+        "models": models,
+        "scenarios": scenarios,
+    }
+    batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
+
+    utils.wait_for_jobs_completion(
+        ssh,
+        batch_job_ids,
+        completion_message="Slurm jobs for batch file generation complete.",
+    )
 
     ### Regridding 1: Regrid CMIP6 data to intermediate grid
     # first, run the task to create the intermediate target grid file

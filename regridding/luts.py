@@ -5,6 +5,7 @@
 
 all_vars = [
     "clt",  # cloud area fraction
+    "dtr",  # diurnal temperature range
     "evspsbl",  # evaporation including sublimation and transpiration
     "hfls",  # surface upward latent heat flux
     "hfss",  # surface upward sensible heat flux

@@ -90,38 +90,6 @@ def regrid_cmip6(
             ssh, conda_env_name, repo_path.joinpath("environment.yml")
         )
 
-        batch_file_kwargs = {
-            "ssh": ssh,
-            "conda_env_name": conda_env_name,
-            "generate_batch_files_script": generate_batch_files_script,
-            "run_generate_batch_files_script": run_generate_batch_files_script,
-            "cmip6_dir": cmip6_dir,
-            "slurm_dir": slurm_dir,
-            "vars": variables,
-            "freqs": freqs,
-            "models": models,
-            "scenarios": scenarios,
-        }
-        batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
-        # batch_job_ids = rf.run_generate_batch_files(
-        #     ssh,
-        #     conda_env_name,
-        #     generate_batch_files_script,
-        #     run_generate_batch_files_script,
-        #     cmip6_dir,
-        #     regrid_batch_dir,
-        #     variables,
-        #     freqs,
-        #     models,
-        #     scenarios,
-        # )
-
-        utils.wait_for_jobs_completion(
-            ssh,
-            batch_job_ids,
-            completion_message="Slurm jobs for batch file generation complete.",
-        )
-
         run_regrid_kwargs = {
             "ssh": ssh,
             "slurm_script": slurm_script,
