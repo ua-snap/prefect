@@ -317,7 +317,7 @@ def create_second_regrid_target_file(
 
 @flow
 # putting this flow here now because it has more to do with downscaling than general regridding
-def final_cmip6_regrid(
+def another_cmip6_regrid(
     working_dir,
     launcher_script,
     conda_env_name,
@@ -782,60 +782,55 @@ def downscale_cmip6(
             f"{scratch_dir}/{work_dir_name}/second_regrid_target_file.nc"
         )
 
-    second_regrid_out_dir_name = "second_regrid"
-    second_regrid_kwargs = base_kwargs.copy()
-    regrid_variables = get_regrid_variables(variables)
-    interp_method = "bilinear"
-    second_regrid_kwargs.update(
-        {
-            "cmip6_dir": first_regrid_dir,
-            "target_grid_file": second_cascade_target_file,
-            "interp_method": interp_method,
-            "out_dir_name": second_regrid_out_dir_name,
-            "freqs": "day",
-            "rasdafy": False,
-            "no_clobber": False,
-            "variables": regrid_variables,
-        }
+    regrid_again_script = scratch_dir.joinpath(
+        repo_name, "regridding", "run_regrid_again.py"
     )
+    regrid_script = scratch_dir.joinpath(repo_name, "regridding", "regrid.py")
+
+    second_regrid_out_dir_name = "second_regrid"
+    second_regrid_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "conda_env_name": conda_env_name,
+        "partition": partition,
+        "launcher_script": regrid_again_script,
+        "regrid_script": regrid_script,
+        "interp_method": interp_method,
+        "target_grid_file": second_cascade_target_file,
+        "working_dir": working_dir,
+        "regridded_dir": first_regrid_dir,
+        "out_dir_name": second_regrid_out_dir_name,
+    }
 
     if flow_steps == "all" or "second_cmip6_regrid" in flow_steps_list:
-        second_regrid_dir = regrid_cmip6(**second_regrid_kwargs)
+        second_regrid_dir = another_cmip6_regrid(**second_regrid_kwargs)
     else:
         second_regrid_dir = (
             f"{scratch_dir}/{work_dir_name}/{second_regrid_out_dir_name}"
         )
-
-    ### Regridding 2: Regrid CMIP6 data to final grid
 
     # TO-DO: take target grid file from the reference data, e.g.:
     # target_grid_source_file = reference_dir.joinpath(
     #     "t2max/t2max_2014_era5_4km_3338.nc"
     # )
 
-    final_regrid_script = scratch_dir.joinpath(
-        repo_name, "regridding", "run_regrid_again.py"
-    )
-    regrid_script = scratch_dir.joinpath(repo_name, "regridding", "regrid.py")
-
-    regrid_again_out_dir_name = "final_regrid"
-    target_grid_file = target_grid_source_file
+    final_regrid_out_dir_name = "final_regrid"
     final_regrid_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "conda_env_name": conda_env_name,
         "partition": partition,
-        "launcher_script": final_regrid_script,
+        "launcher_script": regrid_again_script,
         "regrid_script": regrid_script,
         "interp_method": interp_method,
-        "target_grid_file": target_grid_file,
+        "target_grid_file": target_grid_source_file,
         "working_dir": working_dir,
         "regridded_dir": second_regrid_dir,
-        "out_dir_name": regrid_again_out_dir_name,
+        "out_dir_name": final_regrid_out_dir_name,
     }
 
     if flow_steps == "all" or "final_cmip6_regrid" in flow_steps_list:
-        final_regrid_dir = final_cmip6_regrid(**final_regrid_kwargs)
+        final_regrid_dir = another_cmip6_regrid(**final_regrid_kwargs)
     else:
         final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
 
