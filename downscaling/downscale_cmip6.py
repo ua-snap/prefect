@@ -158,44 +158,6 @@ def ensure_reference_data_in_scratch(
 
 
 @task
-def link_dtr_to_regrid(
-    ssh_username,
-    ssh_private_key_path,
-    dtr_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/dtr
-    regrid_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid
-):
-    logger = get_run_logger()
-    logger.info(f"Linking DTR data from {dtr_dir} to {regrid_dir}")
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        # Load the private key for key-based authentication
-        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-
-        # Connect to the SSH server using key-based authentication
-        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        cmd = (
-            f"d1={regrid_dir}; "
-            f"d2={dtr_dir}; "
-            'find "$d2" -type f | while read -r filepath; do '
-            'relpath="${filepath#$d2/}"; '
-            'destdir="$(dirname "$d1/$relpath")"; '
-            'mkdir -p "$destdir"; '
-            'ln -sf "$filepath" "$d1/$relpath"; '
-            "done"
-        )
-
-        utils.exec_command(ssh, cmd)
-
-    finally:
-        # Close the SSH connection
-        ssh.close()
-
-
-@task
 def link_dir(
     ssh_username,
     ssh_private_key_path,
@@ -833,67 +795,6 @@ def downscale_cmip6(
         final_regrid_dir = another_cmip6_regrid(**final_regrid_kwargs)
     else:
         final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
-
-    # final_target_file
-
-    # regrid_cmip6_4km_kwargs = base_kwargs.copy()
-    # regrid_cmip6_4km_kwargs.update(
-    #     {
-    #         "cmip6_dir": cmip6_dir,
-    #         "target_grid_source_file": target_grid_source_file,
-    #         "interp_method": "bilinear",
-    #         "out_dir_name": "regrid",
-    #         "freqs": "day",
-    #         "rasdafy": False,
-    #         "variables": regrid_variables,
-    #     }
-    # )
-    # check for regridded data
-    # missing_regrid_data = cmip6.check_for_derived_cmip6_data(**regrid_cmip6_kwargs)
-    # if missing_regrid_data:
-    #     regrid_dir = regrid_cmip6(**regrid_cmip6_kwargs)
-    # regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
-
-    # TO-DO: take target_grid_
-    # target_grid_source_file = reference_dir.joinpath(
-    #     "t2max/t2max_2014_era5_4km_3338.nc"
-    # )
-    ### Regrid CMIP6 to 4km ERA5 grid
-    # regrid_cmip6_kwargs = base_kwargs.copy()
-    # regrid_variables = get_regrid_variables(variables)
-    # regrid_cmip6_kwargs.update(
-    #     {
-    #         "cmip6_dir": cmip6_dir,
-    #         "target_grid_source_file": target_grid_source_file,
-    #         "interp_method": "bilinear",
-    #         "out_dir_name": "regrid",
-    #         "freqs": "day",
-    #         "rasdafy": False,
-    #         "variables": regrid_variables,
-    #     }
-    # )
-    # check for regridded data
-    # missing_regrid_data = cmip6.check_for_derived_cmip6_data(**regrid_cmip6_kwargs)
-    # if missing_regrid_data:
-    #     regrid_dir = regrid_cmip6_4km(**regrid_cmip6_kwargs)
-    # regrid_dir = "/center1/CMIP6/kmredilla/cmip6_4km_downscaling/regrid"
-
-    # Note on directory structure:
-    # to keep things organized separately for individual tasks/flows,
-    # we will not be writing outputs to the same child directories,
-    # but rather giving them their own directories and linking them
-    # (the main case here being DTR, since that is created in this flow)
-
-    # link the dtr data under the regrid directory so that it can all be accessed in the same place
-    link_dtr_kwargs = {
-        "ssh_username": ssh_username,
-        "ssh_private_key_path": ssh_private_key_path,
-        "dtr_dir": cmip6_dtr_dir,
-        "regrid_dir": final_regrid_dir,
-    }
-
-    if flow_steps == "all" or "link_dtr_to_regrid" in flow_steps_list:
-        link_dtr_to_regrid(**link_dtr_kwargs)
 
     ### ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
