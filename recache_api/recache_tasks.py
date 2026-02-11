@@ -93,11 +93,18 @@ def connect_to_umami_db():
         port=psql_port,
     )
     cursor = conn.cursor()
-    sql = """
-        SELECT url_path FROM website_event WHERE website_id IN %(website_id)s
+    # This query selects the most frequently accessed URL paths
+    # that start with "/report" for the specified website IDs,
+    # which correspond to ArcticEDS and NCR. It groups the results by
+    # URL path and orders them by request count in descending order,
+    # limiting the results to the top 500. This contains both communities
+    # and areas
+    sql = f"""
+        SELECT url_path, COUNT(*) AS request_count FROM website_event
+        WHERE website_id IN (%s, %s) AND url_path LIKE '/report%%'
+        GROUP BY url_path ORDER BY request_count DESC LIMIT 500
     """
-    params = {"website_id": umami_website_ids}
-    cursor.execute(sql, params)
+    cursor.execute(sql, umami_website_ids)
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -108,11 +115,11 @@ def sort_out_communities(rows):
     communities = []
     for row in rows:
         path = row[0]
-        # Use regex to find patterns like "AK124" for community IDs
-        match = re.search(r"[A-Z]{2}\d+", path)
+        # Use regex to find patterns like "/community/<id>" for community IDs
+        match = re.search(r"/community/(\w+)", path)
         # If a match is found, append it to the communities list
         if match:
-            communities.append(match.group())
+            communities.append(match.group(1))
     # Remove duplicates and sort the list
     communities = list(set(communities))
     communities.sort(key=lambda x: (x[:2], int(x[2:])))
@@ -122,6 +129,26 @@ def sort_out_communities(rows):
 def get_frequently_used_communities():
     rows = connect_to_umami_db()
     return sort_out_communities(rows)
+
+
+def sort_out_areas(rows):
+    """Extracts area IDs from the URL paths in the rows."""
+    areas = []
+    for row in rows:
+        path = row[0]
+        # Use regex to find patterns like "/area/<id>" for area IDs
+        match = re.search(r"/area/(\w+)", path)
+        # If a match is found, append it to the areas list
+        if match:
+            areas.append(match.group(1))
+    # Remove duplicates and sort the list
+    areas = list(set(areas))
+    return areas
+
+
+def get_frequently_used_areas():
+    rows = connect_to_umami_db()
+    return sort_out_areas(rows)
 
 
 @task(name="Recache API")
@@ -136,14 +163,20 @@ def recache_api(cached_apps, cache_url):
         Nothing. Prints the URLs being recached and their status code.
 
     """
+    # Get community coordinates from GVV
+    community_coords = get_community_coords()
+
+    # Get frequently used communities
+    community_ids = get_frequently_used_communities()
+
     if "eds" in cached_apps:
-        recache_eds(cache_url)
+        recache_eds(cache_url, community_coords, community_ids)
 
     if "ncr" in cached_apps:
-        recache_ncr(cache_url)
+        recache_ncr(cache_url, community_coords, community_ids)
 
     if "ardac" in cached_apps:
-        recache_ardac(cache_url)
+        recache_ardac(cache_url, community_coords, community_ids)
 
     logger = get_run_logger()
     logger.info(f"Status code summary: {status_counts}")
@@ -156,44 +189,39 @@ def recache_api(cached_apps, cache_url):
                 logger.error(f"  {url}")
 
 
-def recache_eds(cache_url):
-    # Fetch the list of places to cache: all Alaska communities
-    places = get_places(cache_url + "/places/communities?tags=eds")
-    get_matching_endpoints(places, eds_cached_url, "community", cache_url)
+def recache_eds(cache_url, community_coords, community_ids):
+    # Cache EDS endpoint for frequently used communities
+    for community_id in community_ids:
+        community_coord = community_coords.get(community_id)
+        if community_coord:
+            get_endpoint(eds_cached_url, community_coord, "community", cache_url)
 
 
-def recache_ncr(cache_url):
-    places_url = cache_url + "/places/all?tags=ncr"
-    places = get_places(places_url)  # has both communities (points) and areas
-
-    # Iterate over the list of URLs that need to be cached
+def recache_ncr(cache_url, community_coords, community_ids):
+    # Process frequently used communities first
     for route, route_type in ncr_cached_urls.items():
-        get_matching_endpoints(places, route, route_type, cache_url)
+        if route_type == "community":
+            for community_id in community_ids:
+                community_coord = community_coords.get(community_id)
+                if community_coord:
+                    get_endpoint(route, community_coord, "community", cache_url)
+
+    # Get frequently used areas
+    area_ids = get_frequently_used_areas()
+
+    # Process frequently used area routes
+    for route, route_type in ncr_cached_urls.items():
+        if route_type == "area":
+            for area_id in area_ids:
+                get_endpoint(route, {"id": area_id}, "area", cache_url)
 
 
-def recache_ardac(cache_url):
-    # Uses the GVV to get community coordinates
-    community_coords = get_community_coords()
-
-    # We query the Umami database to get frequently used communities
-    # This was because of the large number of communities that ARDAC can access.
-    places = get_frequently_used_communities()
-
-    for place in places:
-        community_coord = community_coords.get(place)
-        if not community_coord:
-            continue
-        for route in ardac_cached_urls:
-            get_endpoint(route, community_coord, "community", cache_url)
-
-
-# For a list of places, request every endpoint
-# where the route type (community or area) matches the place type.
-# This is because some endpoints can only take areas or points.
-def get_matching_endpoints(places, route, route_type, cache_url):
-    for place in places:
-        if route_type_matches_place_type(route_type, place):
-            get_endpoint(route, place, route_type, cache_url)
+def recache_ardac(cache_url, community_coords, community_ids):
+    for community_id in community_ids:
+        community_coord = community_coords.get(community_id)
+        if community_coord:
+            for route in ardac_cached_urls:
+                get_endpoint(route, community_coord, "community", cache_url)
 
 
 def get_endpoint(route, place, route_type, cache_url):
