@@ -31,13 +31,11 @@ ardac_cached_urls = [
     "/permafrost/point/gipl/{latitude}/{longitude}",
     "/alfresco/flammability/local/{latitude}/{longitude}",
     "/alfresco/veg_type/local/{latitude}/{longitude}",
-    "/landfastice/point/{latitude}/{longitude}",
     "/degree_days/heating/{latitude}/{longitude}",
     "/degree_days/below_zero/{latitude}/{longitude}",
     "/degree_days/thawing_index/{latitude}/{longitude}",
     "/degree_days/freezing_index/{latitude}/{longitude}",
     "/beetles/point/{latitude}/{longitude}",
     "/precipitation/frequency/point/{latitude}/{longitude}",
-    "/seaice/point/{latitude}/{longitude}",
     "/hydrology/point/{latitude}/{longitude}",
 ]
