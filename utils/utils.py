@@ -400,32 +400,59 @@ def get_job_ids(ssh, username):
 
 
 @task
-def wait_for_jobs_completion(ssh, job_ids, completion_message="Jobs completed!"):
+def wait_for_jobs_completion(
+    ssh,
+    job_ids,
+    completion_message="Jobs completed!",
+    max_retries=5,
+    retry_delay=5,
+):
     """
     Task to wait for a list of Slurm jobs to complete in the queue via SSH.
 
     Parameters:
     - ssh: Paramiko SSHClient object
     - job_ids: List of job IDs to wait for
+    - max_retries: Number of retries for transient SSH/connection errors
+    - retry_delay: Seconds to wait between retries
     """
     logger = get_run_logger()
     logger.info(f"Waiting for jobs to complete: {job_ids}")
+
     while job_ids:
-        # Check the status of each job in the list
         for job_id in job_ids.copy():
-            exit_status, stdout, stderr = exec_command(ssh, f"squeue -h -j {job_id}")
+
+            # ---- RETRY BLOCK ----
+            for attempt in range(1, max_retries + 1):
+                try:
+                    exit_status, stdout, stderr = exec_command(
+                        ssh, f"squeue -h -j {job_id}"
+                    )
+                    break  # success → exit retry loop
+                except Exception as e:
+                    logger.warning(
+                        f"Attempt {attempt}/{max_retries} failed "
+                        f"checking job {job_id}: {e}"
+                    )
+                    if attempt == max_retries:
+                        logger.exception(
+                            f"Max retries exceeded checking job {job_id}"
+                        )
+                        raise
+                    sleep(retry_delay)
+            # ---- END RETRY BLOCK ----
 
             if exit_status != 0:
                 raise Exception(
-                    f"Error checking job status for job ID {job_id}. Error: {stderr}"
+                    f"Error checking job status for job ID {job_id}. "
+                    f"Error: {stderr}"
                 )
 
-            # If the job is no longer in the queue, remove it from the list
+            # If the job is no longer in the queue, remove it
             if not stdout:
                 job_ids.remove(job_id)
 
         if job_ids:
-            # Sleep for a while before checking again
             sleep(10)
 
     logger.info(completion_message)
