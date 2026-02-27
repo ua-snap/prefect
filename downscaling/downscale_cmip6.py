@@ -619,6 +619,10 @@ def downscale_cmip6(
 
     batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/regrid_batch_files"
 
+    # Check if DTR processing is needed
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    needs_dtr = "dtr" in var_list
+
     ### CMIP6 DTR processing
     process_dtr_kwargs = base_kwargs.copy()
     del process_dtr_kwargs["variables"]
@@ -628,47 +632,48 @@ def downscale_cmip6(
         }
     )
 
-    if flow_steps == "all" or "process_dtr" in flow_steps_list:
+    if needs_dtr and (flow_steps == "all" or "process_dtr" in flow_steps_list):
         cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
     else:
         cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-    ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+    if needs_dtr:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-    generate_batch_files_script = (
-        f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
-    )
-    run_generate_batch_files_script = (
-        f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
-    )
+        generate_batch_files_script = (
+            f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
+        )
+        run_generate_batch_files_script = (
+            f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+        )
 
-    if scenarios == "all":
-        scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+        if scenarios == "all":
+            scenarios = "historical ssp126 ssp245 ssp370 ssp585"
 
-    # Add DTR files to batch files for regridding
-    freqs = "day"
-    batch_file_kwargs = {
-        "ssh": ssh,
-        "conda_env_name": conda_env_name,
-        "generate_batch_files_script": generate_batch_files_script,
-        "run_generate_batch_files_script": run_generate_batch_files_script,
-        "cmip6_dir": cmip6_dtr_dir,
-        "slurm_dir": slurm_dir,
-        "vars": "dtr",
-        "freqs": freqs,
-        "models": models,
-        "scenarios": scenarios,
-    }
-    batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
+        # Add DTR files to batch files for regridding
+        freqs = "day"
+        batch_file_kwargs = {
+            "ssh": ssh,
+            "conda_env_name": conda_env_name,
+            "generate_batch_files_script": generate_batch_files_script,
+            "run_generate_batch_files_script": run_generate_batch_files_script,
+            "cmip6_dir": cmip6_dtr_dir,
+            "slurm_dir": slurm_dir,
+            "vars": "dtr",
+            "freqs": freqs,
+            "models": models,
+            "scenarios": scenarios,
+        }
+        batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
 
-    utils.wait_for_jobs_completion(
-        ssh,
-        batch_job_ids,
-        completion_message="Slurm jobs for batch file generation complete.",
-    )
+        utils.wait_for_jobs_completion(
+            ssh,
+            batch_job_ids,
+            completion_message="Slurm jobs for batch file generation complete.",
+        )
 
     ### Regridding 1: Regrid CMIP6 data to intermediate grid
     # first, run the task to create the intermediate target grid file
@@ -807,7 +812,7 @@ def downscale_cmip6(
         }
     )
 
-    if flow_steps == "all" or "process_era5_dtr" in flow_steps_list:
+    if needs_dtr and (flow_steps == "all" or "process_era5_dtr" in flow_steps_list):
         era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
     else:
         era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
@@ -820,7 +825,7 @@ def downscale_cmip6(
         "target_dir": era5_target_dtr_dir,
     }
 
-    if flow_steps == "all" or "link_dir" in flow_steps_list:
+    if needs_dtr and (flow_steps == "all" or "link_dir" in flow_steps_list):
         link_dir(**link_era5_dtr_kwargs)
 
     ref_data_check_kwargs = {
@@ -906,7 +911,7 @@ def downscale_cmip6(
         }
     )
 
-    if flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list:
+    if needs_dtr and (flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list):
         derive_cmip6_tasmin(**derive_tasmin_kwargs)
 
     derive_era5_tasmin_kwargs = {
@@ -919,7 +924,7 @@ def downscale_cmip6(
         "partition": partition,
     }
 
-    if flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list:
+    if needs_dtr and (flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list):
         derive_era5_tasmin(**derive_era5_tasmin_kwargs)
 
 
