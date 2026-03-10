@@ -198,6 +198,7 @@ def create_first_regrid_target_file(
     scratch_dir,
     work_dir_name,
     step,
+    resolution,
 ):
     first_regrid_target_file = scratch_dir.joinpath(
         work_dir_name, "first_regrid_target_file.nc"
@@ -214,7 +215,8 @@ def create_first_regrid_target_file(
             python {cascade_grid_script} \
             --src_file {first_regrid_source_file} \
             --out_file {first_regrid_target_file} \
-            --step {step}"
+            --step {step} \
+            --resolution {resolution}"
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -242,6 +244,7 @@ def create_second_regrid_target_file(
     scratch_dir,
     work_dir_name,
     step,
+    resolution,
 ):
     second_regrid_target_file = scratch_dir.joinpath(
         work_dir_name, "second_regrid_target_file.nc"
@@ -258,7 +261,8 @@ def create_second_regrid_target_file(
             python {cascade_grid_script} \
             --src_file {second_regrid_source_file} \
             --out_file {second_regrid_target_file} \
-            --step {step}"
+            --step {step} \
+            --resolution {resolution}"
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -694,6 +698,7 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": first_regrid_linspace_step,
+        "resolution": resolution,
     }
 
     if flow_steps == "all" or "create_first_regrid_target_file" in flow_steps_list:
@@ -739,6 +744,7 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": second_regrid_linspace_step,
+        "resolution": resolution,
     }
 
     if flow_steps == "all" or "create_second_regrid_target_file" in flow_steps_list:
