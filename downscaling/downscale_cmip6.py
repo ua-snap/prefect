@@ -504,6 +504,7 @@ def downscale_cmip6(
     flow_steps,
     first_regrid_linspace_step,
     second_regrid_linspace_step,
+    resolution,
 ):
     # logger = get_run_logger()
 
@@ -809,6 +810,7 @@ def downscale_cmip6(
     process_era5_dtr_kwargs.update(
         {
             "era5_dir": reference_dir,
+            "resolution": resolution,
         }
     )
 
@@ -847,6 +849,7 @@ def downscale_cmip6(
     convert_era5_to_zarr_kwargs.update(
         variables=era5_vars,
         netcdf_dir=reference_dir,
+        resolution=resolution,
     )
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
@@ -945,6 +948,7 @@ if __name__ == "__main__":
     target_grid_source_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
+    resolution = 4
 
     # If not "all", specify any of these flow steps as a space-separated string:
     # - create_remote_directories
@@ -985,6 +989,7 @@ if __name__ == "__main__":
         "flow_steps": flow_steps,
         "first_regrid_linspace_step": first_regrid_linspace_step,
         "second_regrid_linspace_step": second_regrid_linspace_step,
+        "resolution": resolution,
     }
     downscale_cmip6.serve(
         name="downscale-cmip6",

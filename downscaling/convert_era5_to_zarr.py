@@ -27,6 +27,7 @@ def run_convert_era5_netcdf_to_zarr(
     output_dir,
     variables,
     slurm_dir,
+    resolution,
 ):
     """This function will ssh to the remote server and run the slurm launcher script"""
     logger = get_run_logger()
@@ -40,7 +41,8 @@ def run_convert_era5_netcdf_to_zarr(
         f"--netcdf_dir {netcdf_dir} "
         f"--output_dir {output_dir} "
         f"--variables '{variables}' "
-        f"--slurm_dir {slurm_dir}"
+        f"--slurm_dir {slurm_dir} "
+        f"--resolution {resolution}"
     )
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
@@ -74,6 +76,7 @@ def convert_era5_to_zarr(
     scratch_dir,  # e.g. /center1/CMIP6/kmredilla
     work_dir_name,  # e.g. zarr_bias_adjust_inputs
     partition,
+    resolution,
 ):
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -119,6 +122,7 @@ def convert_era5_to_zarr(
             "output_dir": output_dir,
             "slurm_dir": slurm_dir,
             "partition": partition,
+            "resolution": str(resolution),
         }
         job_ids = run_convert_era5_netcdf_to_zarr(**kwargs)
 
