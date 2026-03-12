@@ -484,7 +484,6 @@ def check_job_exit_status(ssh, job_id):
     return all_succeeded, failed_tasks, total_tasks
 
 
-@task
 def wait_for_jobs_completion(
     ssh,
     job_ids,
@@ -494,7 +493,7 @@ def wait_for_jobs_completion(
     validate_exit_status=True,
 ):
     """
-    Task to wait for a list of Slurm jobs to complete in the queue via SSH.
+    Wait for a list of Slurm jobs to complete in the queue via SSH.
 
     NOW VALIDATES JOB EXIT STATUS using sacct after jobs finish!
 
