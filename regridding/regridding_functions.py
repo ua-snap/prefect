@@ -43,6 +43,10 @@ def run_generate_batch_files(
     )
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
+    # Print stderr to show progress messages
+    if stderr:
+        print(stderr)
+
     # Check the exit status for errors
     if exit_status != 0:
         raise Exception(f"Error generating batch files. Error: {stderr}")
@@ -125,6 +129,10 @@ def run_regridding(
         cmd += " --rasdafy"
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+
+    # Print stderr to show progress messages (batch discovery, script creation, etc.)
+    if stderr:
+        print(stderr)
 
     # Check the exit status for errors
     if exit_status != 0:
@@ -230,6 +238,10 @@ def run_qc(
             f" --vars '{variables}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
         ),
     )
+
+    # Print stderr to show progress messages
+    if stderr:
+        print(stderr)
 
     # Check the exit status for errors
     if exit_status != 0:
