@@ -491,6 +491,7 @@ def wait_for_jobs_completion(
     max_retries=5,
     retry_delay=5,
     validate_exit_status=True,
+    logger=None,
 ):
     """
     Wait for a list of Slurm jobs to complete in the queue via SSH.
@@ -503,11 +504,13 @@ def wait_for_jobs_completion(
     - max_retries: Number of retries for transient SSH/connection errors
     - retry_delay: Seconds to wait between retries
     - validate_exit_status: If True, check job exit codes after completion (default: True)
+    - logger: Prefect logger instance (if None, will attempt to get run logger)
 
     Raises:
     - Exception: If any jobs failed (after validation)
     """
-    logger = get_run_logger()
+    if logger is None:
+        logger = get_run_logger()
     logger.info(f"Waiting for jobs to complete: {job_ids}")
 
     while job_ids:
@@ -614,6 +617,9 @@ def wait_for_jobs_with_retry(
     - Exception: If jobs still fail after max retries
     """
     logger = get_run_logger()
+
+    # Pass logger to nested function calls
+    wait_kwargs["logger"] = logger
 
     all_job_ids = list(job_ids)  # Track all jobs including retries
     current_retry = 0
@@ -756,14 +762,16 @@ def _format_task_ids_for_slurm(task_ids):
     return ",".join(ranges)
 
 
-def create_directories(ssh, dir_list):
+def create_directories(ssh, dir_list, logger=None):
     """Creates directories if they don't exist, otherwise does nothing.
 
     Parameters:
     - ssh: Paramiko SSHClient object, "connected"
     - dir_list: List of directories to create
+    - logger: Prefect logger instance (if None, will attempt to get run logger)
     """
-    logger = get_run_logger()
+    if logger is None:
+        logger = get_run_logger()
     for directory in dir_list:
         exit_status, stdout, stderr = exec_command(
             ssh, f"test -d {directory} && echo 1 || echo 0"

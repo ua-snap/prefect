@@ -436,7 +436,7 @@ def derive_cmip6_tasmin(
 
         job_ids = utils.parse_job_ids(stdout)
 
-        utils.wait_for_jobs_completion(ssh, job_ids)
+        utils.wait_for_jobs_completion(ssh, job_ids, logger=logger)
 
     finally:
         # Close the SSH connection
@@ -490,7 +490,7 @@ def derive_era5_tasmin(
 
         job_ids = utils.parse_job_ids(stdout)
 
-        utils.wait_for_jobs_completion(ssh, job_ids)
+        utils.wait_for_jobs_completion(ssh, job_ids, logger=logger)
 
     finally:
         # Close the SSH connection
@@ -518,7 +518,7 @@ def downscale_cmip6(
     second_regrid_linspace_step,
     resolution,
 ):
-    # logger = get_run_logger()
+    logger = get_run_logger()
 
     reference_dir = Path(reference_dir)
     cmip6_dir = Path(cmip6_dir)
@@ -626,6 +626,7 @@ def downscale_cmip6(
                 ssh,
                 batch_job_ids,
                 completion_message="Slurm jobs for batch file generation complete.",
+                logger=logger,
             )
         finally:
             ssh.close()
@@ -686,6 +687,7 @@ def downscale_cmip6(
             ssh,
             batch_job_ids,
             completion_message="Slurm jobs for batch file generation complete.",
+            logger=logger,
         )
 
     ### Regridding 1: Regrid CMIP6 data to intermediate grid
