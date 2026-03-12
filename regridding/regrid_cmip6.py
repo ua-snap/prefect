@@ -111,10 +111,17 @@ def regrid_cmip6(
         }
         regrid_job_ids = rf.run_regridding(**run_regrid_kwargs)
 
-        utils.wait_for_jobs_completion(
+        # Use retry logic for array job failures
+        # The regrid script now creates an array job, so we can automatically
+        # resubmit failed tasks
+        sbatch_script = f"{working_dir}/first_regrid/slurm/regrid/regrid_array.slurm"
+        utils.wait_for_jobs_with_retry(
             ssh,
             regrid_job_ids,
+            sbatch_script,
             completion_message="Slurm jobs for regridding complete.",
+            max_retries=3,
+            retry_delay=60,
         )
 
         qc_kwargs = {

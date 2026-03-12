@@ -339,9 +339,17 @@ def another_cmip6_regrid(
             f"CMIP6 regridding to final grid job submitted! (job ID: {job_ids[0]})"
         )
 
-        utils.wait_for_jobs_completion(
+        # Find the sbatch script for potential retry
+        sbatch_script = slurm_dir.joinpath("regrid_again.slurm")
+
+        # Use retry logic to handle intermittent 0:53 errors
+        final_job_ids = utils.wait_for_jobs_with_retry(
             ssh,
             job_ids,
+            sbatch_script_path=sbatch_script if sbatch_script.exists() else None,
+            max_job_retries=3,
+            retry_delay=60,
+            exponential_backoff=True,
             completion_message="Slurm jobs for final regridding complete.",
         )
 
@@ -873,7 +881,7 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "convert_cmip6_to_zarr" in flow_steps_list:
         cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
-        #time.sleep(1800)
+        # time.sleep(1800)
     else:
         cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
 
@@ -889,7 +897,7 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "train_bias_adjustment" in flow_steps_list:
         train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-        #time.sleep(1800)
+        # time.sleep(1800)
     else:
         train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
 

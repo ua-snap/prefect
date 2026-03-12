@@ -147,9 +147,17 @@ def convert_cmip6_to_zarr(
         }
         job_ids = run_convert_cmip6_netcdf_to_zarr(**kwargs)
 
-        utils.wait_for_jobs_completion(
+        # Find the sbatch script for retry logic
+        sbatch_script = slurm_dir.joinpath("convert_cmip6_netcdf_to_zarr.slurm")
+
+        # Use retry logic to handle intermittent 0:53 errors
+        final_job_ids = utils.wait_for_jobs_with_retry(
             ssh,
             job_ids,
+            sbatch_script_path=sbatch_script if sbatch_script.exists() else None,
+            max_job_retries=3,
+            retry_delay=60,
+            exponential_backoff=True,
             completion_message="Slurm jobs for Zarr conversion complete.",
         )
 
