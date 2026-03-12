@@ -484,6 +484,7 @@ def check_job_exit_status(ssh, job_id):
     return all_succeeded, failed_tasks, total_tasks
 
 
+@task
 def wait_for_jobs_completion(
     ssh,
     job_ids,
@@ -580,6 +581,7 @@ def wait_for_jobs_completion(
     logger.info(completion_message)
 
 
+@task
 def wait_for_jobs_with_retry(
     ssh,
     job_ids,
