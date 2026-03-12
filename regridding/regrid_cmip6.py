@@ -4,6 +4,7 @@ Regridded data is written to <scratch_dir>/<work_dir_name>/regrid
 """
 
 from prefect import flow
+from prefect.logging import get_run_logger
 import paramiko
 from pathlib import Path
 from regridding import regridding_functions as rf
@@ -39,6 +40,8 @@ def regrid_cmip6(
     target_sftlf_fp=None,
     partition="t2small",
 ):
+    logger = get_run_logger()
+
     variables = rf.validate_vars(variables)
     freqs = rf.validate_freqs(freqs)
     models = rf.validate_models(models)
@@ -122,6 +125,7 @@ def regrid_cmip6(
             completion_message="Slurm jobs for regridding complete.",
             max_retries=3,
             retry_delay=60,
+            logger=logger,
         )
 
         qc_kwargs = {
@@ -139,7 +143,9 @@ def regrid_cmip6(
         }
         qc_job_ids = rf.run_qc(**qc_kwargs)
 
-        utils.wait_for_jobs_completion(ssh, qc_job_ids, "Slurm jobs for QC complete.")
+        utils.wait_for_jobs_completion(
+            ssh, qc_job_ids, "Slurm jobs for QC complete.", logger=logger
+        )
 
     finally:
         ssh.close()
