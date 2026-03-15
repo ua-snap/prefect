@@ -295,16 +295,26 @@ def another_cmip6_regrid(
     ssh_username,
     ssh_private_key_path,
     out_dir_name,
+    stage,
 ):
-    """Flow for regridding CMIP6 data that has been regridded once and so is all on a common grid."""
+    """Flow for regridding CMIP6 data that has been regridded once and so is all on a common grid.
+
+    Parameters
+    ----------
+    stage : str
+        Regridding stage identifier ('second' or 'final')
+    """
     logger = get_run_logger()
-    logger.info(f"Regridding CMIP6 data again to {target_grid_file}")
+    logger.info(f"Regridding CMIP6 data ({stage} stage) to {target_grid_file}")
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     slurm_dir = working_dir.joinpath("slurm")
-    regrid_again_batch_dir = slurm_dir.joinpath("regrid_again_batch")
+    # Deprecated: regrid_again_batch_dir is now created within stage-specific subdirectory
+    regrid_again_batch_dir = slurm_dir.joinpath(
+        "regrid_again_batch"
+    )  # Keep for backward compatibility in args
     output_dir = working_dir.joinpath(out_dir_name)
 
     cmd = (
@@ -319,6 +329,7 @@ def another_cmip6_regrid(
         f"--regridded_dir {regridded_dir} "
         f"--regrid_again_batch_dir {regrid_again_batch_dir} "
         f"--output_dir {output_dir} "
+        f"--stage {stage} "
     )
 
     try:
@@ -336,11 +347,12 @@ def another_cmip6_regrid(
         ), f"More than one job ID given for final regridding: {job_ids}"
 
         logger.info(
-            f"CMIP6 regridding to final grid job submitted! (job ID: {job_ids[0]})"
+            f"CMIP6 regridding ({stage} stage) job submitted! (job ID: {job_ids[0]})"
         )
 
-        # Find the sbatch script for potential retry
-        sbatch_script = slurm_dir.joinpath("regrid_again.slurm")
+        # Find the sbatch script for potential retry in stage-specific subdirectory
+        slurm_subdir = slurm_dir.joinpath(f"{stage}_regrid")
+        sbatch_script = slurm_subdir.joinpath(f"regrid_{stage}.slurm")
 
         # Use retry logic to handle intermittent 0:53 errors
         final_job_ids = utils.wait_for_jobs_with_retry(
@@ -350,7 +362,7 @@ def another_cmip6_regrid(
             max_job_retries=3,
             retry_delay=60,
             exponential_backoff=True,
-            completion_message="Slurm jobs for final regridding complete.",
+            completion_message=f"Slurm jobs for {stage} regridding complete.",
         )
 
     finally:
@@ -631,7 +643,7 @@ def downscale_cmip6(
         finally:
             ssh.close()
 
-    batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/regrid_batch_files"
+    batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/first_regrid/batch"
 
     # Check if DTR processing is needed
     var_list = cmip6.validate_vars(variables, return_list=True)
@@ -784,6 +796,7 @@ def downscale_cmip6(
         "working_dir": working_dir,
         "regridded_dir": first_regrid_dir,
         "out_dir_name": second_regrid_out_dir_name,
+        "stage": "second",
     }
 
     if flow_steps == "all" or "second_cmip6_regrid" in flow_steps_list:
@@ -811,6 +824,7 @@ def downscale_cmip6(
         "working_dir": working_dir,
         "regridded_dir": second_regrid_dir,
         "out_dir_name": final_regrid_out_dir_name,
+        "stage": "final",
     }
 
     if flow_steps == "all" or "final_cmip6_regrid" in flow_steps_list:

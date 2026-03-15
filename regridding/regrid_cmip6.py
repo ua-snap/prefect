@@ -62,7 +62,7 @@ def regrid_cmip6(
     working_dir = f"{scratch_dir}/{work_dir_name}"
     slurm_dir = f"{working_dir}/slurm"
     output_dir = f"{working_dir}/{out_dir_name}"
-    regrid_batch_dir = f"{slurm_dir}/regrid_batch_files"
+    regrid_batch_dir = f"{slurm_dir}/first_regrid/batch"
 
     # target regridding file - all files will be regridded to the grid in this file
     # target_grid_fp = f"{cmip6_dir}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
@@ -117,12 +117,12 @@ def regrid_cmip6(
         # Use retry logic for array job failures
         # The regrid script now creates an array job, so we can automatically
         # resubmit failed tasks
-        sbatch_script = f"{working_dir}/first_regrid/slurm/regrid/regrid_array.slurm"
+        sbatch_script = f"{slurm_dir}/first_regrid/regrid_first.slurm"
         utils.wait_for_jobs_with_retry(
             ssh,
             regrid_job_ids,
             sbatch_script,
-            completion_message="Slurm jobs for regridding complete.",
+            completion_message="Slurm jobs for first regridding complete.",
             max_retries=3,
             retry_delay=60,
             logger=logger,
