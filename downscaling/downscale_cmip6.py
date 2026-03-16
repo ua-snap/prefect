@@ -68,7 +68,8 @@ def get_regrid_variables(variables):
 
     # For DTR calculation or tasmin derivation, ensure we have source variables
     if "dtr" in var_list or "tasmin" in var_list:
-        if "tasmin" not in var_list:  # Need raw tasmin for DTR calculation
+        # Need raw tasmin for DTR calculation - add it back if it was removed
+        if "tasmin" not in regrid_variables_list:
             regrid_variables_list.append("tasmin")
         if "tasmax" not in regrid_variables_list:
             regrid_variables_list.append("tasmax")
