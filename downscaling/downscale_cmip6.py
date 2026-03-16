@@ -110,6 +110,62 @@ def clone_and_install_repo(
 
 
 @task
+def prune_empty_directories(
+    ssh_username,
+    ssh_private_key_path,
+    base_dir,
+):
+    """Remove empty scenario directories from DTR output.
+
+    Some models don't have data for all scenarios, but the DTR script creates
+    directory structures for all scenarios anyway. This removes empty ones.
+
+    Parameters
+    ----------
+    base_dir : Path or str
+        Base directory containing model/scenario/frequency/variable structure
+    """
+    logger = get_run_logger()
+    logger.info(f"Pruning empty directories from {base_dir}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        # Find all scenario directories (they're at depth 2: model/scenario/)
+        # Check if they contain any files recursively
+        cmd = f"""
+        cd {base_dir} 2>/dev/null || exit 0
+        for model_dir in */; do
+            [ -d "$model_dir" ] || continue
+            cd "$model_dir"
+            for scenario_dir in */; do
+                [ -d "$scenario_dir" ] || continue
+                # Count files in scenario directory tree
+                file_count=$(find "$scenario_dir" -type f 2>/dev/null | wc -l)
+                if [ "$file_count" -eq 0 ]; then
+                    echo "Removing empty: $model_dir$scenario_dir"
+                    rm -rf "$scenario_dir"
+                fi
+            done
+            cd ..
+        done
+        """
+
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if stdout:
+            logger.info(f"Pruned directories:\n{stdout}")
+        if exit_status != 0 and stderr:
+            logger.warning(f"Warning during pruning: {stderr}")
+
+    finally:
+        ssh.close()
+
+
+@task
 def ensure_reference_data_in_scratch(
     ssh_username,
     ssh_private_key_path,
@@ -660,9 +716,16 @@ def downscale_cmip6(
 
     if needs_dtr and (flow_steps == "all" or "process_dtr" in flow_steps_list):
         cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
+        # Remove empty scenario directories (some models don't have all scenarios)
+        prune_empty_directories(
+            ssh_username=ssh_username,
+            ssh_private_key_path=ssh_private_key_path,
+            base_dir=cmip6_dtr_dir,
+        )
     else:
         cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
 
+    ### Prep DTR data for regridding by adding DTR files to batch files for regridding step
     if needs_dtr:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
