@@ -21,7 +21,7 @@ The flow consists of the following steps:
 8. Convert CMIP6 data to Zarr format.
 9. Train bias adjustment model using historical data only. Weights/ adjustment factors are saved on a model + variable basis.
 10. Apply bias adjustment to the regridded CMIP6 data using the trained model.
-11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if DTR is requested in flow parameters)
+11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if tasmin is requested in flow parameters)
 """
 
 import time
@@ -62,15 +62,47 @@ def get_regrid_variables(variables):
     drop_vars = []
     regrid_variables_list = [var for var in var_list if var not in drop_vars]
 
-    if "dtr" in var_list:
-        if "tasmin" not in var_list:
+    # If user requested tasmin, exclude it (we'll derive it from tasmax - dtr)
+    if "tasmin" in var_list:
+        regrid_variables_list = [v for v in regrid_variables_list if v != "tasmin"]
+
+    # For DTR calculation or tasmin derivation, ensure we have source variables
+    if "dtr" in var_list or "tasmin" in var_list:
+        if "tasmin" not in var_list:  # Need raw tasmin for DTR calculation
             regrid_variables_list.append("tasmin")
-        if "tasmax" not in var_list:
+        if "tasmax" not in regrid_variables_list:
             regrid_variables_list.append("tasmax")
 
     regrid_variables = " ".join(regrid_variables_list)
 
     return regrid_variables
+
+
+def get_processing_variables(variables):
+    """Get variables that should be processed through zarr/train/bias_adjust pipeline.
+
+    Excludes tasmin if user requested it, since it will be derived from tasmax - dtr.
+
+    Parameters:
+        variables (str): String representation of variables list
+
+    Returns:
+        str: String representation of variables list for processing
+    """
+    var_list = cmip6.validate_vars(variables, return_list=True)
+
+    # Exclude tasmin if user requested it (we'll derive it later)
+    processing_list = [v for v in var_list if v != "tasmin"]
+
+    # For deriving tasmin, we need tasmax and dtr to be processed
+    if "tasmin" in var_list:
+        if "tasmax" not in processing_list:
+            processing_list.append("tasmax")
+        if "dtr" not in processing_list:
+            processing_list.append("dtr")
+
+    processing_variables = " ".join(processing_list)
+    return processing_variables
 
 
 @flow
@@ -683,7 +715,7 @@ def downscale_cmip6(
                 "run_generate_batch_files_script": run_generate_batch_files_script,
                 "cmip6_dir": cmip6_dir,
                 "slurm_dir": slurm_dir,
-                "vars": variables,
+                "vars": get_regrid_variables(variables),
                 "freqs": freqs,
                 "models": models,
                 "scenarios": scenarios,
@@ -704,6 +736,7 @@ def downscale_cmip6(
     # Check if DTR processing is needed
     var_list = cmip6.validate_vars(variables, return_list=True)
     needs_dtr = "dtr" in var_list
+    needs_era5_dtr = "dtr" in var_list or "tasmin" in var_list
 
     ### CMIP6 DTR processing
     process_dtr_kwargs = base_kwargs.copy()
@@ -907,7 +940,9 @@ def downscale_cmip6(
         }
     )
 
-    if needs_dtr and (flow_steps == "all" or "process_era5_dtr" in flow_steps_list):
+    if needs_era5_dtr and (
+        flow_steps == "all" or "process_era5_dtr" in flow_steps_list
+    ):
         era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
     else:
         era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
@@ -938,7 +973,8 @@ def downscale_cmip6(
 
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
-    era5_vars = cmip6.cmip6_to_era5_variables(variables)
+    processing_vars = get_processing_variables(variables)
+    era5_vars = cmip6.cmip6_to_era5_variables(processing_vars)
     convert_era5_to_zarr_kwargs.update(
         variables=era5_vars,
         netcdf_dir=reference_dir,
@@ -954,6 +990,8 @@ def downscale_cmip6(
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
+    processing_vars = get_processing_variables(variables)
+    convert_cmip6_to_zarr_kwargs["variables"] = processing_vars
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
     )
@@ -966,6 +1004,8 @@ def downscale_cmip6(
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
+    processing_vars = get_processing_variables(variables)
+    train_bias_adjust_kwargs["variables"] = processing_vars
     del train_bias_adjust_kwargs["scenarios"]
     train_bias_adjust_kwargs.update(
         {
@@ -982,6 +1022,8 @@ def downscale_cmip6(
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
+    processing_vars = get_processing_variables(variables)
+    bias_adjust_kwargs["variables"] = processing_vars
     bias_adjust_kwargs.update(
         {
             "sim_dir": cmip6_zarr_dir,
@@ -998,7 +1040,7 @@ def downscale_cmip6(
     del derive_tasmin_kwargs["work_dir_name"]
     del derive_tasmin_kwargs["variables"]
     del derive_tasmin_kwargs["branch_name"]
-    tasmin_output_dir = working_dir.joinpath("cmip6_tasmin")
+    tasmin_output_dir = adjusted_dir
     derive_tasmin_kwargs.update(
         {
             "input_dir": adjusted_dir,
@@ -1007,7 +1049,10 @@ def downscale_cmip6(
         }
     )
 
-    if needs_dtr and (flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list):
+    needs_tasmin_derivation = "tasmin" in var_list
+    if needs_tasmin_derivation and (
+        flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list
+    ):
         derive_cmip6_tasmin(**derive_tasmin_kwargs)
 
     derive_era5_tasmin_kwargs = {
@@ -1020,7 +1065,10 @@ def downscale_cmip6(
         "partition": partition,
     }
 
-    if needs_dtr and (flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list):
+    needs_tasmin_derivation = "tasmin" in var_list
+    if needs_tasmin_derivation and (
+        flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list
+    ):
         derive_era5_tasmin(**derive_era5_tasmin_kwargs)
 
 
