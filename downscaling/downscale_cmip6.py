@@ -295,7 +295,7 @@ def link_dir(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        cmd = f"ln -sf {target_dir} {target_dir}"
+        cmd = f"ln -sf {src_dir} {target_dir}"
 
         utils.exec_command(ssh, cmd)
 
@@ -989,6 +989,20 @@ def downscale_cmip6(
     else:
         final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
 
+    ### Ensure reference data is in scratch space FIRST (before creating symlinks)
+    ref_data_check_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "reference_dir": reference_dir,
+        "scratch_dir": scratch_dir,
+        "working_dir": working_dir,
+    }
+
+    if flow_steps == "all" or "ensure_reference_data_in_scratch" in flow_steps_list:
+        reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
+    else:
+        reference_dir = f"{scratch_dir}/{work_dir_name}/ref_netcdf"
+
     ### ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
     del process_era5_dtr_kwargs["variables"]
@@ -1008,6 +1022,7 @@ def downscale_cmip6(
     else:
         era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
 
+    ### Link ERA5 DTR to reference directory (after reference data is in scratch)
     era5_target_dtr_dir = reference_dir.joinpath("dtr")
     link_era5_dtr_kwargs = {
         "ssh_username": ssh_username,
@@ -1018,19 +1033,6 @@ def downscale_cmip6(
 
     if needs_dtr and (flow_steps == "all" or "link_dir" in flow_steps_list):
         link_dir(**link_era5_dtr_kwargs)
-
-    ref_data_check_kwargs = {
-        "ssh_username": ssh_username,
-        "ssh_private_key_path": ssh_private_key_path,
-        "reference_dir": reference_dir,
-        "scratch_dir": scratch_dir,
-        "working_dir": working_dir,
-    }
-
-    if flow_steps == "all" or "ensure_reference_data_in_scratch" in flow_steps_list:
-        reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
-    else:
-        reference_dir = f"{scratch_dir}/{work_dir_name}/ref_netcdf"
 
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
