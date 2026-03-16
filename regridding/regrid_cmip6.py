@@ -123,8 +123,9 @@ def regrid_cmip6(
             regrid_job_ids,
             sbatch_script,
             completion_message="Slurm jobs for first regridding complete.",
-            max_retries=3,
+            max_job_retries=5,
             retry_delay=60,
+            exponential_backoff=True,
             logger=logger,
         )
 

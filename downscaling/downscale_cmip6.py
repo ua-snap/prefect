@@ -537,7 +537,22 @@ def derive_cmip6_tasmin(
 
         job_ids = utils.parse_job_ids(stdout)
 
-        utils.wait_for_jobs_completion(ssh, job_ids, logger=logger)
+        # Use retry logic to handle intermittent 0:53 errors
+        derive_slurm_subdir = Path(slurm_dir) / "derive_tasmin"
+        derive_sbatch_script = derive_slurm_subdir / "process_cmip6_diff_tasmin.slurm"
+
+        final_job_ids = utils.wait_for_jobs_with_retry(
+            ssh,
+            job_ids,
+            sbatch_script_path=(
+                derive_sbatch_script if derive_sbatch_script.exists() else None
+            ),
+            max_job_retries=5,
+            retry_delay=60,
+            exponential_backoff=True,
+            logger=logger,
+            completion_message="Slurm job for deriving CMIP6 tasmin complete.",
+        )
 
     finally:
         # Close the SSH connection
@@ -591,7 +606,26 @@ def derive_era5_tasmin(
 
         job_ids = utils.parse_job_ids(stdout)
 
-        utils.wait_for_jobs_completion(ssh, job_ids, logger=logger)
+        # Use retry logic to handle intermittent 0:53 errors
+        derive_era5_slurm_subdir = Path(slurm_dir) / "derive_era5_tasmin"
+        derive_era5_sbatch_script = (
+            derive_era5_slurm_subdir / "process_era5_diff_tasmin.slurm"
+        )
+
+        final_job_ids = utils.wait_for_jobs_with_retry(
+            ssh,
+            job_ids,
+            sbatch_script_path=(
+                derive_era5_sbatch_script
+                if derive_era5_sbatch_script.exists()
+                else None
+            ),
+            max_job_retries=5,
+            retry_delay=60,
+            exponential_backoff=True,
+            logger=logger,
+            completion_message="Slurm job for deriving ERA5 tasmin complete.",
+        )
 
     finally:
         # Close the SSH connection

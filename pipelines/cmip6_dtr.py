@@ -115,9 +115,19 @@ def process_dtr(
         }
         job_ids = run_process_dtr(**kwargs)
 
-        utils.wait_for_jobs_completion(
+        # Use retry logic to handle intermittent 0:53 errors
+        dtr_slurm_subdir = slurm_dir.joinpath("process_cmip6_dtr")
+        dtr_sbatch_script = dtr_slurm_subdir / "process_cmip6_dtr.slurm"
+
+        final_job_ids = utils.wait_for_jobs_with_retry(
             ssh,
             job_ids,
+            sbatch_script_path=(
+                dtr_sbatch_script if dtr_sbatch_script.exists() else None
+            ),
+            max_job_retries=5,
+            retry_delay=60,
+            exponential_backoff=True,
             completion_message="Slurm job for processing CMIP6 DTR complete.",
         )
     finally:
