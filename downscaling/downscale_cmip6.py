@@ -49,8 +49,38 @@ ssh_port = 22
 out_dir_name = "downscaled"
 
 
+def get_batch_file_variables(variables):
+    """Get variables needed for batch file generation.
+
+    For DTR calculation, we need raw tasmin and tasmax from CMIP6 data.
+    This function ensures those variables are included in batch files.
+
+    Parameters:
+        variables (str): String representation of variables list
+
+    Returns:
+        str: String representation of variables list for batch files
+    """
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    batch_variables_list = var_list.copy()
+
+    # For DTR calculation or tasmin derivation, ensure we have source variables
+    if "dtr" in var_list or "tasmin" in var_list:
+        # Need raw tasmin and tasmax for DTR calculation
+        if "tasmin" not in batch_variables_list:
+            batch_variables_list.append("tasmin")
+        if "tasmax" not in batch_variables_list:
+            batch_variables_list.append("tasmax")
+
+    batch_variables = " ".join(batch_variables_list)
+    return batch_variables
+
+
 def get_regrid_variables(variables):
-    """Modifies variables as needed that are unintended for regridding step using the string representation of variables list
+    """Get variables that should actually be regridded.
+
+    Excludes tasmin if user requested it, since tasmin will be derived
+    from tasmax - dtr after bias adjustment (not regridded from raw CMIP6).
 
     Parameters:
         variables (str): String representation of variables list
@@ -59,23 +89,19 @@ def get_regrid_variables(variables):
         str: String representation of variables list for regridding
     """
     var_list = cmip6.validate_vars(variables, return_list=True)
-    drop_vars = []
-    regrid_variables_list = [var for var in var_list if var not in drop_vars]
+    regrid_variables_list = var_list.copy()
 
-    # If user requested tasmin, exclude it (we'll derive it from tasmax - dtr)
-    if "tasmin" in var_list:
+    # Exclude tasmin - it will be derived from tasmax - dtr at end
+    if "tasmin" in regrid_variables_list:
         regrid_variables_list = [v for v in regrid_variables_list if v != "tasmin"]
 
     # For DTR calculation or tasmin derivation, ensure we have source variables
     if "dtr" in var_list or "tasmin" in var_list:
-        # Need raw tasmin for DTR calculation - add it back if it was removed
-        if "tasmin" not in regrid_variables_list:
-            regrid_variables_list.append("tasmin")
+        # Need tasmax for DTR calculation and tasmin derivation
         if "tasmax" not in regrid_variables_list:
             regrid_variables_list.append("tasmax")
 
     regrid_variables = " ".join(regrid_variables_list)
-
     return regrid_variables
 
 
@@ -750,7 +776,7 @@ def downscale_cmip6(
                 "run_generate_batch_files_script": run_generate_batch_files_script,
                 "cmip6_dir": cmip6_dir,
                 "slurm_dir": slurm_dir,
-                "vars": get_regrid_variables(variables),
+                "vars": get_batch_file_variables(variables),
                 "freqs": freqs,
                 "models": models,
                 "scenarios": scenarios,
