@@ -1022,17 +1022,7 @@ def downscale_cmip6(
     else:
         era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
 
-    ### Link ERA5 DTR to reference directory (after reference data is in scratch)
-    era5_target_dtr_dir = reference_dir.joinpath("dtr")
-    link_era5_dtr_kwargs = {
-        "ssh_username": ssh_username,
-        "ssh_private_key_path": ssh_private_key_path,
-        "src_dir": era5_dtr_dir,
-        "target_dir": era5_target_dtr_dir,
-    }
-
-    if needs_dtr and (flow_steps == "all" or "link_dir" in flow_steps_list):
-        link_dir(**link_era5_dtr_kwargs)
+    # Note: ERA5 DTR processing writes directly to ref_netcdf/dtr, no linking needed
 
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
