@@ -133,7 +133,7 @@ def check_for_nfs_mount(ssh, nfs_directory="/import/beegfs"):
     - nfs_directory: Path to the NFS directory to check for
     """
 
-    stdin_, stdout, stderr_ = ssh.exec_command(f"df -h | grep {nfs_directory}")
+    stdin_, stdout, stderr_ = ssh.exec_command(f"df -h {nfs_directory}")
 
     nfs_mounted = bool(stdout.read())
 
