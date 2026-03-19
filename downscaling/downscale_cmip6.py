@@ -1027,7 +1027,14 @@ def downscale_cmip6(
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
     processing_vars = get_processing_variables(variables)
-    era5_vars = cmip6.cmip6_to_era5_variables(processing_vars)
+    # For ERA5, include t2min whenever dtr, tasmax, or tasmin are involved,
+    # since ERA5 t2min exists directly and is needed as reference data.
+    var_list_original = cmip6.validate_vars(variables, return_list=True)
+    era5_var_list = cmip6.cmip6_to_era5_variables(processing_vars).split()
+    if any(v in var_list_original for v in ["dtr", "tasmax", "tasmin"]):
+        if "t2min" not in era5_var_list:
+            era5_var_list.append("t2min")
+    era5_vars = " ".join(era5_var_list)
     convert_era5_to_zarr_kwargs.update(
         variables=era5_vars,
         netcdf_dir=reference_dir,
