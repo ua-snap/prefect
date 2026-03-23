@@ -1,30 +1,28 @@
 """Flow for statistical downscaling CMIP6 data using the cmip6-utils repository.
 
-Notes
-- This flow is designed to be run on the Chinook cluster.
-- It makes use of /center1/CMIP6 for more robust processing with Dask,
-because we have had issues with Dask + IO on the /beegfs filesystem.
-It does not have the abundance of storage we are used to with /beegfs
-
-I don't have an exact number yet, but you will need to ensure there is enough
-space in /center1/CMIP6 before running this flow for a single model. I think
-a safe number is 1TB for all four variables (tasmax, dtr, pr, tasmin) and all possible scenarios.
+Notes:
+This flow is designed to be run on the Chinook cluster.
 
 The flow consists of the following steps:
-1. Create the intermediate target grid file for the first regridding step.
-2. Regrid CMIP6 data to the intermediate grid.
-3. Regrid CMIP6 data to the final grid from the intermediate grid.
-4. Process DTR from the regridded CMIP6 data.
-5. Ensure ERA5 reference data is in scratch space (copy if not).
-6. Process DTR from the ERA5 data (this could be removed if DTR processing is brought to ERA5 preprocessing repo)
-7. Convert ERA5 data to Zarr format.
-8. Convert CMIP6 data to Zarr format.
-9. Train bias adjustment model using historical data only. Weights/ adjustment factors are saved on a model + variable basis.
-10. Apply bias adjustment to the regridded CMIP6 data using the trained model.
-11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if tasmin is requested in flow parameters)
+1. Create remote working and slurm directories.
+2. Clone and install the cmip6-utils repo on the remote.
+3. Generate batch files listing CMIP6 files to regrid, grouped by model/scenario/variable/grid.
+4. Compute DTR from raw CMIP6 tasmax and tasmin (if dtr or tasmin requested).
+5. Generate batch files for DTR data (if dtr or tasmin requested).
+6. Create the intermediate target grid file for the first regridding step.
+7. Regrid CMIP6 data to the intermediate grid (bilinear).
+8. Create the second intermediate target grid file.
+9. Regrid from the intermediate grid toward the final resolution.
+10. Regrid to the final 4km target grid.
+11. Ensure ERA5 reference data is in scratch space (copy if not).
+12. Process DTR from the ERA5 data (if dtr or tasmin requested).
+13. Convert ERA5 data to Zarr format.
+14. Convert CMIP6 data to Zarr format.
+15. Train bias adjustment model using historical data only. Weights/adjustment factors are saved on a per-model, per-variable basis.
+16. Apply bias adjustment to the regridded CMIP6 data.
+17. Derive tasmin from adjusted tasmax minus adjusted dtr (if tasmin requested).
 """
 
-import time
 from prefect import flow, task
 from prefect.logging import get_run_logger
 import paramiko
@@ -39,8 +37,6 @@ from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 from bias_adjust.train_bias_adjustment import train_bias_adjustment
 from bias_adjust.bias_adjustment import bias_adjustment
 from regridding import regridding_functions as rf
-import os
-
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
@@ -585,79 +581,6 @@ def derive_cmip6_tasmin(
         ssh.close()
 
 
-@flow
-def derive_era5_tasmin(
-    ssh_username,
-    ssh_private_key_path,
-    era5_zarr_dir,
-    slurm_dir,
-    repo_dir,
-    conda_env_name,
-    partition,
-):
-    # I honestly don't remember why I made a function for this. ERA5 tasmin (t2min) exists separately
-    # and does not need to be derived again, could just be converted to zarr.
-    """Derive tasmin from ERA5 data."""
-    logger = get_run_logger()
-    logger.info(f"Deriving tasmin from ERA5 data in {era5_zarr_dir}")
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        launcher_script = repo_dir.joinpath("derived", "run_wrf_era5_difference.py")
-        worker_script = repo_dir.joinpath("derived", "difference.py")
-        cmd = (
-            f"python {launcher_script} "
-            f"--worker_script {worker_script} "
-            f"--conda_env_name {conda_env_name} "
-            f"--slurm_dir {slurm_dir} "
-            f"--minuend_store {era5_zarr_dir.joinpath('t2max_era5.zarr')} "
-            f"--subtrahend_store {era5_zarr_dir.joinpath('dtr_era5.zarr')} "
-            f"--output_store {era5_zarr_dir.joinpath('tasmin_era5.zarr')} "
-            "--new_var_id tasmin "
-            f"--partition {partition}"
-        )
-
-        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
-        if exit_status != 0:
-            raise Exception(
-                f"Error in creating slurm job for deriving ERA5 tasmin. Error: {stderr}"
-            )
-        if stdout != "":
-            logger.info(stdout)
-
-        job_ids = utils.parse_job_ids(stdout)
-
-        # Use retry logic to handle intermittent 0:53 errors
-        derive_era5_slurm_subdir = Path(slurm_dir) / "derive_era5_tasmin"
-        derive_era5_sbatch_script = (
-            derive_era5_slurm_subdir / "process_era5_diff_tasmin.slurm"
-        )
-
-        final_job_ids = utils.wait_for_jobs_with_retry(
-            ssh,
-            job_ids,
-            sbatch_script_path=(
-                derive_era5_sbatch_script
-                if derive_era5_sbatch_script.exists()
-                else None
-            ),
-            max_job_retries=5,
-            retry_delay=60,
-            exponential_backoff=True,
-            logger=logger,
-            completion_message="Slurm job for deriving ERA5 tasmin complete.",
-        )
-
-    finally:
-        # Close the SSH connection
-        ssh.close()
-
-
 @flow(log_prints=True)
 def downscale_cmip6(
     ssh_username,
@@ -1058,7 +981,6 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "convert_cmip6_to_zarr" in flow_steps_list:
         cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
-        # time.sleep(1800)
     else:
         cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
 
@@ -1076,7 +998,6 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "train_bias_adjustment" in flow_steps_list:
         train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-        # time.sleep(1800)
     else:
         train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
 
@@ -1114,22 +1035,6 @@ def downscale_cmip6(
         flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list
     ):
         derive_cmip6_tasmin(**derive_tasmin_kwargs)
-
-    derive_era5_tasmin_kwargs = {
-        "ssh_username": ssh_username,
-        "ssh_private_key_path": ssh_private_key_path,
-        "era5_zarr_dir": ref_zarr_dir,
-        "slurm_dir": slurm_dir,
-        "repo_dir": scratch_dir.joinpath(repo_name),
-        "conda_env_name": conda_env_name,
-        "partition": partition,
-    }
-
-    needs_tasmin_derivation = "tasmin" in var_list
-    if needs_tasmin_derivation and (
-        flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list
-    ):
-        derive_era5_tasmin(**derive_era5_tasmin_kwargs)
 
 
 if __name__ == "__main__":
@@ -1169,7 +1074,6 @@ if __name__ == "__main__":
     # - train_bias_adjustment
     # - bias_adjustment
     # - derive_cmip6_tasmin
-    # - derive_era5_tasmin
     flow_steps = "all"
 
     params_dict = {
