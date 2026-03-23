@@ -269,38 +269,6 @@ def ensure_reference_data_in_scratch(
 
 
 @task
-def link_dir(
-    ssh_username,
-    ssh_private_key_path,
-    src_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_dtr
-    target_dir,  # e.g. /center1/CMIP6/kmredilla/daily_era5_4km_3338/netcdf/dtr
-):
-    """Link a directory to another directory using SSH.
-
-    Created to link new DTR data to the ERA5 directory for batch access."""
-    logger = get_run_logger()
-    logger.info(f"Linking directory from {src_dir} to {target_dir}")
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        # Load the private key for key-based authentication
-        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-
-        # Connect to the SSH server using key-based authentication
-        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        cmd = f"ln -sf {src_dir} {target_dir}"
-
-        utils.exec_command(ssh, cmd)
-
-    finally:
-        # Close the SSH connection
-        ssh.close()
-
-
-@task
 def create_first_regrid_target_file(
     ssh_username,
     ssh_private_key_path,
@@ -1067,7 +1035,6 @@ if __name__ == "__main__":
     # - second_cmip6_regrid
     # - final_cmip6_regrid
     # - process_era5_dtr
-    # - link_dir
     # - ensure_reference_data_in_scratch
     # - convert_era5_to_zarr
     # - convert_cmip6_to_zarr
