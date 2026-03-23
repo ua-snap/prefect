@@ -716,6 +716,12 @@ def downscale_cmip6(
     # if yes, convert to zarr
     # if no, rsync from reference_dir
 
+    # Expand "all" shorthand once so all steps receive explicit model/scenario lists
+    if models == "all":
+        models = " ".join(cmip6.all_models)
+    if scenarios == "all":
+        scenarios = " ".join(cmip6.all_scenarios)
+
     # here are some base kwargs that will be recycled across subflows
     base_kwargs = {
         # "ssh_host": ssh_host,
@@ -736,9 +742,6 @@ def downscale_cmip6(
     if flow_steps == "all" or "generate_batch_files" in flow_steps_list:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        if scenarios == "all":
-            scenarios = "historical ssp126 ssp245 ssp370 ssp585"
 
         try:
             # Load the private key for key-based authentication
@@ -832,9 +835,6 @@ def downscale_cmip6(
         run_generate_batch_files_script = (
             f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
         )
-
-        if scenarios == "all":
-            scenarios = "historical ssp126 ssp245 ssp370 ssp585"
 
         # Add DTR files to batch files for regridding
         freqs = "day"
