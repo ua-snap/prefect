@@ -964,8 +964,8 @@ def downscale_cmip6(
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
-    processing_vars = get_processing_variables(variables)
-    convert_cmip6_to_zarr_kwargs["variables"] = processing_vars
+    conversion_vars = get_zarr_conversion_variables(variables)
+    convert_cmip6_to_zarr_kwargs["variables"] = conversion_vars
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
     )
