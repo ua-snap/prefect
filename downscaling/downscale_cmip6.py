@@ -101,6 +101,29 @@ def get_regrid_variables(variables):
     return regrid_variables
 
 
+def get_zarr_conversion_variables(variables):
+    """Get variables for the CMIP6 zarr conversion step.
+
+    Unlike get_processing_variables(), this includes tasmin when requested
+    so it is available in cmip6_zarr/ for QC purposes in notebooks.
+
+    Parameters:
+        variables (str): String representation of variables list
+
+    Returns:
+        str: String representation of variables list for zarr conversion
+    """
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    conversion_list = var_list.copy()
+
+    # For DTR calculation or tasmin derivation, ensure source variables are present
+    if "dtr" in var_list or "tasmin" in var_list:
+        if "tasmax" not in conversion_list:
+            conversion_list.append("tasmax")
+
+    return " ".join(conversion_list)
+
+
 def get_processing_variables(variables):
     """Get variables that should be processed through zarr/train/bias_adjust pipeline.
 
