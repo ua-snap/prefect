@@ -133,7 +133,7 @@ def check_for_nfs_mount(ssh, nfs_directory="/import/beegfs"):
     - nfs_directory: Path to the NFS directory to check for
     """
 
-    stdin_, stdout, stderr_ = ssh.exec_command(f"df -h | grep {nfs_directory}")
+    stdin_, stdout, stderr_ = ssh.exec_command(f"df -h {nfs_directory}")
 
     nfs_mounted = bool(stdout.read())
 
@@ -400,23 +400,117 @@ def get_job_ids(ssh, username):
 
 
 @task
+def check_job_exit_status(ssh, job_id):
+    """
+    Check the exit status of a completed SLURM job using sacct.
+
+    For array jobs, checks all array tasks and returns details on any failures.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - job_id: Job ID to check (can be parent array job or individual task)
+
+    Returns:
+    - tuple: (all_succeeded: bool, failed_tasks: list of dicts, total_tasks: int)
+        failed_tasks contains: [{'task_id': '10', 'state': 'FAILED', 'exit_code': '0:53'}, ...]
+    """
+    logger = get_run_logger()
+
+    # Use sacct to get job status - format optimized for parsing
+    cmd = f"sacct -j {job_id} --format=JobID,State,ExitCode -P -n"
+    exit_status, stdout, stderr = exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        logger.warning(f"sacct command failed for job {job_id}: {stderr}")
+        return True, [], 0  # Assume success if we can't check (backward compatible)
+
+    if not stdout:
+        logger.warning(f"No sacct output for job {job_id} - may be too old")
+        return True, [], 0
+
+    # Parse output: JobID|State|ExitCode
+    lines = stdout.strip().split("\n")
+    failed_tasks = []
+    total_tasks = 0
+
+    for line in lines:
+        parts = line.split("|")
+        if len(parts) < 3:
+            continue
+
+        job_id_str, state, exit_code = parts[0], parts[1], parts[2]
+
+        # Skip sub-steps (.batch, .extern) - only check main array tasks
+        if "." in job_id_str:
+            continue
+
+        # Check if this is an array task  (format: 573485_10)
+        if "_" in job_id_str:
+            total_tasks += 1
+            task_id = job_id_str.split("_")[1]
+
+            # Consider FAILED, CANCELLED, TIMEOUT, NODE_FAIL, OUT_OF_MEMORY as failures
+            if state in [
+                "FAILED",
+                "CANCELLED",
+                "TIMEOUT",
+                "NODE_FAIL",
+                "OUT_OF_MEMORY",
+            ]:
+                failed_tasks.append(
+                    {
+                        "task_id": task_id,
+                        "job_id": job_id_str,
+                        "state": state,
+                        "exit_code": exit_code,
+                    }
+                )
+
+    all_succeeded = len(failed_tasks) == 0
+
+    if failed_tasks:
+        logger.warning(
+            f"Job {job_id}: {len(failed_tasks)}/{total_tasks} array tasks failed"
+        )
+        for task in failed_tasks[:5]:  # Log first 5 failures
+            logger.warning(
+                f"  Task {task['task_id']}: {task['state']} (exit code {task['exit_code']})"
+            )
+        if len(failed_tasks) > 5:
+            logger.warning(f"  ... and {len(failed_tasks) - 5} more")
+    else:
+        logger.info(f"Job {job_id}: All tasks completed successfully")
+
+    return all_succeeded, failed_tasks, total_tasks
+
+
 def wait_for_jobs_completion(
     ssh,
     job_ids,
     completion_message="Jobs completed!",
     max_retries=5,
     retry_delay=5,
+    validate_exit_status=True,
+    logger=None,
 ):
     """
-    Task to wait for a list of Slurm jobs to complete in the queue via SSH.
+    Wait for a list of Slurm jobs to complete in the queue via SSH.
+
+    NOW VALIDATES JOB EXIT STATUS using sacct after jobs finish!
 
     Parameters:
     - ssh: Paramiko SSHClient object
     - job_ids: List of job IDs to wait for
     - max_retries: Number of retries for transient SSH/connection errors
     - retry_delay: Seconds to wait between retries
+    - validate_exit_status: If True, check job exit codes after completion (default: True)
+    - logger: Prefect logger instance (if None, will attempt to get run logger)
+
+    Raises:
+    - Exception: If any jobs failed (after validation)
     """
-    logger = get_run_logger()
+    if logger is None:
+        logger = get_run_logger()
     logger.info(f"Waiting for jobs to complete: {job_ids}")
 
     while job_ids:
@@ -435,9 +529,7 @@ def wait_for_jobs_completion(
                         f"checking job {job_id}: {e}"
                     )
                     if attempt == max_retries:
-                        logger.exception(
-                            f"Max retries exceeded checking job {job_id}"
-                        )
+                        logger.exception(f"Max retries exceeded checking job {job_id}")
                         raise
                     sleep(retry_delay)
             # ---- END RETRY BLOCK ----
@@ -455,17 +547,231 @@ def wait_for_jobs_completion(
         if job_ids:
             sleep(10)
 
+    logger.info(f"All jobs finished running: {job_ids}")
+
+    # CRITICAL: Now validate that jobs actually SUCCEEDED
+    if validate_exit_status:
+        logger.info("Validating job exit statuses...")
+        failed_jobs = []
+
+        for job_id in job_ids:
+            all_succeeded, failed_tasks, total_tasks = check_job_exit_status(
+                ssh, job_id
+            )
+
+            if not all_succeeded:
+                failed_jobs.append(
+                    {
+                        "job_id": job_id,
+                        "failed_tasks": failed_tasks,
+                        "total_tasks": total_tasks,
+                    }
+                )
+
+        if failed_jobs:
+            error_msg = f"{len(failed_jobs)} job(s) had failures:\n"
+            for job_info in failed_jobs:
+                job_id = job_info["job_id"]
+                n_failed = len(job_info["failed_tasks"])
+                n_total = job_info["total_tasks"]
+                error_msg += f"  Job {job_id}: {n_failed}/{n_total} tasks failed\n"
+                for task in job_info["failed_tasks"][:3]:
+                    error_msg += f"    - Task {task['task_id']}: {task['state']} ({task['exit_code']})\n"
+
+            raise Exception(error_msg)
+
     logger.info(completion_message)
 
 
-def create_directories(ssh, dir_list):
+@task
+def wait_for_jobs_with_retry(
+    ssh,
+    job_ids,
+    sbatch_script_path=None,
+    max_job_retries=3,
+    retry_delay=60,
+    exponential_backoff=True,
+    resubmit_failed_tasks=True,
+    **wait_kwargs,
+):
+    """
+    Wait for jobs to complete with automatic retry for failed array tasks.
+
+    Specifically designed to handle intermittent 0:53 errors and filesystem hiccups
+    by resubmitting only the failed array tasks.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+    - job_ids: List of job IDs to wait for
+    - sbatch_script_path: Path to original SBATCH script (required for resubmission)
+    - max_job_retries: Maximum number of times to retry failed tasks (default: 3)
+    - retry_delay: Base delay in seconds between retries (default: 60)
+    - exponential_backoff: If True, double delay after each retry (default: True)
+    - resubmit_failed_tasks: If True, resubmit failed array tasks automatically (default: True)
+    - **wait_kwargs: Additional kwargs passed to wait_for_jobs_completion
+
+    Returns:
+    - List of final job IDs (may include retry jobs)
+
+    Raises:
+    - Exception: If jobs still fail after max retries
+    """
+    logger = get_run_logger()
+
+    # Pass logger to nested function calls
+    wait_kwargs["logger"] = logger
+
+    all_job_ids = list(job_ids)  # Track all jobs including retries
+    current_retry = 0
+    current_delay = retry_delay
+
+    while current_retry <= max_job_retries:
+        try:
+            # Wait for current batch of jobs
+            wait_for_jobs_completion(ssh, job_ids, **wait_kwargs)
+
+            # Success! All jobs completed
+            logger.info(
+                f"All jobs completed successfully (attempt {current_retry + 1})"
+            )
+            return all_job_ids
+
+        except Exception as e:
+            error_msg = str(e)
+
+            # Check if this is a job failure we can retry
+            if (
+                "task" in error_msg.lower()
+                and "failed" in error_msg.lower()
+                and current_retry < max_job_retries
+            ):
+                logger.warning(
+                    f"Job failures detected on attempt {current_retry + 1}/{max_job_retries + 1}. "
+                    f"Will retry after {current_delay}s..."
+                )
+                logger.warning(f"Failure details: {error_msg}")
+
+                if not resubmit_failed_tasks or not sbatch_script_path:
+                    logger.error(
+                        "Cannot retry: resubmit_failed_tasks=False or no sbatch_script_path provided"
+                    )
+                    raise
+
+                # Identify which jobs had failures
+                retry_job_ids = []
+                for job_id in job_ids:
+                    all_succeeded, failed_tasks, total_tasks = check_job_exit_status(
+                        ssh, job_id
+                    )
+
+                    if not all_succeeded and failed_tasks:
+                        # Build array string for failed tasks only
+                        failed_task_ids = sorted(
+                            [int(t["task_id"]) for t in failed_tasks]
+                        )
+
+                        # Convert to SLURM array format (e.g., "10-12,15,18-20")
+                        array_str = _format_task_ids_for_slurm(failed_task_ids)
+
+                        logger.info(
+                            f"Resubmitting {len(failed_task_ids)}/{total_tasks} failed tasks "
+                            f"from job {job_id}: array indices {array_str}"
+                        )
+
+                        # Resubmit with modified array range
+                        # Note: This assumes the original sbatch script supports --array override
+                        retry_cmd = f"sbatch --array={array_str} {sbatch_script_path}"
+                        exit_status, stdout, stderr = exec_command(ssh, retry_cmd)
+
+                        if exit_status != 0:
+                            raise Exception(f"Failed to resubmit tasks: {stderr}")
+
+                        # Parse new job ID
+                        new_job_id = parse_job_ids(stdout.split()[-1])[0]
+                        retry_job_ids.append(new_job_id)
+                        all_job_ids.append(new_job_id)
+
+                        logger.info(f"Retry job submitted: {new_job_id}")
+
+                if not retry_job_ids:
+                    logger.error(
+                        "No retry jobs created but failures detected - cannot proceed"
+                    )
+                    raise
+
+                # Wait before retrying
+                logger.info(f"Waiting {current_delay}s before polling retry jobs...")
+                sleep(current_delay)
+
+                # Update loop state
+                job_ids = retry_job_ids
+                current_retry += 1
+
+                if exponential_backoff:
+                    current_delay *= 2
+            else:
+                # Not a retriable error, or out of retries
+                logger.error(f"Job failure after {current_retry} retries: {error_msg}")
+                raise
+
+    # Should not reach here, but just in case
+    raise Exception(f"Max retries ({max_job_retries}) exceeded")
+
+
+def _format_task_ids_for_slurm(task_ids):
+    """
+    Convert a list of task IDs to SLURM array format.
+
+    Examples:
+    - [1, 2, 3] -> "1-3"
+    - [1, 3, 5] -> "1,3,5"
+    - [1, 2, 3, 5, 6, 10] -> "1-3,5-6,10"
+
+    Parameters:
+    - task_ids: Sorted list of integer task IDs
+
+    Returns:
+    - String in SLURM array format
+    """
+    if not task_ids:
+        return ""
+
+    ranges = []
+    start = task_ids[0]
+    end = task_ids[0]
+
+    for task_id in task_ids[1:]:
+        if task_id == end + 1:
+            # Continue current range
+            end = task_id
+        else:
+            # Save current range and start new one
+            if start == end:
+                ranges.append(str(start))
+            else:
+                ranges.append(f"{start}-{end}")
+            start = task_id
+            end = task_id
+
+    # Add final range
+    if start == end:
+        ranges.append(str(start))
+    else:
+        ranges.append(f"{start}-{end}")
+
+    return ",".join(ranges)
+
+
+def create_directories(ssh, dir_list, logger=None):
     """Creates directories if they don't exist, otherwise does nothing.
 
     Parameters:
     - ssh: Paramiko SSHClient object, "connected"
     - dir_list: List of directories to create
+    - logger: Prefect logger instance (if None, will attempt to get run logger)
     """
-    logger = get_run_logger()
+    if logger is None:
+        logger = get_run_logger()
     for directory in dir_list:
         exit_status, stdout, stderr = exec_command(
             ssh, f"test -d {directory} && echo 1 || echo 0"
