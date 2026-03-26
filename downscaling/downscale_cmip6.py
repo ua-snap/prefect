@@ -17,7 +17,7 @@ The flow consists of the following steps:
 11. Ensure ERA5 reference data is in scratch space (copy if not).
 12. Process DTR from the ERA5 data (if dtr or tasmin requested).
 13. Convert ERA5 data to Zarr format.
-14. Convert CMIP6 data to Zarr format.
+14. Convert the regridded CMIP6 data to Zarr format.
 15. Train bias adjustment model using historical data only. Weights/adjustment factors are saved on a per-model, per-variable basis.
 16. Apply bias adjustment to the regridded CMIP6 data.
 17. Derive tasmin from adjusted tasmax minus adjusted dtr (if tasmin requested).
@@ -75,8 +75,10 @@ def get_batch_file_variables(variables):
 def get_regrid_variables(variables):
     """Get variables that should actually be regridded.
 
-    Excludes tasmin if user requested it, since tasmin will be derived
-    from tasmax - dtr after bias adjustment (not regridded from raw CMIP6).
+    Includes tasmin when requested so it is available in cmip6_zarr/ for QC.
+    Note: tasmin is also derived from bias-adjusted tasmax - dtr at the end
+    of the pipeline; regridding it here provides the pre-bias-adjustment
+    version for QC notebook use only.
 
     Parameters:
         variables (str): String representation of variables list
@@ -87,13 +89,9 @@ def get_regrid_variables(variables):
     var_list = cmip6.validate_vars(variables, return_list=True)
     regrid_variables_list = var_list.copy()
 
-    # Exclude tasmin - it will be derived from tasmax - dtr at end
-    if "tasmin" in regrid_variables_list:
-        regrid_variables_list = [v for v in regrid_variables_list if v != "tasmin"]
-
-    # For DTR calculation or tasmin derivation, ensure we have source variables
+    # Ensure tasmax is present when dtr or tasmin is requested,
+    # since the bias adjustment pipeline needs tasmax alongside these variables.
     if "dtr" in var_list or "tasmin" in var_list:
-        # Need tasmax for DTR calculation and tasmin derivation
         if "tasmax" not in regrid_variables_list:
             regrid_variables_list.append("tasmax")
 
@@ -106,6 +104,8 @@ def get_zarr_conversion_variables(variables):
 
     Unlike get_processing_variables(), this includes tasmin when requested
     so it is available in cmip6_zarr/ for QC purposes in notebooks.
+    Tasmin files must exist in the regridded source directory (i.e.,
+    get_regrid_variables() must also include tasmin) for this to work.
 
     Parameters:
         variables (str): String representation of variables list
@@ -116,7 +116,8 @@ def get_zarr_conversion_variables(variables):
     var_list = cmip6.validate_vars(variables, return_list=True)
     conversion_list = var_list.copy()
 
-    # For DTR calculation or tasmin derivation, ensure source variables are present
+    # Ensure tasmax is present for the bias adjustment pipeline when
+    # dtr or tasmin is involved.
     if "dtr" in var_list or "tasmin" in var_list:
         if "tasmax" not in conversion_list:
             conversion_list.append("tasmax")
