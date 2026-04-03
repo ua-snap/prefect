@@ -434,7 +434,6 @@ def another_cmip6_regrid(
         f"--output_dir {output_dir} "
         f"--stage {stage} "
     )
-
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -636,6 +635,8 @@ def downscale_cmip6(
         models = " ".join(cmip6.all_models)
     if scenarios == "all":
         scenarios = " ".join(cmip6.all_scenarios)
+
+    var_list = cmip6.validate_vars(variables, return_list=True)
 
     # here are some base kwargs that will be recycled across subflows
     base_kwargs = {
