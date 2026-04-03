@@ -11,6 +11,8 @@ all_vars = [
     "evspsbl",  # evaporation including sublimation and transpiration
     "hfls",  # surface upward latent heat flux
     "hfss",  # surface upward sensible heat flux
+    "hurs",  # near-surface relative humidity
+    "hursmin",  # daily minimum near-surface relative humidity
     "hus",  # specific humidity
     "huss",  # near surface specific humidity
     "mrro",  # total runoff
@@ -89,6 +91,10 @@ cmip6_to_era5_vars_lut = {
     "tas": "t2",
     "pr": "pr",
     "dtr": "dtr",
+    "hurs": "rh2_mean",
+    "hursmin": "rh2_min",
+    "snw": "snow_sum",
+    "sfcWind": "wspd10_mean",
 }
 
 
