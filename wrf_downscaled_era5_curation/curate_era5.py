@@ -29,6 +29,7 @@ def submit_era5_jobs(
     variables: str,
     ERA5_INPUT_DIR: Path,
     ERA5_OUTPUT_DIR: Path,
+    ERA5_RESOLUTION: int,
     start_year: int,
     end_year: int,
     max_concurrent: int,
@@ -46,6 +47,7 @@ def submit_era5_jobs(
         variables: Comma-separated list of variables to process (e.g., "t2_mean,t2_min,t2_max")
         ERA5_INPUT_DIR: Directory containing input ERA5 data on Chinook
         ERA5_OUTPUT_DIR: Directory where processed data will be written on Chinook
+        ERA5_RESOLUTION: `4` or `12`
         start_year: First year to process (inclusive)
         end_year: Last year to process (inclusive)
         max_concurrent: Maximum number of simultaneous processing jobs on Slurm
@@ -92,10 +94,12 @@ def submit_era5_jobs(
             no_retry,
             ERA5_INPUT_DIR,
             ERA5_OUTPUT_DIR,
+            ERA5_RESOLUTION
         ):
             cmd = (
                 f"export ERA5_INPUT_DIR={ERA5_INPUT_DIR} && "
                 f"export ERA5_OUTPUT_DIR={ERA5_OUTPUT_DIR} && "
+                f"export ERA5_RESOLUTION={ERA5_RESOLUTION} && "
                 f"conda activate snap-geo && "
                 f"cd {repo_path} && "
                 f"python submit_era5_jobs.py "
@@ -158,13 +162,14 @@ def submit_era5_jobs(
             no_retry,
             ERA5_INPUT_DIR,
             ERA5_OUTPUT_DIR,
+            ERA5_RESOLUTION
         )
 
-        logger.info("✅ ERA5 processing completed successfully!")
+        logger.info("ERA5 processing completed successfully!")
         logger.info(
             "To archive the processed data, use the separate archive_era5.py flow"
         )
-        logger.info(f"📋 Processing logs captured in artifact: {log_artifact_id}")
+        logger.info(f"Processing logs captured in artifact: {log_artifact_id}")
 
     except Exception as e:
         logger.error(f"Flow failed: {str(e)}")
@@ -176,7 +181,7 @@ def submit_era5_jobs(
 
 if __name__ == "__main__":
     submit_era5_jobs.serve(
-        name="era5-4k-curation",
+        name="era5-hourly-to-daily-curation",
         parameters={
             "ssh_username": "snapdata",
             "ssh_private_key_path": "/Users/cparr/.ssh/id_rsa",
@@ -185,6 +190,7 @@ if __name__ == "__main__":
             "variables": "t2_mean,t2_min,t2_max",
             "ERA5_INPUT_DIR": Path("/beegfs/CMIP6/wrf_era5/04km"),
             "ERA5_OUTPUT_DIR": Path("/beegfs/CMIP6/snapdata/curated_wrf_era5-04km"),
+            "ERA5_RESOLUTION": 4,
             "start_year": 1960,
             "end_year": 2019,
             "max_concurrent": 60,

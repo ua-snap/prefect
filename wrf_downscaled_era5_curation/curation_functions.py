@@ -356,7 +356,7 @@ def generate_log_summary(parsed_data: dict) -> str:
     # Add timing details if available
     if parsed_data["timing"]["start_time"]:
         summary += f"""
-### ⏱️ Execution Timeline
+### Execution Timeline
 | Metric | Value |
 |--------|-------|
 | **Started** | {parsed_data["timing"]["start_time"]} |
@@ -367,13 +367,13 @@ def generate_log_summary(parsed_data: dict) -> str:
     # Add issues section if any exist
     if parsed_data["issues"]:
         summary += f"""
-### ⚠️ Issues & Warnings
+### Issues & Warnings
 """
         for issue in parsed_data["issues"]:
             summary += f"- {issue}\n"
     else:
         summary += f"""
-### ✅ No Issues Detected
+### No Issues Detected
 All processing completed without warnings or errors.
 """
 
