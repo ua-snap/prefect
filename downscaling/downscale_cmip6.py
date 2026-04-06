@@ -251,12 +251,12 @@ def ensure_reference_data_in_scratch(
     ssh_username,
     ssh_private_key_path,
     reference_dir,  # e.g. /beegfs/CMIP6/kmredilla/daily_era5_4km_3338/netcdf
-    output_dir,  # e.g. /center1/CMIP6/kmredilla
+    project_base_dir,  # e.g. /center1/CMIP6/kmredilla
     working_dir,
 ):
     logger = get_run_logger()
     logger.info(
-        f"Checking for reference data directory {reference_dir} in output_dir {output_dir}"
+        f"Checking for reference data directory {reference_dir} in project_base_dir {project_base_dir}"
     )
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -269,11 +269,11 @@ def ensure_reference_data_in_scratch(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         ref_exists = utils.input_is_child_of_output_dir(
-            ssh, reference_dir, output_dir
+            ssh, reference_dir, project_base_dir
         )
         if not ref_exists:
             logger.info(
-                f"Reference data not found in output_dir. Copying from {reference_dir}."
+                f"Reference data not found in project_base_dir. Copying from {reference_dir}."
             )
             ref_output_dir = working_dir.joinpath("ref_netcdf")
             utils.rsync(ssh, f"{reference_dir}/", str(ref_output_dir))
@@ -283,7 +283,7 @@ def ensure_reference_data_in_scratch(
 
         else:
             logger.info(
-                "Reference data already exists in output_dir. No action needed."
+                "Reference data already exists in project_base_dir. No action needed."
             )
             ref_output_dir = reference_dir
 
@@ -300,13 +300,13 @@ def create_first_regrid_target_file(
     ssh_private_key_path,
     cascade_grid_script,
     coords_template_file,
-    output_dir,
-    work_dir_name,
+    project_base_dir,
+    run_name,
     step,
     resolution,
 ):
-    first_regrid_target_file = output_dir.joinpath(
-        work_dir_name, "first_regrid_target_file.nc"
+    first_regrid_target_file = project_base_dir.joinpath(
+        run_name, "first_regrid_target_file.nc"
     )
 
     logger = get_run_logger()
@@ -346,13 +346,13 @@ def create_second_regrid_target_file(
     ssh_private_key_path,
     cascade_grid_script,
     coords_template_file,
-    output_dir,
-    work_dir_name,
+    project_base_dir,
+    run_name,
     step,
     resolution,
 ):
-    second_regrid_target_file = output_dir.joinpath(
-        work_dir_name, "second_regrid_target_file.nc"
+    second_regrid_target_file = project_base_dir.joinpath(
+        run_name, "second_regrid_target_file.nc"
     )
 
     logger = get_run_logger()
@@ -392,11 +392,11 @@ def create_final_regrid_target_file(
     ssh_private_key_path,
     make_final_grid_script,
     era5_template_file,
-    output_dir,
-    work_dir_name,
+    project_base_dir,
+    run_name,
 ):
-    final_regrid_target_file = output_dir.joinpath(
-        work_dir_name, "final_regrid_target_file.nc"
+    final_regrid_target_file = project_base_dir.joinpath(
+        run_name, "final_regrid_target_file.nc"
     )
 
     logger = get_run_logger()
@@ -822,8 +822,8 @@ def downscale_cmip6(
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
         "coords_template_file": cascade_grid_coords_file,
-        "output_dir": project_base_dir,
-        "work_dir_name": run_name,
+        "project_base_dir": project_base_dir,
+        "run_name": run_name,
         "step": first_regrid_linspace_step,
         "resolution": resolution,
     }
@@ -864,8 +864,8 @@ def downscale_cmip6(
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
         "coords_template_file": cascade_grid_coords_file,
-        "output_dir": project_base_dir,
-        "work_dir_name": run_name,
+        "project_base_dir": project_base_dir,
+        "run_name": run_name,
         "step": second_regrid_linspace_step,
         "resolution": resolution,
     }
@@ -917,8 +917,8 @@ def downscale_cmip6(
         "ssh_private_key_path": ssh_private_key_path,
         "make_final_grid_script": make_final_grid_script,
         "era5_template_file": final_grid_template_file,
-        "output_dir": project_base_dir,
-        "work_dir_name": run_name,
+        "project_base_dir": project_base_dir,
+        "run_name": run_name,
     }
 
     if flow_steps == "all" or "create_final_regrid_target_file" in flow_steps_list:
@@ -956,7 +956,7 @@ def downscale_cmip6(
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "reference_dir": reference_dir,
-        "output_dir": project_base_dir,
+        "project_base_dir": project_base_dir,
         "working_dir": working_dir,
     }
 
