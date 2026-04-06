@@ -65,8 +65,8 @@ def process_dtr(
     models,
     scenarios,
     input_dir,
-    output_dir,
-    work_dir_name,
+    base_output_dir,
+    run_name,
     partition,
 ):
     models = cmip6.validate_models(models, return_list=False)
@@ -84,7 +84,7 @@ def process_dtr(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, output_dir
+            ssh, repo_name, branch_name, base_output_dir
         )
 
         utils.ensure_slurm(ssh)
@@ -97,7 +97,7 @@ def process_dtr(
 
         launcher_script = repo_path.joinpath("derived", "run_cmip6_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
-        working_dir = Path(output_dir).joinpath(work_dir_name)
+        working_dir = Path(base_output_dir).joinpath(run_name)
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
@@ -145,9 +145,8 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     input_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
-    output_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
-    output_dir = f"/beegfs/CMIP6/snapdata"
-    work_dir_name = "cmip6_dtr_4km_3338"
+    project_base_dir = "/beegfs/CMIP6/snapdata"
+    run_name = "cmip6_dtr_4km_3338"
     partition = "t2small"
 
     process_dtr.serve(
@@ -162,8 +161,8 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "input_dir": input_dir,
-            "output_dir": output_dir,
-            "work_dir_name": work_dir_name,
+            "base_output_dir": project_base_dir,
+            "run_name": run_name,
             "partition": partition,
         },
     )

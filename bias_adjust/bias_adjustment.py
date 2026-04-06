@@ -80,8 +80,8 @@ def bias_adjustment(
     variables,
     models,
     scenarios,
-    output_dir,
-    work_dir_name,
+    base_output_dir,
+    run_name,
     partition,
 ):
     variables = cmip6.validate_vars(variables, return_list=False)
@@ -100,7 +100,7 @@ def bias_adjustment(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, output_dir
+            ssh, repo_name, branch_name, base_output_dir
         )
 
         utils.ensure_slurm(ssh)
@@ -113,8 +113,8 @@ def bias_adjustment(
 
         launcher_script = repo_path.joinpath("bias_adjust", "run_bias_adjust.py")
         worker_script = repo_path.joinpath("bias_adjust", "bias_adjust.py")
-        output_dir = Path(output_dir)
-        working_dir = output_dir.joinpath(work_dir_name)
+        project_base_dir = Path(base_output_dir)
+        working_dir = project_base_dir.joinpath(run_name)
         tmp_dir = working_dir.joinpath("tmp")
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
@@ -159,10 +159,10 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     variables = "tasmax pr dtr"
-    output_dir = "/import/beegfs/CMIP6/snapdata"
+    project_base_dir = "/import/beegfs/CMIP6/snapdata"
     sim_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/cmip6_zarr"
     train_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/trained_datasets"
-    work_dir_name = "cmip6_4km_downscaling"
+    run_name = "cmip6_4km_downscaling"
     netcdf_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     partition = "t2small"
 
@@ -175,10 +175,10 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
-            "output_dir": output_dir,
+            "base_output_dir": project_base_dir,
             "sim_dir": sim_dir,
             "train_dir": train_dir,
-            "work_dir_name": work_dir_name,
+            "run_name": run_name,
             "models": models,
             "scenarios": scenarios,
             "variables": variables,
