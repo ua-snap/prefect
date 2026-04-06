@@ -250,12 +250,12 @@ def ensure_reference_data_in_scratch(
     ssh_username,
     ssh_private_key_path,
     reference_dir,  # e.g. /beegfs/CMIP6/kmredilla/daily_era5_4km_3338/netcdf
-    scratch_dir,  # e.g. /center1/CMIP6/kmredilla
+    output_dir,  # e.g. /center1/CMIP6/kmredilla
     working_dir,
 ):
     logger = get_run_logger()
     logger.info(
-        f"Checking for reference data directory {reference_dir} in scratch_dir {scratch_dir}"
+        f"Checking for reference data directory {reference_dir} in output_dir {output_dir}"
     )
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -267,30 +267,30 @@ def ensure_reference_data_in_scratch(
         # Connect to the SSH server using key-based authentication
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        ref_exists = utils.input_is_child_of_scratch_dir(
-            ssh, reference_dir, scratch_dir
+        ref_exists = utils.input_is_child_of_output_dir(
+            ssh, reference_dir, output_dir
         )
         if not ref_exists:
             logger.info(
-                f"Reference data not found in scratch_dir. Copying from {reference_dir}."
+                f"Reference data not found in output_dir. Copying from {reference_dir}."
             )
-            ref_scratch_dir = working_dir.joinpath("ref_netcdf")
-            utils.rsync(ssh, f"{reference_dir}/", str(ref_scratch_dir))
+            ref_output_dir = working_dir.joinpath("ref_netcdf")
+            utils.rsync(ssh, f"{reference_dir}/", str(ref_output_dir))
             logger.info(
-                f"Copied reference data from {reference_dir} to {ref_scratch_dir}"
+                f"Copied reference data from {reference_dir} to {ref_output_dir}"
             )
 
         else:
             logger.info(
-                "Reference data already exists in scratch_dir. No action needed."
+                "Reference data already exists in output_dir. No action needed."
             )
-            ref_scratch_dir = reference_dir
+            ref_output_dir = reference_dir
 
     finally:
         # Close the SSH connection
         ssh.close()
 
-    return ref_scratch_dir
+    return ref_output_dir
 
 
 @task
@@ -299,12 +299,12 @@ def create_first_regrid_target_file(
     ssh_private_key_path,
     cascade_grid_script,
     coords_template_file,
-    scratch_dir,
+    output_dir,
     work_dir_name,
     step,
     resolution,
 ):
-    first_regrid_target_file = scratch_dir.joinpath(
+    first_regrid_target_file = output_dir.joinpath(
         work_dir_name, "first_regrid_target_file.nc"
     )
 
@@ -345,12 +345,12 @@ def create_second_regrid_target_file(
     ssh_private_key_path,
     cascade_grid_script,
     coords_template_file,
-    scratch_dir,
+    output_dir,
     work_dir_name,
     step,
     resolution,
 ):
-    second_regrid_target_file = scratch_dir.joinpath(
+    second_regrid_target_file = output_dir.joinpath(
         work_dir_name, "second_regrid_target_file.nc"
     )
 
@@ -501,7 +501,7 @@ def derive_cmip6_tasmin(
     input_dir,
     output_dir,
     slurm_dir,
-    scratch_dir,
+    base_output_dir,
     repo_name,
     models,
     scenarios,
@@ -522,7 +522,7 @@ def derive_cmip6_tasmin(
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-        repo_dir = scratch_dir.joinpath(repo_name)
+        repo_dir = base_output_dir.joinpath(repo_name)
         launcher_script = repo_dir.joinpath("derived", "run_cmip6_difference.py")
         worker_script = repo_dir.joinpath("derived", "difference.py")
         cmd = (
@@ -582,7 +582,7 @@ def downscale_cmip6(
     conda_env_name,
     cmip6_dir,  # e.g. /beegfs/CMIP6/arctic-cmip6/CMIP6
     reference_dir,  # e.g. /beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338
-    scratch_dir,  # e.g. /beegfs/CMIP6/your-user-name
+    output_dir,  # e.g. /beegfs/CMIP6/your-user-name/downscaling
     work_dir_name,
     variables,
     models,
@@ -599,8 +599,8 @@ def downscale_cmip6(
 
     reference_dir = Path(reference_dir)
     cmip6_dir = Path(cmip6_dir)
-    scratch_dir = Path(scratch_dir)
-    working_dir = scratch_dir.joinpath(work_dir_name)
+    output_dir = Path(output_dir)
+    working_dir = output_dir.joinpath(work_dir_name)
     slurm_dir = working_dir.joinpath("slurm")
     flow_steps_list = flow_steps.split()
 
@@ -617,7 +617,7 @@ def downscale_cmip6(
         "ssh_private_key_path": ssh_private_key_path,
         "repo_name": repo_name,
         "branch_name": branch_name,
-        "destination_directory": scratch_dir,
+        "destination_directory": output_dir,
         "conda_env_name": conda_env_name,
     }
 
@@ -641,7 +641,7 @@ def downscale_cmip6(
         "repo_name": repo_name,
         "branch_name": branch_name,
         "conda_env_name": conda_env_name,
-        "scratch_dir": scratch_dir,
+        "base_output_dir": output_dir,
         "work_dir_name": work_dir_name,
         "models": models,
         "scenarios": scenarios,
@@ -661,7 +661,7 @@ def downscale_cmip6(
             ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
             repo_path = utils.clone_github_repository(
-                ssh, repo_name, branch_name, scratch_dir
+                ssh, repo_name, branch_name, output_dir
             )
 
             utils.check_for_nfs_mount(ssh, "/import/beegfs")
@@ -675,10 +675,10 @@ def downscale_cmip6(
             )
 
             generate_batch_files_script = (
-                f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
+                f"{output_dir}/cmip6-utils/regridding/generate_batch_files.py"
             )
             run_generate_batch_files_script = (
-                f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+                f"{output_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
             )
 
             freqs = "day"
@@ -705,7 +705,7 @@ def downscale_cmip6(
         finally:
             ssh.close()
 
-    batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/first_regrid/batch"
+    batch_files_dir = f"{output_dir}/{work_dir_name}/slurm/first_regrid/batch"
 
     # Check if DTR processing is needed
     var_list = cmip6.validate_vars(variables, return_list=True)
@@ -730,7 +730,7 @@ def downscale_cmip6(
             base_dir=cmip6_dtr_dir,
         )
     else:
-        cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
+        cmip6_dtr_dir = f"{output_dir}/{work_dir_name}/cmip6_dtr"
 
     ### Prep DTR data for regridding by adding DTR files to batch files for regridding step
     if needs_dtr:
@@ -740,10 +740,10 @@ def downscale_cmip6(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         generate_batch_files_script = (
-            f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
+            f"{output_dir}/cmip6-utils/regridding/generate_batch_files.py"
         )
         run_generate_batch_files_script = (
-            f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+            f"{output_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
         )
 
         # Add DTR files to batch files for regridding
@@ -771,7 +771,7 @@ def downscale_cmip6(
 
     ### Regridding 1: Regrid CMIP6 data to intermediate grid
     # first, run the task to create the intermediate target grid file
-    cascade_grid_script = scratch_dir.joinpath(
+    cascade_grid_script = output_dir.joinpath(
         repo_name, "downscaling", "make_intermediate_target_grid_file.py"
     )
 
@@ -780,7 +780,7 @@ def downscale_cmip6(
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
         "coords_template_file": cascade_grid_coords_file,
-        "scratch_dir": scratch_dir,
+        "output_dir": output_dir,
         "work_dir_name": work_dir_name,
         "step": first_regrid_linspace_step,
         "resolution": resolution,
@@ -792,7 +792,7 @@ def downscale_cmip6(
         )
     else:
         first_cascade_target_file = (
-            f"{scratch_dir}/{work_dir_name}/first_regrid_target_file.nc"
+            f"{output_dir}/{work_dir_name}/first_regrid_target_file.nc"
         )
 
     first_regrid_out_dir_name = "first_regrid"
@@ -815,14 +815,14 @@ def downscale_cmip6(
     if flow_steps == "all" or "first_cmip6_regrid" in flow_steps_list:
         first_regrid_dir = regrid_cmip6(**first_regrid_kwargs)
     else:
-        first_regrid_dir = f"{scratch_dir}/{work_dir_name}/{first_regrid_out_dir_name}"
+        first_regrid_dir = f"{output_dir}/{work_dir_name}/{first_regrid_out_dir_name}"
 
     second_regrid_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
         "coords_template_file": cascade_grid_coords_file,
-        "scratch_dir": scratch_dir,
+        "output_dir": output_dir,
         "work_dir_name": work_dir_name,
         "step": second_regrid_linspace_step,
         "resolution": resolution,
@@ -834,13 +834,13 @@ def downscale_cmip6(
         )
     else:
         second_cascade_target_file = (
-            f"{scratch_dir}/{work_dir_name}/second_regrid_target_file.nc"
+            f"{output_dir}/{work_dir_name}/second_regrid_target_file.nc"
         )
 
-    regrid_again_script = scratch_dir.joinpath(
+    regrid_again_script = output_dir.joinpath(
         repo_name, "regridding", "run_regrid_again.py"
     )
-    regrid_script = scratch_dir.joinpath(repo_name, "regridding", "regrid.py")
+    regrid_script = output_dir.joinpath(repo_name, "regridding", "regrid.py")
 
     second_regrid_out_dir_name = "second_regrid"
     second_regrid_kwargs = {
@@ -862,7 +862,7 @@ def downscale_cmip6(
         second_regrid_dir = another_cmip6_regrid(**second_regrid_kwargs)
     else:
         second_regrid_dir = (
-            f"{scratch_dir}/{work_dir_name}/{second_regrid_out_dir_name}"
+            f"{output_dir}/{work_dir_name}/{second_regrid_out_dir_name}"
         )
 
     final_regrid_out_dir_name = "final_regrid"
@@ -884,21 +884,21 @@ def downscale_cmip6(
     if flow_steps == "all" or "final_cmip6_regrid" in flow_steps_list:
         final_regrid_dir = another_cmip6_regrid(**final_regrid_kwargs)
     else:
-        final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
+        final_regrid_dir = f"{output_dir}/{work_dir_name}/final_regrid"
 
     ### Ensure reference data is in scratch space FIRST (before creating symlinks)
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "reference_dir": reference_dir,
-        "scratch_dir": scratch_dir,
+        "output_dir": output_dir,
         "working_dir": working_dir,
     }
 
     if flow_steps == "all" or "ensure_reference_data_in_scratch" in flow_steps_list:
         reference_dir = ensure_reference_data_in_scratch(**ref_data_check_kwargs)
     else:
-        reference_dir = f"{scratch_dir}/{work_dir_name}/ref_netcdf"
+        reference_dir = f"{output_dir}/{work_dir_name}/ref_netcdf"
 
     ### ERA5 DTR processing
     process_era5_dtr_kwargs = base_kwargs.copy()
@@ -917,7 +917,7 @@ def downscale_cmip6(
     ):
         era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
     else:
-        era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
+        era5_dtr_dir = f"{output_dir}/{work_dir_name}/era5_dtr"
 
     # Note: ERA5 DTR processing writes directly to ref_netcdf/dtr, no linking needed
 
@@ -943,7 +943,7 @@ def downscale_cmip6(
     if flow_steps == "all" or "convert_era5_to_zarr" in flow_steps_list:
         ref_zarr_dir = convert_era5_to_zarr(**convert_era5_to_zarr_kwargs)
     else:
-        ref_zarr_dir = Path(f"{scratch_dir}/{work_dir_name}/era5_zarr")
+        ref_zarr_dir = Path(f"{output_dir}/{work_dir_name}/era5_zarr")
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
@@ -956,7 +956,7 @@ def downscale_cmip6(
     if flow_steps == "all" or "convert_cmip6_to_zarr" in flow_steps_list:
         cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
     else:
-        cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
+        cmip6_zarr_dir = f"{output_dir}/{work_dir_name}/cmip6_zarr"
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
@@ -973,7 +973,7 @@ def downscale_cmip6(
     if flow_steps == "all" or "train_bias_adjustment" in flow_steps_list:
         train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
     else:
-        train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
+        train_dir = f"{output_dir}/{work_dir_name}/trained_datasets"
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
@@ -989,7 +989,7 @@ def downscale_cmip6(
     if flow_steps == "all" or "bias_adjustment" in flow_steps_list:
         adjusted_dir = bias_adjustment(**bias_adjust_kwargs)
     else:
-        adjusted_dir = f"{scratch_dir}/{work_dir_name}/adjusted"
+        adjusted_dir = f"{output_dir}/{work_dir_name}/adjusted"
 
     derive_tasmin_kwargs = base_kwargs.copy()
     del derive_tasmin_kwargs["work_dir_name"]
@@ -1019,7 +1019,7 @@ if __name__ == "__main__":
     conda_env_name = "cmip6-utils"
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
     reference_dir = "/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338"
-    scratch_dir = "/beegfs/CMIP6/arctic-cmip6/downscaling"
+    output_dir = "/beegfs/CMIP6/arctic-cmip6/downscaling"
     work_dir_name = "cmip6_4km_downscaling"
     variables = "tasmax dtr pr"
     models = "all"
@@ -1058,7 +1058,7 @@ if __name__ == "__main__":
         "conda_env_name": conda_env_name,
         "cmip6_dir": cmip6_dir,
         "reference_dir": reference_dir,
-        "scratch_dir": scratch_dir,
+        "output_dir": output_dir,
         "work_dir_name": work_dir_name,
         "variables": variables,
         "models": models,

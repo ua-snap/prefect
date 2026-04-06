@@ -77,7 +77,7 @@ def train_bias_adjustment(
     ref_dir,
     variables,
     models,
-    scratch_dir,  # e.g. /import/beegfs/kmredilla
+    output_dir,  # e.g. /import/beegfs/kmredilla
     work_dir_name,  # e.g. zarr_bias_adjust_inputs
     partition,
 ):
@@ -96,7 +96,7 @@ def train_bias_adjustment(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_dir
+            ssh, repo_name, branch_name, output_dir
         )
 
         utils.ensure_slurm(ssh)
@@ -109,8 +109,8 @@ def train_bias_adjustment(
 
         launcher_script = repo_path.joinpath("bias_adjust", "run_train_qm.py")
         worker_script = repo_path.joinpath("bias_adjust", "train_qm.py")
-        scratch_dir = Path(scratch_dir)
-        working_dir = scratch_dir.joinpath(work_dir_name)
+        output_dir = Path(output_dir)
+        working_dir = output_dir.joinpath(work_dir_name)
         tmp_dir = working_dir.joinpath("tmp")
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     conda_env_name = "cmip6-utils"
     models = "all"
     variables = "tasmax pr dtr"
-    scratch_dir = "/import/beegfs/CMIP6/snapdata"
+    output_dir = "/import/beegfs/CMIP6/snapdata"
     sim_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/cmip6_zarr"
     ref_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/era5_zarr"
     work_dir_name = "cmip6_4km_downscaling"
@@ -168,7 +168,7 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
-            "scratch_dir": scratch_dir,
+            "output_dir": output_dir,
             "sim_dir": sim_dir,
             "ref_dir": ref_dir,
             "work_dir_name": work_dir_name,

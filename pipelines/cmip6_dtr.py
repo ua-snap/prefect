@@ -65,7 +65,7 @@ def process_dtr(
     models,
     scenarios,
     input_dir,
-    scratch_dir,
+    output_dir,
     work_dir_name,
     partition,
 ):
@@ -84,7 +84,7 @@ def process_dtr(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_dir
+            ssh, repo_name, branch_name, output_dir
         )
 
         utils.ensure_slurm(ssh)
@@ -97,7 +97,7 @@ def process_dtr(
 
         launcher_script = repo_path.joinpath("derived", "run_cmip6_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
-        working_dir = Path(scratch_dir).joinpath(work_dir_name)
+        working_dir = Path(output_dir).joinpath(work_dir_name)
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     scenarios = "all"
     input_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     output_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
-    scratch_dir = f"/beegfs/CMIP6/snapdata"
+    output_dir = f"/beegfs/CMIP6/snapdata"
     work_dir_name = "cmip6_dtr_4km_3338"
     partition = "t2small"
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "input_dir": input_dir,
-            "scratch_dir": scratch_dir,
+            "output_dir": output_dir,
             "work_dir_name": work_dir_name,
             "partition": partition,
         },
