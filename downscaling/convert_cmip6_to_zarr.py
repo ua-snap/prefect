@@ -90,8 +90,8 @@ def convert_cmip6_to_zarr(
     variables,
     models,
     scenarios,
-    output_dir,  # e.g. /import/beegfs/kmredilla
-    work_dir_name,  # e.g. zarr_bias_adjust_inputs
+    base_output_dir,
+    run_name,
     partition,
 ):
     variables = cmip6.validate_vars(variables, return_list=False)
@@ -110,7 +110,7 @@ def convert_cmip6_to_zarr(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, output_dir
+            ssh, repo_name, branch_name, base_output_dir
         )
 
         utils.ensure_slurm(ssh)
@@ -125,8 +125,8 @@ def convert_cmip6_to_zarr(
             "bias_adjust", "run_cmip6_netcdf_to_zarr.py"
         )
         worker_script = repo_path.joinpath("bias_adjust", "netcdf_to_zarr.py")
-        output_dir = Path(output_dir)
-        working_dir = output_dir.joinpath(work_dir_name)
+        project_base_dir = Path(base_output_dir)
+        working_dir = project_base_dir.joinpath(run_name)
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
@@ -176,8 +176,8 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     variables = "tasmax pr dtr"
-    output_dir = "/import/beegfs/CMIP6/snapdata"
-    work_dir_name = "cmip6_4km_downscaling"
+    project_base_dir = "/import/beegfs/CMIP6/snapdata"
+    run_name = "cmip6_4km_downscaling"
     netcdf_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     partition = "t2small"
 
@@ -190,8 +190,8 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
-            "output_dir": output_dir,
-            "work_dir_name": work_dir_name,
+            "base_output_dir": project_base_dir,
+            "run_name": run_name,
             "models": models,
             "scenarios": scenarios,
             "variables": variables,
