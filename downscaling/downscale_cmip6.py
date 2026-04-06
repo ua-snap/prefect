@@ -1090,7 +1090,7 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     partition = "t2small"
-    cascade_grid_coords_file = "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
+    cascade_grid_coords_file = "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/day/tas/gn/v20200528/tas_day_CESM2_ssp370_r11i1p1f1_gn_20150101-20241231.nc"
     final_grid_template_file = "/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338/t2/t2_1965_era5_4km_3338.nc"
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
