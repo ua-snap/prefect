@@ -1,6 +1,6 @@
 """Flow for regridding CMIP6 data
 
-Regridded data is written to <output_dir>/<work_dir_name>/regrid
+Regridded data is written to <base_output_dir>/<run_name>/regrid
 """
 
 from prefect import flow
@@ -26,8 +26,8 @@ def regrid_cmip6(
     branch_name,
     cmip6_dir,
     target_grid_file,
-    output_dir,
-    work_dir_name,
+    base_output_dir,
+    run_name,
     out_dir_name,
     no_clobber,
     variables,
@@ -48,18 +48,18 @@ def regrid_cmip6(
     scenarios = rf.validate_scenarios(scenarios)
 
     # build additional parameters from prefect inputs
-    repo_regridding_dir = f"{output_dir}/cmip6-utils/regridding"
-    regrid_script = f"{output_dir}/cmip6-utils/regridding/regrid.py"
-    slurm_script = f"{output_dir}/cmip6-utils/regridding/slurm.py"
+    repo_regridding_dir = f"{base_output_dir}/cmip6-utils/regridding"
+    regrid_script = f"{base_output_dir}/cmip6-utils/regridding/regrid.py"
+    slurm_script = f"{base_output_dir}/cmip6-utils/regridding/slurm.py"
     generate_batch_files_script = (
-        f"{output_dir}/cmip6-utils/regridding/generate_batch_files.py"
+        f"{base_output_dir}/cmip6-utils/regridding/generate_batch_files.py"
     )
     run_generate_batch_files_script = (
-        f"{output_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+        f"{base_output_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
     )
-    run_qc_script = f"{output_dir}/cmip6-utils/regridding/run_qc.py"
-    qc_notebook = f"{output_dir}/cmip6-utils/regridding/qc.ipynb"
-    working_dir = f"{output_dir}/{work_dir_name}"
+    run_qc_script = f"{base_output_dir}/cmip6-utils/regridding/run_qc.py"
+    qc_notebook = f"{base_output_dir}/cmip6-utils/regridding/qc.ipynb"
+    working_dir = f"{base_output_dir}/{run_name}"
     slurm_dir = f"{working_dir}/slurm"
     output_dir = f"{working_dir}/{out_dir_name}"
     regrid_batch_dir = f"{slurm_dir}/first_regrid/batch"
@@ -80,7 +80,7 @@ def regrid_cmip6(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, output_dir
+            ssh, repo_name, branch_name, base_output_dir
         )
 
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
@@ -162,8 +162,8 @@ if __name__ == "__main__":
     branch_name = "main"
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
     target_grid_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
-    output_dir = "/beegfs/CMIP6/snapdata/"
-    work_dir_name = "cmip6_regridding"
+    project_base_dir = "/beegfs/CMIP6/snapdata/"
+    run_name = "cmip6_regridding"
     no_clobber = False
     variables = "all"
     interp_method = "bilinear"
@@ -182,9 +182,9 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "cmip6_dir": cmip6_dir,
-            "work_dir_name": work_dir_name,
+            "run_name": run_name,
             "out_dir_name": out_dir_name,
-            "output_dir": output_dir,
+            "base_output_dir": project_base_dir,
             "no_clobber": no_clobber,
             "variables": variables,
             "interp_method": interp_method,
