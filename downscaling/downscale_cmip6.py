@@ -13,14 +13,15 @@ The flow consists of the following steps:
 7. Regrid CMIP6 data to the intermediate grid (bilinear).
 8. Create the second intermediate target grid file.
 9. Regrid from the intermediate grid toward the final resolution.
-10. Regrid to the final 4km target grid.
-11. Ensure ERA5 reference data is in scratch space (copy if not).
-12. Process DTR from the ERA5 data (if dtr or tasmin requested).
-13. Convert ERA5 data to Zarr format.
-14. Convert the regridded CMIP6 data to Zarr format.
-15. Train bias adjustment model using historical data only. Weights/adjustment factors are saved on a per-model, per-variable basis.
-16. Apply bias adjustment to the regridded CMIP6 data.
-17. Derive tasmin from adjusted tasmax minus adjusted dtr (if tasmin requested).
+10. Create the final target grid file from ERA5 template.
+11. Regrid to the final target grid (ERA5 resolution).
+12. Ensure ERA5 reference data is in scratch space (copy if not).
+13. Process DTR from the ERA5 data (if dtr or tasmin requested).
+14. Convert ERA5 data to Zarr format.
+15. Convert the regridded CMIP6 data to Zarr format.
+16. Train bias adjustment model using historical data only. Weights/adjustment factors are saved on a per-model, per-variable basis.
+17. Apply bias adjustment to the regridded CMIP6 data.
+18. Derive tasmin from adjusted tasmax minus adjusted dtr (if tasmin requested).
 """
 
 from prefect import flow, task
@@ -385,6 +386,47 @@ def create_second_regrid_target_file(
     return second_regrid_target_file
 
 
+@task
+def create_final_regrid_target_file(
+    ssh_username,
+    ssh_private_key_path,
+    make_final_grid_script,
+    era5_template_file,
+    output_dir,
+    work_dir_name,
+):
+    final_regrid_target_file = output_dir.joinpath(
+        work_dir_name, "final_regrid_target_file.nc"
+    )
+
+    logger = get_run_logger()
+    logger.info(f"Creating final target grid file {final_regrid_target_file}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    cmd = f"conda activate cmip6-utils && \
+            python {make_final_grid_script} \
+            {era5_template_file} \
+            {final_regrid_target_file}"
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(
+                f"Error in creating final target grid file. Error: {stderr}"
+            )
+        if stdout != "":
+            logger.info(stdout)
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
+    return final_regrid_target_file
+
+
 @flow
 # putting this flow here now because it has more to do with downscaling than general regridding
 def another_cmip6_regrid(
@@ -588,8 +630,8 @@ def downscale_cmip6(
     models,
     scenarios,
     partition,
-    target_grid_source_file,
     cascade_grid_coords_file,
+    final_grid_template_file,
     flow_steps,
     first_regrid_linspace_step,
     second_regrid_linspace_step,
@@ -865,6 +907,29 @@ def downscale_cmip6(
             f"{output_dir}/{work_dir_name}/{second_regrid_out_dir_name}"
         )
 
+    # Create final target grid file from ERA5 template
+    make_final_grid_script = output_dir.joinpath(
+        repo_name, "downscaling", "make_final_target_grid_file.py"
+    )
+
+    final_grid_kwargs = {
+        "ssh_username": ssh_username,
+        "ssh_private_key_path": ssh_private_key_path,
+        "make_final_grid_script": make_final_grid_script,
+        "era5_template_file": final_grid_template_file,
+        "output_dir": output_dir,
+        "work_dir_name": work_dir_name,
+    }
+
+    if flow_steps == "all" or "create_final_regrid_target_file" in flow_steps_list:
+        final_cascade_target_file = create_final_regrid_target_file(
+            **final_grid_kwargs
+        )
+    else:
+        final_cascade_target_file = (
+            f"{output_dir}/{work_dir_name}/final_regrid_target_file.nc"
+        )
+
     final_regrid_out_dir_name = "final_regrid"
     final_regrid_kwargs = {
         "ssh_username": ssh_username,
@@ -874,7 +939,7 @@ def downscale_cmip6(
         "launcher_script": regrid_again_script,
         "regrid_script": regrid_script,
         "interp_method": interp_method,
-        "target_grid_file": target_grid_source_file,
+        "target_grid_file": final_cascade_target_file,
         "working_dir": working_dir,
         "regridded_dir": second_regrid_dir,
         "out_dir_name": final_regrid_out_dir_name,
@@ -1025,8 +1090,8 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     partition = "t2small"
-    target_grid_source_file = "/beegfs/CMIP6/arctic-cmip6/era5/era5_target_slice.nc"
     cascade_grid_coords_file = "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
+    final_grid_template_file = "/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338/t2/t2_1965_era5_4km_3338.nc"
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
     resolution = 4
@@ -1040,6 +1105,7 @@ if __name__ == "__main__":
     # - first_cmip6_regrid
     # - create_second_regrid_target_file
     # - second_cmip6_regrid
+    # - create_final_regrid_target_file
     # - final_cmip6_regrid
     # - process_era5_dtr
     # - ensure_reference_data_in_scratch
@@ -1064,8 +1130,8 @@ if __name__ == "__main__":
         "models": models,
         "scenarios": scenarios,
         "partition": partition,
-        "target_grid_source_file": target_grid_source_file,
         "cascade_grid_coords_file": cascade_grid_coords_file,
+        "final_grid_template_file": final_grid_template_file,
         "flow_steps": flow_steps,
         "first_regrid_linspace_step": first_regrid_linspace_step,
         "second_regrid_linspace_step": second_regrid_linspace_step,
