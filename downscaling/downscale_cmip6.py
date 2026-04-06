@@ -871,11 +871,6 @@ def downscale_cmip6(
             f"{scratch_dir}/{work_dir_name}/{second_regrid_out_dir_name}"
         )
 
-    # TO-DO: take target grid file from the reference data, e.g.:
-    # target_grid_source_file = reference_dir.joinpath(
-    #     "t2max/t2max_2014_era5_4km_3338.nc"
-    # )
-
     final_regrid_out_dir_name = "final_regrid"
     final_regrid_kwargs = {
         "ssh_username": ssh_username,
