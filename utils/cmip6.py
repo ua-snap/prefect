@@ -181,7 +181,7 @@ def check_for_derived_cmip6_data(
     ssh_username,
     ssh_private_key_path,
     cmip6_dir,
-    scratch_dir,
+    output_dir,
     work_dir_name,
     out_dir_name,
     models,
@@ -249,7 +249,7 @@ def check_for_derived_cmip6_data(
                 # made it this far should mean we have n_raw_files > 0
                 # check for derived data
                 # Construct the path to the derived data directory, check for this first
-                derived_dir = scratch_dir.joinpath(
+                derived_dir = output_dir.joinpath(
                     work_dir_name, out_dir_name, model, scenario, freq, variable
                 )
                 derived_exists = utils.remote_directory_exists(ssh, derived_dir)

@@ -1,7 +1,7 @@
 """This is the script for regridding the CMIP6 data to a 4km grid matching WRF ERA5 data.
 Hard-coded defaults.
 
-Regridded data is written to <scratch_dir>/<work_dir_name>/regrid
+Regridded data is written to <output_dir>/<work_dir_name>/regrid
 """
 
 # temp target file: /beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc
@@ -27,7 +27,7 @@ def regrid_cmip6_4km(
     branch_name,
     cmip6_dir,
     target_grid_source_file,
-    scratch_dir,
+    output_dir,
     work_dir_name,
     out_dir_name,
     variables,
@@ -41,7 +41,7 @@ def regrid_cmip6_4km(
     target_sftlf_fp=None,
     no_clobber=False,
 ):
-    # target_grid_file = f"{scratch_dir}/target_common_grid.nc"
+    # target_grid_file = f"{output_dir}/target_common_grid.nc"
     # TO-DO: when it's ready, remove line below and use the one above
     target_grid_file = target_grid_source_file
 
@@ -53,7 +53,7 @@ def regrid_cmip6_4km(
         "repo_name": repo_name,
         "branch_name": branch_name,
         "cmip6_dir": cmip6_dir,
-        "scratch_dir": scratch_dir,
+        "output_dir": output_dir,
         "work_dir_name": work_dir_name,
         "out_dir_name": out_dir_name,
         "target_grid_file": target_grid_file,
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     repo_name = "cmip6-utils"
     branch_name = "main"
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
-    scratch_dir = f"/beegfs/CMIP6/snapdata/"
+    output_dir = f"/beegfs/CMIP6/snapdata/"
     work_dir_name = "cmip6_4km_3338"
     out_dir_name = "regrid"
     no_clobber = False
@@ -107,7 +107,7 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "cmip6_dir": cmip6_dir,
-            "scratch_dir": scratch_dir,
+            "output_dir": output_dir,
             "target_grid_source_file": target_grid_source_fp,
             "work_dir_name": work_dir_name,
             "out_dir_name": out_dir_name,

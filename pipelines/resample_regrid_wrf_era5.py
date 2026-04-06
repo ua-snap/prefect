@@ -61,7 +61,7 @@ def resample_regrid_wrf_era5(
     repo_name,  # cmip6-utils
     branch_name,
     conda_env_name,
-    scratch_directory,  # e.g. /import/beegfs/kmredilla
+    output_directory,  # e.g. /import/beegfs/kmredilla
     write_dir_name,  # e.g. daily_era5_4km_3338
     wrf_era5_directory,  # /beegfs/CMIP6/wrf_era5/04km
     geo_file,  # /beegfs/CMIP6/wrf_era5/geo_em.d02.nc
@@ -82,7 +82,7 @@ def resample_regrid_wrf_era5(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_directory
+            ssh, repo_name, branch_name, output_directory
         )
 
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
@@ -98,7 +98,7 @@ def resample_regrid_wrf_era5(
         launcher_script = repo_path.joinpath(
             "downscaling", "run_resample_and_regrid_era5.py"
         )
-        write_directory = Path(scratch_directory).joinpath(write_dir_name)
+        write_directory = Path(output_directory).joinpath(write_dir_name)
         output_directory = write_directory.joinpath("netcdf")
         slurm_directory = write_directory.joinpath("slurm")
         script_directory = launcher_script.parent
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     branch_name = "main"
     conda_env_name = "cmip6-utils"
     wrf_era5_directory = Path("/beegfs/CMIP6/wrf_era5/04km")
-    scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
+    output_directory = Path(f"/beegfs/CMIP6/snapdata/")
     # output_directory = Path(f"/beegfs/CMIP6/snapdata/daily_era5_4km_3338")
     write_dir_name = "daily_era5_4km_3338"
     geo_file = Path("/beegfs/CMIP6/wrf_era5/geo_em.d02.nc")
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
-            "scratch_directory": scratch_directory,
+            "output_directory": output_directory,
             "write_dir_name": write_dir_name,
             "wrf_era5_directory": wrf_era5_directory,
             "geo_file": geo_file,
