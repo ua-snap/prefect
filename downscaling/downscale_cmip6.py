@@ -622,14 +622,6 @@ def downscale_cmip6(
     if flow_steps == "all" or "clone_and_install_repo" in flow_steps_list:
         clone_and_install_repo(**clone_and_install_kwargs)
 
-    # to start, we should probably just get every step laid out here
-    # TO-DO: add these checks in as able
-    # check for reference data in zarr format on scratch space
-    # if yes, continue
-    # if no, check for reference data in netcdf in working_dir
-    # if yes, convert to zarr
-    # if no, rsync from reference_dir
-
     # Expand "all" shorthand once so all steps receive explicit model/scenario lists
     if models == "all":
         models = " ".join(cmip6.all_models)
