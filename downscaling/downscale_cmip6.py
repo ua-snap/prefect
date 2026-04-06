@@ -37,6 +37,7 @@ from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 from bias_adjust.train_bias_adjustment import train_bias_adjustment
 from bias_adjust.bias_adjustment import bias_adjustment
 from regridding import regridding_functions as rf
+
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
@@ -297,7 +298,7 @@ def create_first_regrid_target_file(
     ssh_username,
     ssh_private_key_path,
     cascade_grid_script,
-    first_regrid_source_file,
+    coords_template_file,
     scratch_dir,
     work_dir_name,
     step,
@@ -316,7 +317,7 @@ def create_first_regrid_target_file(
     # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/first_regrid_target_file.nc
     cmd = f"conda activate cmip6-utils && \
             python {cascade_grid_script} \
-            --src_file {first_regrid_source_file} \
+            --src_file {coords_template_file} \
             --out_file {first_regrid_target_file} \
             --step {step} \
             --resolution {resolution}"
@@ -343,7 +344,7 @@ def create_second_regrid_target_file(
     ssh_username,
     ssh_private_key_path,
     cascade_grid_script,
-    second_regrid_source_file,
+    coords_template_file,
     scratch_dir,
     work_dir_name,
     step,
@@ -362,7 +363,7 @@ def create_second_regrid_target_file(
     # /center1/CMIP6/kmredilla/cmip6_4km_downscaling/second_regrid_target_file.nc
     cmd = f"conda activate cmip6-utils && \
             python {cascade_grid_script} \
-            --src_file {second_regrid_source_file} \
+            --src_file {coords_template_file} \
             --out_file {second_regrid_target_file} \
             --step {step} \
             --resolution {resolution}"
@@ -588,6 +589,7 @@ def downscale_cmip6(
     scenarios,
     partition,
     target_grid_source_file,
+    cascade_grid_coords_file,
     flow_steps,
     first_regrid_linspace_step,
     second_regrid_linspace_step,
@@ -773,15 +775,11 @@ def downscale_cmip6(
         repo_name, "downscaling", "make_intermediate_target_grid_file.py"
     )
 
-    first_regrid_source_file = cmip6_dir.joinpath(
-        "ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
-    )
-
     first_regrid_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
-        "first_regrid_source_file": first_regrid_source_file,
+        "coords_template_file": cascade_grid_coords_file,
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": first_regrid_linspace_step,
@@ -819,15 +817,11 @@ def downscale_cmip6(
     else:
         first_regrid_dir = f"{scratch_dir}/{work_dir_name}/{first_regrid_out_dir_name}"
 
-    second_regrid_source_file = cmip6_dir.joinpath(
-        "ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
-    )
-
     second_regrid_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
         "cascade_grid_script": cascade_grid_script,
-        "second_regrid_source_file": second_regrid_source_file,
+        "coords_template_file": cascade_grid_coords_file,
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": second_regrid_linspace_step,
@@ -1032,6 +1026,7 @@ if __name__ == "__main__":
     scenarios = "all"
     partition = "t2small"
     target_grid_source_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
+    cascade_grid_coords_file = "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
     resolution = 4
@@ -1070,6 +1065,7 @@ if __name__ == "__main__":
         "scenarios": scenarios,
         "partition": partition,
         "target_grid_source_file": target_grid_source_file,
+        "cascade_grid_coords_file": cascade_grid_coords_file,
         "flow_steps": flow_steps,
         "first_regrid_linspace_step": first_regrid_linspace_step,
         "second_regrid_linspace_step": second_regrid_linspace_step,
