@@ -581,8 +581,8 @@ def downscale_cmip6(
     branch_name,
     conda_env_name,
     cmip6_dir,  # e.g. /beegfs/CMIP6/arctic-cmip6/CMIP6
-    reference_dir,  # e.g. /beegfs/CMIP6/kmredilla/daily_era5_4km_3338/netcdf
-    scratch_dir,  # e.g. /center1/CMIP6/kmredilla
+    reference_dir,  # e.g. /beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338
+    scratch_dir,  # e.g. /beegfs/CMIP6/your-user-name
     work_dir_name,
     variables,
     models,
@@ -1019,13 +1019,13 @@ if __name__ == "__main__":
     conda_env_name = "cmip6-utils"
     cmip6_dir = "/beegfs/CMIP6/arctic-cmip6/CMIP6"
     reference_dir = "/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338"
-    scratch_dir = "/center1/CMIP6/snapdata"
+    scratch_dir = "/beegfs/CMIP6/arctic-cmip6/downscaling"
     work_dir_name = "cmip6_4km_downscaling"
     variables = "tasmax dtr pr"
     models = "all"
     scenarios = "all"
     partition = "t2small"
-    target_grid_source_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
+    target_grid_source_file = "/beegfs/CMIP6/arctic-cmip6/era5/era5_target_slice.nc"
     cascade_grid_coords_file = "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
