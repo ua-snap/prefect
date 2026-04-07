@@ -12,31 +12,31 @@ def netcdf_to_geotiff(input_netcdf, output_tiff, conda_env="hydrology"):
     variable = dataset["cdr_seaice_conc_monthly"].isel(time=0).values
     qa_flag = dataset["cdr_seaice_conc_monthly_qa_flag"].isel(time=0).values
 
-    # Initialize output array - start with scaled concentration (0-100)
     rescaled_data = np.zeros_like(variable, dtype=np.float32)
 
-    # Copy valid ice concentration values and scale to 0-100
     valid_mask = ~np.isnan(variable)
+
+    # Rescale data to 0-100 range for valid ocean pixels
     rescaled_data[valid_mask] = variable[valid_mask] * 100
 
-    # Apply landmask based on NaN values and QA flags
     # NaN with QA=0 are land pixels (not in ocean)
-    # QA=16/80 pixels (bit 4) have conc=0 and should remain as ocean, not land
     nan_land_mask = np.isnan(variable) & (qa_flag == 0)
-    rescaled_data[nan_land_mask] = 254  # Land
 
-    # Mark remaining NaN values (non-land, outside data area) as nodata
-    # This prevents gdalwarp from expanding land into these areas
+    # 254 represents land in the output GeoTIFF
+    rescaled_data[nan_land_mask] = 254
+
+    # Mark remaining NaN values as having no data
     remaining_nan = np.isnan(variable) & (qa_flag != 0)
-    rescaled_data[remaining_nan] = 255  # NoData
 
-    # Convert to uint8 for output
+    # 255 represents no data in the GeoTIFF
+    rescaled_data[remaining_nan] = 255
+
     rescaled_data = rescaled_data.astype(np.uint8)
 
-    # Pixel size is 25000 to match the 25 km grid
+    # 25km grid
     pixel_size = 25000.0
     geotransform = (-3850000.0, pixel_size, 0.0, 5850000.0, 0.0, -pixel_size)
-    # Define CRS using proj4 string to avoid PROJ database version issues
+
     source_crs = rasterio.CRS.from_proj4(
         "+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +x_0=0 +y_0=0 +a=6378273 +b=6356889.449 +units=m +no_defs"
     )
@@ -57,8 +57,6 @@ def netcdf_to_geotiff(input_netcdf, output_tiff, conda_env="hydrology"):
             ),
         ) as src:
             src.write(rescaled_data, 1)
-
-            # This reprojects the GeoTIFF data in memory to EPSG:3572
             transform, width, height = calculate_default_transform(
                 src.crs, target_crs, src.width, src.height, *src.bounds
             )
