@@ -427,6 +427,150 @@ def create_final_regrid_target_file(
     return final_regrid_target_file
 
 
+@task
+def create_regridded_sftlf_file(
+    ssh_username,
+    ssh_private_key_path,
+    regrid_sftlf_script,
+    source_sftlf_file,
+    target_grid_file,
+    output_sftlf_file,
+):
+    """Create an sftlf (land fraction) file regridded to target grid resolution.
+
+    This ensures land masking is preserved through cascade regridding stages.
+    """
+    logger = get_run_logger()
+    logger.info(
+        f"Regridding sftlf from {source_sftlf_file} to match {target_grid_file}"
+    )
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    cmd = (
+        f"conda activate cmip6-utils && "
+        f"python {regrid_sftlf_script} "
+        f"--source_sftlf {source_sftlf_file} "
+        f"--target_grid {target_grid_file} "
+        f"--output_sftlf {output_sftlf_file}"
+    )
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if exit_status != 0:
+            raise Exception(f"Error creating regridded sftlf file. Error: {stderr}")
+        if stdout != "":
+            logger.info(stdout)
+
+    finally:
+        ssh.close()
+
+    return output_sftlf_file
+
+
+@task
+def create_model_specific_sftlf_files(
+    ssh_username,
+    ssh_private_key_path,
+    regrid_sftlf_script,
+    target_grid_file,
+    project_base_dir,
+    run_name,
+    stage_name,
+    models,
+):
+    """Create model-specific sftlf files for all models at a given resolution.
+
+    This creates one sftlf file per model, regridded to the target grid resolution,
+    to preserve model-specific land characteristics through cascade regridding.
+
+    Parameters
+    ----------
+    stage_name : str
+        Name of the stage (e.g., 'first', 'second', 'final')
+    models : str
+        Space-separated list of model names
+
+    Returns
+    -------
+    dict
+        Dictionary mapping model names to their sftlf file paths
+    """
+    logger = get_run_logger()
+    logger.info(f"Creating model-specific sftlf files for {stage_name} regrid stage")
+
+    # Import model_sftlf_lu from cmip6-utils config
+    # We'll need to read this via SSH or pass it as parameter
+    model_sftlf_lu = {
+        "GFDL-ESM4": "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NOAA-GFDL/GFDL-ESM4/ssp370/r1i1p1f1/fx/sftlf/gr1/v20180701/sftlf_fx_GFDL-ESM4_ssp370_r1i1p1f1_gr1.nc",
+        "CNRM-CM6-1-HR": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/CNRM-CERFACS/CNRM-CM6-1-HR/historical/r1i1p1f2/fx/sftlf/gr/v20191021/sftlf_fx_CNRM-CM6-1-HR_historical_r1i1p1f2_gr.nc",
+        "NorESM2-MM": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/NCC/NorESM2-MM/historical/r1i1p1f1/fx/sftlf/gn/v20191108/sftlf_fx_NorESM2-MM_historical_r1i1p1f1_gn.nc",
+        "TaiESM1": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/AS-RCEC/TaiESM1/historical/r1i1p1f1/fx/sftlf/gn/v20200624/sftlf_fx_TaiESM1_historical_r1i1p1f1_gn.nc",
+        "HadGEM3-GC31-MM": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/MOHC/HadGEM3-GC31-MM/piControl/r1i1p1f1/fx/sftlf/gn/v20200108/sftlf_fx_HadGEM3-GC31-MM_piControl_r1i1p1f1_gn.nc",
+        "HadGEM3-GC31-LL": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/MOHC/HadGEM3-GC31-LL/piControl/r1i1p1f1/fx/sftlf/gn/v20190709/sftlf_fx_HadGEM3-GC31-LL_piControl_r1i1p1f1_gn.nc",
+        "MIROC6": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/MIROC/MIROC6/historical/r1i1p1f1/fx/sftlf/gn/v20190311/sftlf_fx_MIROC6_historical_r1i1p1f1_gn.nc",
+        "EC-Earth3-Veg": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/EC-Earth-Consortium/EC-Earth3-Veg/historical/r1i1p1f1/fx/sftlf/gr/v20211207/sftlf_fx_EC-Earth3-Veg_historical_r1i1p1f1_gr.nc",
+        "CESM2": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/NCAR/CESM2/historical/r11i1p1f1/fx/sftlf/gn/v20190514/sftlf_fx_CESM2_historical_r11i1p1f1_gn.nc",
+        "MPI-ESM1-2-HR": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/MPI-M/MPI-ESM1-2-HR/historical/r1i1p1f1/fx/sftlf/gn/v20190710/sftlf_fx_MPI-ESM1-2-HR_historical_r1i1p1f1_gn.nc",
+        "MRI-ESM2-0": "/beegfs/CMIP6/arctic-cmip6/CMIP6/CMIP/MRI/MRI-ESM2-0/historical/r1i1p1f1/fx/sftlf/gn/v20190603/sftlf_fx_MRI-ESM2-0_historical_r1i1p1f1_gn.nc",
+    }
+
+    model_list = models.split()
+    sftlf_dir = project_base_dir.joinpath(run_name, f"{stage_name}_sftlf")
+    model_sftlf_files = {}
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        # Create sftlf directory
+        utils.create_directories(ssh, [sftlf_dir])
+
+        for model in model_list:
+            if model not in model_sftlf_lu:
+                logger.warning(f"No sftlf file available for model {model}, skipping")
+                continue
+
+            source_sftlf = model_sftlf_lu[model]
+            output_sftlf = sftlf_dir.joinpath(
+                f"{stage_name}_regrid_target_sftlf_{model}.nc"
+            )
+
+            logger.info(f"Creating sftlf for {model}")
+
+            cmd = (
+                f"conda activate cmip6-utils && "
+                f"python {regrid_sftlf_script} "
+                f"--source_sftlf {source_sftlf} "
+                f"--target_grid {target_grid_file} "
+                f"--output_sftlf {output_sftlf}"
+            )
+
+            exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+            if exit_status != 0:
+                logger.error(f"Failed to create sftlf for {model}: {stderr}")
+                continue
+
+            if stdout:
+                logger.info(stdout)
+
+            model_sftlf_files[model] = str(output_sftlf)
+            logger.info(f"✓ Created sftlf for {model}: {output_sftlf}")
+
+    finally:
+        ssh.close()
+
+    logger.info(
+        f"Created {len(model_sftlf_files)} model-specific sftlf files for {stage_name} stage"
+    )
+    return model_sftlf_files
+
+
 @flow
 # putting this flow here now because it has more to do with downscaling than general regridding
 def another_cmip6_regrid(
@@ -442,6 +586,7 @@ def another_cmip6_regrid(
     ssh_private_key_path,
     out_dir_name,
     stage,
+    sftlf_dir=None,
 ):
     """Flow for regridding CMIP6 data that has been regridded once and so is all on a common grid.
 
@@ -449,9 +594,13 @@ def another_cmip6_regrid(
     ----------
     stage : str
         Regridding stage identifier ('second' or 'final')
+    sftlf_dir : str, optional
+        Path to directory containing model-specific sftlf files for land-sea masking
     """
     logger = get_run_logger()
     logger.info(f"Regridding CMIP6 data ({stage} stage) to {target_grid_file}")
+    if sftlf_dir:
+        logger.info(f"Using model-specific land masks from: {sftlf_dir}")
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -477,6 +626,11 @@ def another_cmip6_regrid(
         f"--output_dir {output_dir} "
         f"--stage {stage} "
     )
+
+    # Add sftlf directory if provided for model-specific land-sea masking
+    if sftlf_dir:
+        cmd += f"--sftlf_dir {sftlf_dir} "
+
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -837,6 +991,25 @@ def downscale_cmip6(
             f"{project_base_dir}/{run_name}/first_regrid_target_file.nc"
         )
 
+    # Create model-specific sftlf files for first intermediate grid
+    regrid_sftlf_script = project_base_dir.joinpath(
+        repo_name, "downscaling", "regrid_sftlf_to_target.py"
+    )
+
+    if flow_steps == "all" or "create_first_regrid_target_file" in flow_steps_list:
+        first_model_sftlf_files = create_model_specific_sftlf_files(
+            ssh_username=ssh_username,
+            ssh_private_key_path=ssh_private_key_path,
+            regrid_sftlf_script=regrid_sftlf_script,
+            target_grid_file=first_cascade_target_file,
+            project_base_dir=project_base_dir,
+            run_name=run_name,
+            stage_name="first",
+            models=models,
+        )
+    else:
+        first_model_sftlf_files = {}  # Will be discovered from directory
+
     first_regrid_out_dir_name = "first_regrid"
     first_regrid_kwargs = base_kwargs.copy()
     regrid_variables = get_regrid_variables(variables)
@@ -879,6 +1052,21 @@ def downscale_cmip6(
             f"{project_base_dir}/{run_name}/second_regrid_target_file.nc"
         )
 
+    # Create model-specific sftlf files for second intermediate grid
+    if flow_steps == "all" or "create_second_regrid_target_file" in flow_steps_list:
+        second_model_sftlf_files = create_model_specific_sftlf_files(
+            ssh_username=ssh_username,
+            ssh_private_key_path=ssh_private_key_path,
+            regrid_sftlf_script=regrid_sftlf_script,
+            target_grid_file=second_cascade_target_file,
+            project_base_dir=project_base_dir,
+            run_name=run_name,
+            stage_name="second",
+            models=models,
+        )
+    else:
+        second_model_sftlf_files = {}
+
     regrid_again_script = project_base_dir.joinpath(
         repo_name, "regridding", "run_regrid_again.py"
     )
@@ -898,6 +1086,7 @@ def downscale_cmip6(
         "regridded_dir": first_regrid_dir,
         "out_dir_name": second_regrid_out_dir_name,
         "stage": "second",
+        "sftlf_dir": project_base_dir.joinpath(run_name, "second_sftlf"),
     }
 
     if flow_steps == "all" or "second_cmip6_regrid" in flow_steps_list:
@@ -922,13 +1111,26 @@ def downscale_cmip6(
     }
 
     if flow_steps == "all" or "create_final_regrid_target_file" in flow_steps_list:
-        final_cascade_target_file = create_final_regrid_target_file(
-            **final_grid_kwargs
-        )
+        final_cascade_target_file = create_final_regrid_target_file(**final_grid_kwargs)
     else:
         final_cascade_target_file = (
             f"{project_base_dir}/{run_name}/final_regrid_target_file.nc"
         )
+
+    # Create model-specific sftlf files for final grid (ERA5 resolution)
+    if flow_steps == "all" or "create_final_regrid_target_file" in flow_steps_list:
+        final_model_sftlf_files = create_model_specific_sftlf_files(
+            ssh_username=ssh_username,
+            ssh_private_key_path=ssh_private_key_path,
+            regrid_sftlf_script=regrid_sftlf_script,
+            target_grid_file=final_cascade_target_file,
+            project_base_dir=project_base_dir,
+            run_name=run_name,
+            stage_name="final",
+            models=models,
+        )
+    else:
+        final_model_sftlf_files = {}
 
     final_regrid_out_dir_name = "final_regrid"
     final_regrid_kwargs = {
@@ -944,6 +1146,7 @@ def downscale_cmip6(
         "regridded_dir": second_regrid_dir,
         "out_dir_name": final_regrid_out_dir_name,
         "stage": "final",
+        "sftlf_dir": project_base_dir.joinpath(run_name, "final_sftlf"),
     }
 
     if flow_steps == "all" or "final_cmip6_regrid" in flow_steps_list:
@@ -1114,7 +1317,7 @@ if __name__ == "__main__":
     # - train_bias_adjustment
     # - bias_adjustment
     # - derive_cmip6_tasmin
-    
+
     flow_steps = "all"
 
     params_dict = {
