@@ -150,8 +150,11 @@ def download_new_nsidc_data(year):
         commanda = 'wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --no-check-certificate --auth-no-challenge=on -r --reject "index.html*" -np -nd -e robots=off --user {} --password "{}" -P {} '.format(
             username, password, out_dir
         )
-        commandb = "https://n5eil01u.ecs.nsidc.org/PM/NSIDC-0051.002/{}.{}.01/NSIDC0051_SEAICE_PS_N25km_{}{}_v2.0.nc".format(
-            str(year), month, str(year), month
+        print(year)
+        flag = "F17" if int(year) <= 2024 else "am2"
+
+        commandb = "https://noaadata.apps.nsidc.org/NOAA/G02202_V6/north/monthly/sic_psn25_{}{}_{}_v06r00.nc".format(
+            str(year), month, flag
         )
         os.system(commanda + commandb)
 
@@ -160,8 +163,9 @@ def download_new_nsidc_data(year):
 def generate_annual_sea_ice_geotiffs(year, output_directory, conda_env="hydrology"):
     # Generate annual Sea Ice GeoTIFFs
     for month in range(1, 13):
+        flag = "F17" if int(year) <= 2024 else "am2"
         input_netcdf = (
-            f"/tmp/nsidc_raw/{year}/NSIDC0051_SEAICE_PS_N25km_{year}{month:02d}_v2.0.nc"
+            f"/tmp/nsidc_raw/{year}/sic_psn25_{year}{month:02d}_{flag}_v06r00.nc"
         )
         output_tiff = f"{output_directory}/seaice_conc_sic_mean_pct_monthly_panarctic_{year}_{month:02d}.tif"
         try:

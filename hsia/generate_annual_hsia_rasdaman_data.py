@@ -63,11 +63,11 @@ if __name__ == "__main__":
         name="Update Annual Sea Ice GeoTIFFs for ingest into Rasdaman",
         tags=["HSIA", "Sea Ice", "Create New Data"],
         parameters={
-            "years": 2024,
+            "years": 2025,
             "home_directory": "/home/snapdata/",
             "working_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/",
             "source_tar_file": "/workspace/Shared/Tech_Projects/Sea_Ice_Atlas/final_products/rasdaman_hsia_arctic_production_tifs.tgz",
             "tif_directory": "/opt/rasdaman/user_data/snapdata/hsia_updates/rasdaman_hsia_arctic_production_tifs",
-            "conda_env": "hydrology",
+            "conda_env": "hsia_updates",
         },
     )
