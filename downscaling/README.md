@@ -21,13 +21,13 @@ Comprehensive workflow for statistically downscaling daily CMIP6 climate model d
 
 This Prefect flow orchestrates the complete statistical downscaling pipeline:
 
-1. **Cascade Regridding**: Three-step bilinear regridding from native CMIP6 grids to high-resolution Arctic grids
+1. **Cascade Regridding**: Three-step regridding from native CMIP6 grids to high-resolution Arctic grids
 2. **Data Conversion**: Convert NetCDF to Zarr format for efficient parallel processing
 3. **Bias Adjustment Training**: Train QDM models using historical CMIP6 vs. ERA5 data
 4. **Bias Adjustment Application**: Apply trained adjustments to historical and future scenarios
 5. **Derived Variables**: Compute tasmin from adjusted tasmax - dtr
 
-The pipeline handles land/sea masking, calendar conversions, jitter preprocessing for zero-inflated variables, and frequency adaptation.
+The pipeline handles land/sea masking at each regridding stage, calendar conversions, jitter preprocessing for zero-inflated variables, and frequency adaptation.
 
 ---
 
@@ -327,8 +327,11 @@ All SLURM job outputs are written to:
 
 #### 2. Land/Sea Masking Errors
 **Symptom**: `AssertionError` or masking-related errors during regridding
-**Cause**: Missing source land mask for model, or incorrect variable type classification
-**Solution**: Check `cmip6-utils/regridding/config.py` for `model_sftlf_lu` and `landsea_variables`
+**Cause**: Missing source land mask (`sftlf`) for a model, or incorrect variable type classification
+**Solution**:
+- Check `cmip6-utils/regridding/config.py` for `model_sftlf_lu` (defines model-specific land mask paths)
+- Verify variable is correctly classified in `landsea_variables` (only land-only variables like `snw` should be listed)
+- Note: Land masks are regridded and applied at **each of the three regridding stages** to maintain accurate coastline representation
 
 #### 3. Missing Variables for Specific Models
 **Symptom**: Training or bias adjustment fails for certain model/variable combinations
@@ -362,21 +365,22 @@ All SLURM job outputs are written to:
 | Group | Variables | Notes |
 |-------|-----------|-------|
 | Temperature & Precipitation | `tasmin tasmax dtr pr` | DTR enables tasmin derivation |
-| Wind, Snow, Humidity | `sfcWind snw hurs hursmin` | snw requires land masking |
+| Snow | `snw` | snw requires conservative interpolation, cannot be mixed with other variables or interpolation methods might be mixed in regridding batch files |
+| Wind, Humidity | `sfcWind hurs hursmin` | 
 
 ### Supported Variables
 
-| CMIP6 Variable | ERA5 Equivalent | Operator | Notes |
-|----------------|-----------------|----------|-------|
-| `tasmax` | `t2max` | + (additive) | Daily maximum temperature |
-| `tasmin` | `t2min` | + (additive) | Derived from tasmax - dtr |
-| `tas` | `t2` | + (additive) | Daily mean temperature |
-| `dtr` | `dtr` | * (multiplicative) | Diurnal temperature range |
-| `pr` | `pr` | * (multiplicative) | Precipitation, zero-inflated |
-| `hurs` | `rh2_mean` | + (additive) | Near-surface relative humidity |
-| `hursmin` | `rh2_min` | + (additive) | Daily minimum relative humidity |
-| `snw` | `snow_sum` | * (multiplicative) | Surface snow amount, land-only, zero-inflated |
-| `sfcWind` | `wspd10_mean` | * (multiplicative) | Near-surface wind speed |
+| CMIP6 Variable | ERA5 Equivalent | Operator | Interpolation | Notes |
+|----------------|-----------------|----------|---------------|-------|
+| `tasmax` | `t2max` | + (additive) | Bilinear | Daily maximum temperature |
+| `tasmin` | `t2min` | + (additive) | Bilinear | Derived from tasmax - dtr |
+| `tas` | `t2` | + (additive) | Bilinear | Daily mean temperature |
+| `dtr` | `dtr` | * (multiplicative) | Bilinear | Diurnal temperature range |
+| `pr` | `pr` | * (multiplicative) | Bilinear | Precipitation, zero-inflated |
+| `hurs` | `rh2_mean` | + (additive) | Bilinear | Near-surface relative humidity |
+| `hursmin` | `rh2_min` | + (additive) | Bilinear | Daily minimum relative humidity |
+| `snw` | `snow_sum` | * (multiplicative) | Conservative | Surface snow amount, land-only, zero-inflated |
+| `sfcWind` | `wspd10_mean` | * (multiplicative) | Bilinear | Near-surface wind speed |
 
 ### Model and Scenario Availability
 
@@ -412,7 +416,17 @@ Three-step regridding minimizes interpolation errors for large grid spacing diff
 2. **Second regrid**: Intermediate grid 1 → intermediate grid 2 (step=0.25)
 3. **Final regrid**: Intermediate grid 2 → ERA5 target grid
 
-Each step uses bilinear interpolation; land/sea masking applied in first step propagates through NaN values.
+**Interpolation methods**:
+- **Conservative** (`remapcon`): Used for `snw` (surface snow amount) to preserve mass/area integrals
+- **Bilinear** (`remapbil`): Used for all other variables (temperature, precipitation, humidity, wind)
+
+**Land/sea masking**: Applied independently at **each regridding stage** using model-specific land masks (`sftlf`) that are regridded to match each intermediate grid. This ensures ocean grid cells are masked (set to NaN) at every stage, preventing interpolation artifacts at coastlines. The masking process:
+1. For each regridding stage, create a model-specific `sftlf` target file at that stage's resolution
+2. Regrid both the climate variable and the land mask to the target grid
+3. Apply the regridded mask to set ocean cells to NaN
+4. These NaN values propagate through subsequent regridding stages
+
+This approach prevents issues where bilinear interpolation would otherwise blend land and ocean values near coastlines.
 
 ### Data Format
 
