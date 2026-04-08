@@ -384,17 +384,137 @@ All SLURM job outputs are written to:
 
 ### Model and Scenario Availability
 
-**TBD**: A comprehensive audit table will be added here showing which models provide which variables for which scenarios.
+The following tables summarize source data availability by model, scenario, and variable. To confirm availability for your specific combination, examine the data on Chinook using this filepath template:
+`/beegfs/CMIP6/arctic-cmip6/CMIP6/{experiment}/{institution}/{model}/{scenario}/{variant}/day/{variable}/
+`
 
-Current known limitations:
-- Not all models provide all variables
-- Some models lack certain scenarios (e.g., ssp245)
-- E3SM-2-0 and KACE-1-0-G do not have source land masks (sftlf) in `model_sftlf_lu`
+#### `pr` — Precipitation
 
-To check availability for your specific combination, examine:
-```bash
-ls /beegfs/CMIP6/arctic-cmip6/CMIP6/{experiment}/{institution}/{model}/{scenario}/{variant}/day/{variable}/
-```
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | ✓ | ✓ | — | — | ✓ | |
+| CNRM-CM6-1-HR | ✓ | ✓ | — | — | ✓ | |
+| E3SM-2-0 | ✓ | — | — | ✓ | — | |
+| EC-Earth3-Veg | ✓ | ✓ | — | ✓ | ✓ | |
+| GFDL-ESM4 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| HadGEM3-GC31-LL | ✓ | ✓ | ✓ | — | ✓ | |
+| HadGEM3-GC31-MM | ✓ | ✓ | — | — | ✓ | |
+| KACE-1-0-G | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| NorESM2-MM | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| TaiESM1 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+
+#### `tasmax` — Daily Maximum Near-Surface Air Temperature
+
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | — | — | — | — | — | No data available. |
+| CNRM-CM6-1-HR | ✓ | ✓ | — | — | ✓ | |
+| E3SM-2-0 | ✓ | — | — | ✓ | — | |
+| EC-Earth3-Veg | ✓ | — | — | ✓ | ✓ | |
+| GFDL-ESM4 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| HadGEM3-GC31-LL | ✓ | ✓ | ✓ | — | ✓ | |
+| HadGEM3-GC31-MM | ✓ | ✓ | — | — | ✓ | |
+| KACE-1-0-G | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| NorESM2-MM | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| TaiESM1 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+
+#### `tasmin` — Daily Minimum Near-Surface Air Temperature
+
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | — | — | — | — | — | No data available. |
+| CNRM-CM6-1-HR | ✓ | ✓ | — | — | ✓ | |
+| E3SM-2-0 | ✓ | — | — | ✓ | — | |
+| EC-Earth3-Veg | ✓ | — | — | ✓ | ✓ | |
+| GFDL-ESM4 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| HadGEM3-GC31-LL | ✓ | ✓ | ✓ | — | ✓ | |
+| HadGEM3-GC31-MM | ✓ | ✓ | — | — | ✓ | |
+| KACE-1-0-G | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| NorESM2-MM | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| TaiESM1 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+
+#### `snw` — Surface Snow Amount
+
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| CNRM-CM6-1-HR | ✓ | — | — | — | — | |
+| E3SM-2-0 | — | — | — | — | — | No data available. |
+| EC-Earth3-Veg | ✓ | — | — | — | — | |
+| GFDL-ESM4 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| HadGEM3-GC31-LL | ✓ | — | ✓ | — | — | |
+| HadGEM3-GC31-MM | ✓ | — | — | — | — | |
+| KACE-1-0-G | — | — | — | — | — | No data available. |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | ssp126 and ssp585 data extends beyond 2100. |
+| NorESM2-MM | — | — | — | — | — | No data available. |
+| TaiESM1 | — | — | — | — | — | No data available. |
+
+#### `hurs` — Near-Surface Relative Humidity
+
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| CNRM-CM6-1-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| E3SM-2-0 | — | — | — | — | — | No data available. |
+| EC-Earth3-Veg | ✓ | ✓ | ✓* | ✓ | ✓ | *ssp245 only covers 2061–2100. |
+| GFDL-ESM4 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| HadGEM3-GC31-LL | ✓ | ✓ | ✓ | — | ✓ | |
+| HadGEM3-GC31-MM | ✓ | ✓ | — | — | ✓ | |
+| KACE-1-0-G | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | ssp126 and ssp585 data extends beyond 2100. |
+| NorESM2-MM | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| TaiESM1 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+
+#### `hursmin` — Daily Minimum Near-Surface Relative Humidity
+
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | — | — | — | — | — | No data available. |
+| CNRM-CM6-1-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| E3SM-2-0 | — | — | — | — | — | No data available. |
+| EC-Earth3-Veg | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| GFDL-ESM4 | — | — | — | — | — | No data available. |
+| HadGEM3-GC31-LL | — | — | — | — | — | No data available. |
+| HadGEM3-GC31-MM | — | — | — | — | — | No data available. |
+| KACE-1-0-G | ✓ | — | — | — | ✓ | |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | ssp126 and ssp585 data extends beyond 2100. |
+| NorESM2-MM | — | — | — | — | — | No data available. |
+| TaiESM1 | — | — | — | — | — | No data available. |
+
+#### `sfcWind` — Near-Surface Wind Speed
+
+| Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
+|-------|:----------:|:------:|:------:|:------:|:------:|-------|
+| CESM2 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| CNRM-CM6-1-HR | ✓ | — | — | — | — | |
+| E3SM-2-0 | — | — | — | — | — | No data available. |
+| EC-Earth3-Veg | ✓ | — | — | — | — | |
+| GFDL-ESM4 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| HadGEM3-GC31-LL | ✓ | ✓ | ✓ | — | ✓ | |
+| HadGEM3-GC31-MM | ✓ | ✓ | — | — | ✓ | |
+| KACE-1-0-G | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MIROC6 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MPI-ESM1-2-HR | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| MRI-ESM2-0 | ✓ | ✓ | ✓ | ✓ | ✓ | ssp126 and ssp585 data extends beyond 2100. |
+| NorESM2-MM | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| TaiESM1 | ✓ | ✓ | ✓ | ✓ | ✓ | |
+
+
 
 ---
 
