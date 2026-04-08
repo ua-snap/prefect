@@ -150,7 +150,6 @@ def download_new_nsidc_data(year):
         commanda = 'wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies --no-check-certificate --auth-no-challenge=on -r --reject "index.html*" -np -nd -e robots=off --user {} --password "{}" -P {} '.format(
             username, password, out_dir
         )
-        print(year)
         flag = "F17" if int(year) <= 2024 else "am2"
 
         commandb = "https://noaadata.apps.nsidc.org/NOAA/G02202_V6/north/monthly/sic_psn25_{}{}_{}_v06r00.nc".format(
