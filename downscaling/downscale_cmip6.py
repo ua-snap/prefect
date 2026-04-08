@@ -1013,7 +1013,11 @@ def downscale_cmip6(
     first_regrid_out_dir_name = "first_regrid"
     first_regrid_kwargs = base_kwargs.copy()
     regrid_variables = get_regrid_variables(variables)
-    interp_method = "bilinear"
+
+    # if variable is snw, use conservative interpolation, otherwise bilinear
+    interp_method = "conservative" if "snw" in regrid_variables else "bilinear"
+    logger.info(f"Using interpolation method '{interp_method}' for regridding.")
+    
     first_regrid_kwargs.update(
         {
             "cmip6_dir": cmip6_dir,
