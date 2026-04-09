@@ -392,7 +392,7 @@ The following tables summarize source data availability by model, scenario, and 
 
 | Model | historical | ssp126 | ssp245 | ssp370 | ssp585 | Notes |
 |-------|:----------:|:------:|:------:|:------:|:------:|-------|
-| CESM2 | ✓ | ✓ | — | — | ✓ | |
+| CESM2 | ✓ | ✓ | ✓ | ✓ | ✓ | |
 | CNRM-CM6-1-HR | ✓ | ✓ | — | — | ✓ | |
 | E3SM-2-0 | ✓ | — | — | ✓ | — | |
 | EC-Earth3-Veg | ✓ | ✓ | — | ✓ | ✓ | |
