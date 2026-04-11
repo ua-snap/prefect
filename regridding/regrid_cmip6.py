@@ -4,6 +4,7 @@ Regridded data is written to <scratch_dir>/<work_dir_name>/regrid
 """
 
 from prefect import flow
+from prefect.logging import get_run_logger
 import paramiko
 from pathlib import Path
 from regridding import regridding_functions as rf
@@ -39,6 +40,8 @@ def regrid_cmip6(
     target_sftlf_fp=None,
     partition="t2small",
 ):
+    logger = get_run_logger()
+
     variables = rf.validate_vars(variables)
     freqs = rf.validate_freqs(freqs)
     models = rf.validate_models(models)
@@ -59,7 +62,7 @@ def regrid_cmip6(
     working_dir = f"{scratch_dir}/{work_dir_name}"
     slurm_dir = f"{working_dir}/slurm"
     output_dir = f"{working_dir}/{out_dir_name}"
-    regrid_batch_dir = f"{slurm_dir}/regrid_batch_files"
+    regrid_batch_dir = f"{slurm_dir}/first_regrid/batch"
 
     # target regridding file - all files will be regridded to the grid in this file
     # target_grid_fp = f"{cmip6_dir}/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/Amon/tas/gn/v20200528/tas_Amon_CESM2_ssp370_r11i1p1f1_gn_206501-210012.nc"
@@ -111,10 +114,19 @@ def regrid_cmip6(
         }
         regrid_job_ids = rf.run_regridding(**run_regrid_kwargs)
 
-        utils.wait_for_jobs_completion(
+        # Use retry logic for array job failures
+        # The regrid script now creates an array job, so we can automatically
+        # resubmit failed tasks
+        sbatch_script = f"{slurm_dir}/first_regrid/regrid_first.slurm"
+        utils.wait_for_jobs_with_retry(
             ssh,
             regrid_job_ids,
-            completion_message="Slurm jobs for regridding complete.",
+            sbatch_script,
+            completion_message="Slurm jobs for first regridding complete.",
+            max_job_retries=5,
+            retry_delay=60,
+            exponential_backoff=True,
+            logger=logger,
         )
 
         qc_kwargs = {
@@ -132,7 +144,9 @@ def regrid_cmip6(
         }
         qc_job_ids = rf.run_qc(**qc_kwargs)
 
-        utils.wait_for_jobs_completion(ssh, qc_job_ids, "Slurm jobs for QC complete.")
+        utils.wait_for_jobs_completion(
+            ssh, qc_job_ids, "Slurm jobs for QC complete.", logger=logger
+        )
 
     finally:
         ssh.close()

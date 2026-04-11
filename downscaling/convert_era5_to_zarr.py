@@ -27,6 +27,7 @@ def run_convert_era5_netcdf_to_zarr(
     output_dir,
     variables,
     slurm_dir,
+    resolution,
 ):
     """This function will ssh to the remote server and run the slurm launcher script"""
     logger = get_run_logger()
@@ -40,7 +41,8 @@ def run_convert_era5_netcdf_to_zarr(
         f"--netcdf_dir {netcdf_dir} "
         f"--output_dir {output_dir} "
         f"--variables '{variables}' "
-        f"--slurm_dir {slurm_dir}"
+        f"--slurm_dir {slurm_dir} "
+        f"--resolution {resolution}"
     )
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
@@ -74,6 +76,7 @@ def convert_era5_to_zarr(
     scratch_dir,  # e.g. /center1/CMIP6/kmredilla
     work_dir_name,  # e.g. zarr_bias_adjust_inputs
     partition,
+    resolution,
 ):
     # Create an SSH client
     ssh = paramiko.SSHClient()
@@ -119,12 +122,21 @@ def convert_era5_to_zarr(
             "output_dir": output_dir,
             "slurm_dir": slurm_dir,
             "partition": partition,
+            "resolution": str(resolution),
         }
         job_ids = run_convert_era5_netcdf_to_zarr(**kwargs)
 
-        utils.wait_for_jobs_completion(
+        # Find the sbatch script for retry logic
+        sbatch_script = slurm_dir.joinpath("convert_era5_netcdf_to_zarr.slurm")
+
+        # Use retry logic to handle intermittent 0:53 errors
+        final_job_ids = utils.wait_for_jobs_with_retry(
             ssh,
             job_ids,
+            sbatch_script_path=sbatch_script if sbatch_script.exists() else None,
+            max_job_retries=3,
+            retry_delay=60,
+            exponential_backoff=True,
             completion_message="Slurm jobs for Zarr conversion complete.",
         )
 

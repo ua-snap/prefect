@@ -43,6 +43,10 @@ def run_generate_batch_files(
     )
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
 
+    # Print stderr to show progress messages
+    if stderr:
+        print(stderr)
+
     # Check the exit status for errors
     if exit_status != 0:
         raise Exception(f"Error generating batch files. Error: {stderr}")
@@ -89,7 +93,7 @@ def run_regridding(
     - regrid_batch_dir: Directory of batch files
     - conda_env_name: Name of the Conda environment to activate
     - regrid_script: Location of regrid.py script in the repo
-    - target_grid_fp: Path to file used as the regridding target
+    - target_grid_file: Path to file used as the regridding target
     - no_clobber: Do not overwrite regridded files if they exist
     - variables: Variables to regrid
     - interp_method: Interpolation method to use
@@ -125,6 +129,10 @@ def run_regridding(
         cmd += " --rasdafy"
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+
+    # Print stderr to show progress messages (batch discovery, script creation, etc.)
+    if stderr:
+        print(stderr)
 
     # Check the exit status for errors
     if exit_status != 0:
@@ -165,7 +173,7 @@ def validate_freqs(freq_str):
     """
     Task to validate frequencies to work on.
     Parameters:
-    - freqs_str: a string of variable ids separated by white space (e.g., 'pr tas ta') or variable group names found in luts.py (e.g. 'land')
+    - freq_str: a string of frequencies separated by white space (e.g., 'mon day') or 'all'
     """
 
     if freq_str == "all":
@@ -230,6 +238,10 @@ def run_qc(
             f" --vars '{variables}' --freqs '{freqs}' --models '{models}' --scenarios '{scenarios}'"
         ),
     )
+
+    # Print stderr to show progress messages
+    if stderr:
+        print(stderr)
 
     # Check the exit status for errors
     if exit_status != 0:

@@ -24,6 +24,7 @@ def run_process_era5_dtr(
     output_dir,
     slurm_dir,
     partition,
+    resolution,
 ):
     cmd = (
         f"conda activate {conda_env_name}; "
@@ -34,6 +35,7 @@ def run_process_era5_dtr(
         f"--output_dir {output_dir} "
         f"--slurm_dir {slurm_dir} "
         f"--partition {partition} "
+        f"--resolution {resolution}"
     )
 
     exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
@@ -62,6 +64,7 @@ def process_era5_dtr(
     scratch_dir,
     work_dir_name,
     partition,
+    resolution,
 ):
 
     # Create an SSH client
@@ -102,6 +105,7 @@ def process_era5_dtr(
             "output_dir": output_dir,
             "slurm_dir": slurm_dir,
             "partition": partition,
+            "resolution": str(resolution),
         }
         job_ids = run_process_era5_dtr(**kwargs)
 

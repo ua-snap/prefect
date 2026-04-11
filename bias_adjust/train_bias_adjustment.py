@@ -157,11 +157,10 @@ if __name__ == "__main__":
     sim_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/cmip6_zarr"
     ref_dir = "/center1/CMIP6/snapdata/cmip6_4km_downscaling/era5_zarr"
     work_dir_name = "cmip6_4km_downscaling"
-    netcdf_dir = "/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid"
     partition = "t2small"
 
     train_bias_adjustment.serve(
-        name="convert-cmip6-netcdf-to-zarr",
+        name="train-bias-adjustment-cmip6",
         tags=["Bias adjustment", "Downscaling"],
         parameters={
             "ssh_username": ssh_username,
@@ -175,7 +174,6 @@ if __name__ == "__main__":
             "work_dir_name": work_dir_name,
             "models": models,
             "variables": variables,
-            "netcdf_dir": netcdf_dir,
             "partition": partition,
         },
     )

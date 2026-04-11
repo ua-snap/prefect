@@ -1,30 +1,28 @@
 """Flow for statistical downscaling CMIP6 data using the cmip6-utils repository.
 
-Notes
-- This flow is designed to be run on the Chinook cluster.
-- It makes use of /center1/CMIP6 for more robust processing with Dask,
-because we have had issues with Dask + IO on the /beegfs filesystem.
-It does not have the abundance of storage we are used to with /beegfs
-
-I don't have an exact number yet, but you will need to ensure there is enough
-space in /center1/CMIP6 before running this flow for a single model. I think
-a safe number is 1TB for all four variables (tasmax, dtr, pr, tasmin) and all possible scenarios.
+Notes:
+This flow is designed to be run on the Chinook cluster.
 
 The flow consists of the following steps:
-1. Create the intermediate target grid file for the first regridding step.
-2. Regrid CMIP6 data to the intermediate grid.
-3. Regrid CMIP6 data to the final grid from the intermediate grid.
-4. Process DTR from the regridded CMIP6 data.
-5. Ensure ERA5 reference data is in scratch space (copy if not).
-6. Process DTR from the ERA5 data (this could be removed if DTR processing is brought to ERA5 preprocessing repo)
-7. Convert ERA5 data to Zarr format.
-8. Convert CMIP6 data to Zarr format.
-9. Train bias adjustment model using historical data only. Weights/ adjustment factors are saved on a model + variable basis.
-10. Apply bias adjustment to the regridded CMIP6 data using the trained model.
-11. Derive tasmin from the adjusted CMIP6 data by subtracting DTR from tasmax (if DTR is requested in flow parameters)
+1. Create remote working and slurm directories.
+2. Clone and install the cmip6-utils repo on the remote.
+3. Generate batch files listing CMIP6 files to regrid, grouped by model/scenario/variable/grid.
+4. Compute DTR from raw CMIP6 tasmax and tasmin (if dtr or tasmin requested).
+5. Generate batch files for DTR data (if dtr or tasmin requested).
+6. Create the intermediate target grid file for the first regridding step.
+7. Regrid CMIP6 data to the intermediate grid (bilinear).
+8. Create the second intermediate target grid file.
+9. Regrid from the intermediate grid toward the final resolution.
+10. Regrid to the final 4km target grid.
+11. Ensure ERA5 reference data is in scratch space (copy if not).
+12. Process DTR from the ERA5 data (if dtr or tasmin requested).
+13. Convert ERA5 data to Zarr format.
+14. Convert the regridded CMIP6 data to Zarr format.
+15. Train bias adjustment model using historical data only. Weights/adjustment factors are saved on a per-model, per-variable basis.
+16. Apply bias adjustment to the regridded CMIP6 data.
+17. Derive tasmin from adjusted tasmax minus adjusted dtr (if tasmin requested).
 """
 
-import time
 from prefect import flow, task
 from prefect.logging import get_run_logger
 import paramiko
@@ -39,8 +37,6 @@ from downscaling.convert_era5_to_zarr import convert_era5_to_zarr
 from bias_adjust.train_bias_adjustment import train_bias_adjustment
 from bias_adjust.bias_adjustment import bias_adjustment
 from regridding import regridding_functions as rf
-import os
-
 # Define your SSH parameters
 ssh_host = "chinook04.rcs.alaska.edu"
 ssh_port = 22
@@ -49,8 +45,40 @@ ssh_port = 22
 out_dir_name = "downscaled"
 
 
+def get_batch_file_variables(variables):
+    """Get variables needed for batch file generation.
+
+    For DTR calculation, we need raw tasmin and tasmax from CMIP6 data.
+    This function ensures those variables are included in batch files.
+
+    Parameters:
+        variables (str): String representation of variables list
+
+    Returns:
+        str: String representation of variables list for batch files
+    """
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    batch_variables_list = var_list.copy()
+
+    # For DTR calculation or tasmin derivation, ensure we have source variables
+    if "dtr" in var_list or "tasmin" in var_list:
+        # Need raw tasmin and tasmax for DTR calculation
+        if "tasmin" not in batch_variables_list:
+            batch_variables_list.append("tasmin")
+        if "tasmax" not in batch_variables_list:
+            batch_variables_list.append("tasmax")
+
+    batch_variables = " ".join(batch_variables_list)
+    return batch_variables
+
+
 def get_regrid_variables(variables):
-    """Modifies variables as needed that are unintended for regridding step using the string representation of variables list
+    """Get variables that should actually be regridded.
+
+    Includes tasmin when requested so it is available in cmip6_zarr/ for QC.
+    Note: tasmin is also derived from bias-adjusted tasmax - dtr at the end
+    of the pipeline; regridding it here provides the pre-bias-adjustment
+    version for QC notebook use only.
 
     Parameters:
         variables (str): String representation of variables list
@@ -59,18 +87,69 @@ def get_regrid_variables(variables):
         str: String representation of variables list for regridding
     """
     var_list = cmip6.validate_vars(variables, return_list=True)
-    drop_vars = []
-    regrid_variables_list = [var for var in var_list if var not in drop_vars]
+    regrid_variables_list = var_list.copy()
 
-    if "dtr" in var_list:
-        if "tasmin" not in var_list:
-            regrid_variables_list.append("tasmin")
-        if "tasmax" not in var_list:
+    # Ensure tasmax is present when dtr or tasmin is requested,
+    # since the bias adjustment pipeline needs tasmax alongside these variables.
+    if "dtr" in var_list or "tasmin" in var_list:
+        if "tasmax" not in regrid_variables_list:
             regrid_variables_list.append("tasmax")
 
     regrid_variables = " ".join(regrid_variables_list)
-
     return regrid_variables
+
+
+def get_zarr_conversion_variables(variables):
+    """Get variables for the CMIP6 zarr conversion step.
+
+    Unlike get_processing_variables(), this includes tasmin when requested
+    so it is available in cmip6_zarr/ for QC purposes in notebooks.
+    Tasmin files must exist in the regridded source directory (i.e.,
+    get_regrid_variables() must also include tasmin) for this to work.
+
+    Parameters:
+        variables (str): String representation of variables list
+
+    Returns:
+        str: String representation of variables list for zarr conversion
+    """
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    conversion_list = var_list.copy()
+
+    # Ensure tasmax is present for the bias adjustment pipeline when
+    # dtr or tasmin is involved.
+    if "dtr" in var_list or "tasmin" in var_list:
+        if "tasmax" not in conversion_list:
+            conversion_list.append("tasmax")
+
+    return " ".join(conversion_list)
+
+
+def get_processing_variables(variables):
+    """Get variables that should be processed through zarr/train/bias_adjust pipeline.
+
+    Excludes tasmin if user requested it, since it will be derived from tasmax - dtr.
+
+    Parameters:
+        variables (str): String representation of variables list
+
+    Returns:
+        str: String representation of variables list for processing
+    """
+    var_list = cmip6.validate_vars(variables, return_list=True)
+
+    # Exclude tasmin if user requested it (we'll derive it later)
+    processing_list = [v for v in var_list if v != "tasmin"]
+
+    # For deriving tasmin, we need tasmax and dtr to be processed
+    if "tasmin" in var_list:
+        if "tasmax" not in processing_list:
+            processing_list.append("tasmax")
+        if "dtr" not in processing_list:
+            processing_list.append("dtr")
+
+    processing_variables = " ".join(processing_list)
+    return processing_variables
 
 
 @flow
@@ -106,6 +185,62 @@ def clone_and_install_repo(
         )
     finally:
         # Close the SSH connection
+        ssh.close()
+
+
+@task
+def prune_empty_directories(
+    ssh_username,
+    ssh_private_key_path,
+    base_dir,
+):
+    """Remove empty scenario directories from DTR output.
+
+    Some models don't have data for all scenarios, but the DTR script creates
+    directory structures for all scenarios anyway. This removes empty ones.
+
+    Parameters
+    ----------
+    base_dir : Path or str
+        Base directory containing model/scenario/frequency/variable structure
+    """
+    logger = get_run_logger()
+    logger.info(f"Pruning empty directories from {base_dir}")
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+
+        # Find all scenario directories (they're at depth 2: model/scenario/)
+        # Check if they contain any files recursively
+        cmd = f"""
+        cd {base_dir} 2>/dev/null || exit 0
+        for model_dir in */; do
+            [ -d "$model_dir" ] || continue
+            cd "$model_dir"
+            for scenario_dir in */; do
+                [ -d "$scenario_dir" ] || continue
+                # Count files in scenario directory tree
+                file_count=$(find "$scenario_dir" -type f 2>/dev/null | wc -l)
+                if [ "$file_count" -eq 0 ]; then
+                    echo "Removing empty: $model_dir$scenario_dir"
+                    rm -rf "$scenario_dir"
+                fi
+            done
+            cd ..
+        done
+        """
+
+        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+        if stdout:
+            logger.info(f"Pruned directories:\n{stdout}")
+        if exit_status != 0 and stderr:
+            logger.warning(f"Warning during pruning: {stderr}")
+
+    finally:
         ssh.close()
 
 
@@ -158,38 +293,6 @@ def ensure_reference_data_in_scratch(
 
 
 @task
-def link_dir(
-    ssh_username,
-    ssh_private_key_path,
-    src_dir,  # e.g. /center1/CMIP6/kmredilla/cmip6_4km_downscaling/era5_dtr
-    target_dir,  # e.g. /center1/CMIP6/kmredilla/daily_era5_4km_3338/netcdf/dtr
-):
-    """Link a directory to another directory using SSH.
-
-    Created to link new DTR data to the ERA5 directory for batch access."""
-    logger = get_run_logger()
-    logger.info(f"Linking directory from {src_dir} to {target_dir}")
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        # Load the private key for key-based authentication
-        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-
-        # Connect to the SSH server using key-based authentication
-        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        cmd = f"ln -sf {target_dir} {target_dir}"
-
-        utils.exec_command(ssh, cmd)
-
-    finally:
-        # Close the SSH connection
-        ssh.close()
-
-
-@task
 def create_first_regrid_target_file(
     ssh_username,
     ssh_private_key_path,
@@ -198,6 +301,7 @@ def create_first_regrid_target_file(
     scratch_dir,
     work_dir_name,
     step,
+    resolution,
 ):
     first_regrid_target_file = scratch_dir.joinpath(
         work_dir_name, "first_regrid_target_file.nc"
@@ -214,7 +318,8 @@ def create_first_regrid_target_file(
             python {cascade_grid_script} \
             --src_file {first_regrid_source_file} \
             --out_file {first_regrid_target_file} \
-            --step {step}"
+            --step {step} \
+            --resolution {resolution}"
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -242,6 +347,7 @@ def create_second_regrid_target_file(
     scratch_dir,
     work_dir_name,
     step,
+    resolution,
 ):
     second_regrid_target_file = scratch_dir.joinpath(
         work_dir_name, "second_regrid_target_file.nc"
@@ -258,7 +364,8 @@ def create_second_regrid_target_file(
             python {cascade_grid_script} \
             --src_file {second_regrid_source_file} \
             --out_file {second_regrid_target_file} \
-            --step {step}"
+            --step {step} \
+            --resolution {resolution}"
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -291,16 +398,26 @@ def another_cmip6_regrid(
     ssh_username,
     ssh_private_key_path,
     out_dir_name,
+    stage,
 ):
-    """Flow for regridding CMIP6 data that has been regridded once and so is all on a common grid."""
+    """Flow for regridding CMIP6 data that has been regridded once and so is all on a common grid.
+
+    Parameters
+    ----------
+    stage : str
+        Regridding stage identifier ('second' or 'final')
+    """
     logger = get_run_logger()
-    logger.info(f"Regridding CMIP6 data again to {target_grid_file}")
+    logger.info(f"Regridding CMIP6 data ({stage} stage) to {target_grid_file}")
 
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     slurm_dir = working_dir.joinpath("slurm")
-    regrid_again_batch_dir = slurm_dir.joinpath("regrid_again_batch")
+    # Deprecated: regrid_again_batch_dir is now created within stage-specific subdirectory
+    regrid_again_batch_dir = slurm_dir.joinpath(
+        "regrid_again_batch"
+    )  # Keep for backward compatibility in args
     output_dir = working_dir.joinpath(out_dir_name)
 
     cmd = (
@@ -315,6 +432,7 @@ def another_cmip6_regrid(
         f"--regridded_dir {regridded_dir} "
         f"--regrid_again_batch_dir {regrid_again_batch_dir} "
         f"--output_dir {output_dir} "
+        f"--stage {stage} "
     )
 
     try:
@@ -332,13 +450,22 @@ def another_cmip6_regrid(
         ), f"More than one job ID given for final regridding: {job_ids}"
 
         logger.info(
-            f"CMIP6 regridding to final grid job submitted! (job ID: {job_ids[0]})"
+            f"CMIP6 regridding ({stage} stage) job submitted! (job ID: {job_ids[0]})"
         )
 
-        utils.wait_for_jobs_completion(
+        # Find the sbatch script for potential retry in stage-specific subdirectory
+        slurm_subdir = slurm_dir.joinpath(f"{stage}_regrid")
+        sbatch_script = slurm_subdir.joinpath(f"regrid_{stage}.slurm")
+
+        # Use retry logic to handle intermittent 0:53 errors
+        final_job_ids = utils.wait_for_jobs_with_retry(
             ssh,
             job_ids,
-            completion_message="Slurm jobs for final regridding complete.",
+            sbatch_script_path=sbatch_script if sbatch_script.exists() else None,
+            max_job_retries=3,
+            retry_delay=60,
+            exponential_backoff=True,
+            completion_message=f"Slurm jobs for {stage} regridding complete.",
         )
 
     finally:
@@ -424,61 +551,22 @@ def derive_cmip6_tasmin(
 
         job_ids = utils.parse_job_ids(stdout)
 
-        utils.wait_for_jobs_completion(ssh, job_ids)
+        # Use retry logic to handle intermittent 0:53 errors
+        derive_slurm_subdir = Path(slurm_dir) / "derive_tasmin"
+        derive_sbatch_script = derive_slurm_subdir / "process_cmip6_diff_tasmin.slurm"
 
-    finally:
-        # Close the SSH connection
-        ssh.close()
-
-
-@flow
-def derive_era5_tasmin(
-    ssh_username,
-    ssh_private_key_path,
-    era5_zarr_dir,
-    slurm_dir,
-    repo_dir,
-    conda_env_name,
-    partition,
-):
-    # I honestly don't remember why I made a function for this. ERA5 tasmin (t2min) exists separately
-    # and does not need to be derived again, could just be converted to zarr.
-    """Derive tasmin from ERA5 data."""
-    logger = get_run_logger()
-    logger.info(f"Deriving tasmin from ERA5 data in {era5_zarr_dir}")
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
-
-        launcher_script = repo_dir.joinpath("derived", "run_wrf_era5_difference.py")
-        worker_script = repo_dir.joinpath("derived", "difference.py")
-        cmd = (
-            f"python {launcher_script} "
-            f"--worker_script {worker_script} "
-            f"--conda_env_name {conda_env_name} "
-            f"--slurm_dir {slurm_dir} "
-            f"--minuend_store {era5_zarr_dir.joinpath('t2max_era5.zarr')} "
-            f"--subtrahend_store {era5_zarr_dir.joinpath('dtr_era5.zarr')} "
-            f"--output_store {era5_zarr_dir.joinpath('tasmin_era5.zarr')} "
-            "--new_var_id tasmin "
-            f"--partition {partition}"
+        final_job_ids = utils.wait_for_jobs_with_retry(
+            ssh,
+            job_ids,
+            sbatch_script_path=(
+                derive_sbatch_script if derive_sbatch_script.exists() else None
+            ),
+            max_job_retries=5,
+            retry_delay=60,
+            exponential_backoff=True,
+            logger=logger,
+            completion_message="Slurm job for deriving CMIP6 tasmin complete.",
         )
-
-        exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
-        if exit_status != 0:
-            raise Exception(
-                f"Error in creating slurm job for deriving ERA5 tasmin. Error: {stderr}"
-            )
-        if stdout != "":
-            logger.info(stdout)
-
-        job_ids = utils.parse_job_ids(stdout)
-
-        utils.wait_for_jobs_completion(ssh, job_ids)
 
     finally:
         # Close the SSH connection
@@ -504,8 +592,9 @@ def downscale_cmip6(
     flow_steps,
     first_regrid_linspace_step,
     second_regrid_linspace_step,
+    resolution,
 ):
-    # logger = get_run_logger()
+    logger = get_run_logger()
 
     reference_dir = Path(reference_dir)
     cmip6_dir = Path(cmip6_dir)
@@ -542,6 +631,12 @@ def downscale_cmip6(
     # if yes, convert to zarr
     # if no, rsync from reference_dir
 
+    # Expand "all" shorthand once so all steps receive explicit model/scenario lists
+    if models == "all":
+        models = " ".join(cmip6.all_models)
+    if scenarios == "all":
+        scenarios = " ".join(cmip6.all_scenarios)
+
     # here are some base kwargs that will be recycled across subflows
     base_kwargs = {
         # "ssh_host": ssh_host,
@@ -562,9 +657,6 @@ def downscale_cmip6(
     if flow_steps == "all" or "generate_batch_files" in flow_steps_list:
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        if scenarios == "all":
-            scenarios = "historical ssp126 ssp245 ssp370 ssp585"
 
         try:
             # Load the private key for key-based authentication
@@ -602,7 +694,7 @@ def downscale_cmip6(
                 "run_generate_batch_files_script": run_generate_batch_files_script,
                 "cmip6_dir": cmip6_dir,
                 "slurm_dir": slurm_dir,
-                "vars": variables,
+                "vars": get_batch_file_variables(variables),
                 "freqs": freqs,
                 "models": models,
                 "scenarios": scenarios,
@@ -613,11 +705,17 @@ def downscale_cmip6(
                 ssh,
                 batch_job_ids,
                 completion_message="Slurm jobs for batch file generation complete.",
+                logger=logger,
             )
         finally:
             ssh.close()
 
-    batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/regrid_batch_files"
+    batch_files_dir = f"{scratch_dir}/{work_dir_name}/slurm/first_regrid/batch"
+
+    # Check if DTR processing is needed
+    var_list = cmip6.validate_vars(variables, return_list=True)
+    needs_dtr = "dtr" in var_list
+    needs_era5_dtr = "dtr" in var_list or "tasmin" in var_list
 
     ### CMIP6 DTR processing
     process_dtr_kwargs = base_kwargs.copy()
@@ -628,47 +726,53 @@ def downscale_cmip6(
         }
     )
 
-    if flow_steps == "all" or "process_dtr" in flow_steps_list:
+    if needs_dtr and (flow_steps == "all" or "process_dtr" in flow_steps_list):
         cmip6_dtr_dir = process_dtr(**process_dtr_kwargs)
+        # Remove empty scenario directories (some models don't have all scenarios)
+        prune_empty_directories(
+            ssh_username=ssh_username,
+            ssh_private_key_path=ssh_private_key_path,
+            base_dir=cmip6_dtr_dir,
+        )
     else:
         cmip6_dtr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_dtr"
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    private_key = paramiko.RSAKey(filename=ssh_private_key_path)
-    ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
+    ### Prep DTR data for regridding by adding DTR files to batch files for regridding step
+    if needs_dtr:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        private_key = paramiko.RSAKey(filename=ssh_private_key_path)
+        ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
-    generate_batch_files_script = (
-        f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
-    )
-    run_generate_batch_files_script = (
-        f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
-    )
+        generate_batch_files_script = (
+            f"{scratch_dir}/cmip6-utils/regridding/generate_batch_files.py"
+        )
+        run_generate_batch_files_script = (
+            f"{scratch_dir}/cmip6-utils/regridding/run_generate_batch_files.py"
+        )
 
-    if scenarios == "all":
-        scenarios = "historical ssp126 ssp245 ssp370 ssp585"
+        # Add DTR files to batch files for regridding
+        freqs = "day"
+        batch_file_kwargs = {
+            "ssh": ssh,
+            "conda_env_name": conda_env_name,
+            "generate_batch_files_script": generate_batch_files_script,
+            "run_generate_batch_files_script": run_generate_batch_files_script,
+            "cmip6_dir": cmip6_dtr_dir,
+            "slurm_dir": slurm_dir,
+            "vars": "dtr",
+            "freqs": freqs,
+            "models": models,
+            "scenarios": scenarios,
+        }
+        batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
 
-    # Add DTR files to batch files for regridding
-    freqs = "day"
-    batch_file_kwargs = {
-        "ssh": ssh,
-        "conda_env_name": conda_env_name,
-        "generate_batch_files_script": generate_batch_files_script,
-        "run_generate_batch_files_script": run_generate_batch_files_script,
-        "cmip6_dir": cmip6_dtr_dir,
-        "slurm_dir": slurm_dir,
-        "vars": "dtr",
-        "freqs": freqs,
-        "models": models,
-        "scenarios": scenarios,
-    }
-    batch_job_ids = rf.run_generate_batch_files(**batch_file_kwargs)
-
-    utils.wait_for_jobs_completion(
-        ssh,
-        batch_job_ids,
-        completion_message="Slurm jobs for batch file generation complete.",
-    )
+        utils.wait_for_jobs_completion(
+            ssh,
+            batch_job_ids,
+            completion_message="Slurm jobs for batch file generation complete.",
+            logger=logger,
+        )
 
     ### Regridding 1: Regrid CMIP6 data to intermediate grid
     # first, run the task to create the intermediate target grid file
@@ -688,6 +792,7 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": first_regrid_linspace_step,
+        "resolution": resolution,
     }
 
     if flow_steps == "all" or "create_first_regrid_target_file" in flow_steps_list:
@@ -733,6 +838,7 @@ def downscale_cmip6(
         "scratch_dir": scratch_dir,
         "work_dir_name": work_dir_name,
         "step": second_regrid_linspace_step,
+        "resolution": resolution,
     }
 
     if flow_steps == "all" or "create_second_regrid_target_file" in flow_steps_list:
@@ -762,6 +868,7 @@ def downscale_cmip6(
         "working_dir": working_dir,
         "regridded_dir": first_regrid_dir,
         "out_dir_name": second_regrid_out_dir_name,
+        "stage": "second",
     }
 
     if flow_steps == "all" or "second_cmip6_regrid" in flow_steps_list:
@@ -789,6 +896,7 @@ def downscale_cmip6(
         "working_dir": working_dir,
         "regridded_dir": second_regrid_dir,
         "out_dir_name": final_regrid_out_dir_name,
+        "stage": "final",
     }
 
     if flow_steps == "all" or "final_cmip6_regrid" in flow_steps_list:
@@ -796,33 +904,7 @@ def downscale_cmip6(
     else:
         final_regrid_dir = f"{scratch_dir}/{work_dir_name}/final_regrid"
 
-    ### ERA5 DTR processing
-    process_era5_dtr_kwargs = base_kwargs.copy()
-    del process_era5_dtr_kwargs["variables"]
-    del process_era5_dtr_kwargs["models"]
-    del process_era5_dtr_kwargs["scenarios"]
-    process_era5_dtr_kwargs.update(
-        {
-            "era5_dir": reference_dir,
-        }
-    )
-
-    if flow_steps == "all" or "process_era5_dtr" in flow_steps_list:
-        era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
-    else:
-        era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
-
-    era5_target_dtr_dir = reference_dir.joinpath("dtr")
-    link_era5_dtr_kwargs = {
-        "ssh_username": ssh_username,
-        "ssh_private_key_path": ssh_private_key_path,
-        "src_dir": era5_dtr_dir,
-        "target_dir": era5_target_dtr_dir,
-    }
-
-    if flow_steps == "all" or "link_dir" in flow_steps_list:
-        link_dir(**link_era5_dtr_kwargs)
-
+    ### Ensure reference data is in scratch space FIRST (before creating symlinks)
     ref_data_check_kwargs = {
         "ssh_username": ssh_username,
         "ssh_private_key_path": ssh_private_key_path,
@@ -836,12 +918,42 @@ def downscale_cmip6(
     else:
         reference_dir = f"{scratch_dir}/{work_dir_name}/ref_netcdf"
 
+    ### ERA5 DTR processing
+    process_era5_dtr_kwargs = base_kwargs.copy()
+    del process_era5_dtr_kwargs["variables"]
+    del process_era5_dtr_kwargs["models"]
+    del process_era5_dtr_kwargs["scenarios"]
+    process_era5_dtr_kwargs.update(
+        {
+            "era5_dir": reference_dir,
+            "resolution": resolution,
+        }
+    )
+
+    if needs_era5_dtr and (
+        flow_steps == "all" or "process_era5_dtr" in flow_steps_list
+    ):
+        era5_dtr_dir = process_era5_dtr(**process_era5_dtr_kwargs)
+    else:
+        era5_dtr_dir = f"{scratch_dir}/{work_dir_name}/era5_dtr"
+
+    # Note: ERA5 DTR processing writes directly to ref_netcdf/dtr, no linking needed
+
     ### convert ERA5 data to zarr
     convert_era5_to_zarr_kwargs = base_kwargs.copy()
-    era5_vars = cmip6.cmip6_to_era5_variables(variables)
+    processing_vars = get_processing_variables(variables)
+    # For ERA5, include t2min whenever dtr, tasmax, or tasmin are involved,
+    # since ERA5 t2min exists directly and is needed as reference data.
+    var_list_original = cmip6.validate_vars(variables, return_list=True)
+    era5_var_list = cmip6.cmip6_to_era5_variables(processing_vars).split()
+    if any(v in var_list_original for v in ["dtr", "tasmax", "tasmin"]):
+        if "t2min" not in era5_var_list:
+            era5_var_list.append("t2min")
+    era5_vars = " ".join(era5_var_list)
     convert_era5_to_zarr_kwargs.update(
         variables=era5_vars,
         netcdf_dir=reference_dir,
+        resolution=resolution,
     )
     del convert_era5_to_zarr_kwargs["models"]
     del convert_era5_to_zarr_kwargs["scenarios"]
@@ -853,18 +965,21 @@ def downscale_cmip6(
 
     ### convert CMIP6 data to zarr
     convert_cmip6_to_zarr_kwargs = base_kwargs.copy()
+    conversion_vars = get_zarr_conversion_variables(variables)
+    convert_cmip6_to_zarr_kwargs["variables"] = conversion_vars
     convert_cmip6_to_zarr_kwargs.update(
         netcdf_dir=final_regrid_dir,
     )
 
     if flow_steps == "all" or "convert_cmip6_to_zarr" in flow_steps_list:
         cmip6_zarr_dir = convert_cmip6_to_zarr(**convert_cmip6_to_zarr_kwargs)
-        time.sleep(1800)
     else:
         cmip6_zarr_dir = f"{scratch_dir}/{work_dir_name}/cmip6_zarr"
 
     ### Train bias adjustment
     train_bias_adjust_kwargs = base_kwargs.copy()
+    processing_vars = get_processing_variables(variables)
+    train_bias_adjust_kwargs["variables"] = processing_vars
     del train_bias_adjust_kwargs["scenarios"]
     train_bias_adjust_kwargs.update(
         {
@@ -875,12 +990,13 @@ def downscale_cmip6(
 
     if flow_steps == "all" or "train_bias_adjustment" in flow_steps_list:
         train_dir = train_bias_adjustment(**train_bias_adjust_kwargs)
-        time.sleep(1800)
     else:
         train_dir = f"{scratch_dir}/{work_dir_name}/trained_datasets"
 
     ### Bias adjustment (final step)
     bias_adjust_kwargs = base_kwargs.copy()
+    processing_vars = get_processing_variables(variables)
+    bias_adjust_kwargs["variables"] = processing_vars
     bias_adjust_kwargs.update(
         {
             "sim_dir": cmip6_zarr_dir,
@@ -897,7 +1013,7 @@ def downscale_cmip6(
     del derive_tasmin_kwargs["work_dir_name"]
     del derive_tasmin_kwargs["variables"]
     del derive_tasmin_kwargs["branch_name"]
-    tasmin_output_dir = working_dir.joinpath("cmip6_tasmin")
+    tasmin_output_dir = adjusted_dir
     derive_tasmin_kwargs.update(
         {
             "input_dir": adjusted_dir,
@@ -906,21 +1022,11 @@ def downscale_cmip6(
         }
     )
 
-    if flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list:
+    needs_tasmin_derivation = "tasmin" in var_list
+    if needs_tasmin_derivation and (
+        flow_steps == "all" or "derive_cmip6_tasmin" in flow_steps_list
+    ):
         derive_cmip6_tasmin(**derive_tasmin_kwargs)
-
-    derive_era5_tasmin_kwargs = {
-        "ssh_username": ssh_username,
-        "ssh_private_key_path": ssh_private_key_path,
-        "era5_zarr_dir": ref_zarr_dir,
-        "slurm_dir": slurm_dir,
-        "repo_dir": scratch_dir.joinpath(repo_name),
-        "conda_env_name": conda_env_name,
-        "partition": partition,
-    }
-
-    if flow_steps == "all" or "derive_era5_tasmin" in flow_steps_list:
-        derive_era5_tasmin(**derive_era5_tasmin_kwargs)
 
 
 if __name__ == "__main__":
@@ -940,6 +1046,7 @@ if __name__ == "__main__":
     target_grid_source_file = "/beegfs/CMIP6/kmredilla/downscaling/era5_target_slice.nc"
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
+    resolution = 4
 
     # If not "all", specify any of these flow steps as a space-separated string:
     # - create_remote_directories
@@ -952,14 +1059,12 @@ if __name__ == "__main__":
     # - second_cmip6_regrid
     # - final_cmip6_regrid
     # - process_era5_dtr
-    # - link_dir
     # - ensure_reference_data_in_scratch
     # - convert_era5_to_zarr
     # - convert_cmip6_to_zarr
     # - train_bias_adjustment
     # - bias_adjustment
     # - derive_cmip6_tasmin
-    # - derive_era5_tasmin
     flow_steps = "all"
 
     params_dict = {
@@ -980,6 +1085,7 @@ if __name__ == "__main__":
         "flow_steps": flow_steps,
         "first_regrid_linspace_step": first_regrid_linspace_step,
         "second_regrid_linspace_step": second_regrid_linspace_step,
+        "resolution": resolution,
     }
     downscale_cmip6.serve(
         name="downscale-cmip6",
