@@ -394,6 +394,7 @@ def create_final_regrid_target_file(
     era5_template_file,
     project_base_dir,
     run_name,
+    use_default_grid=False,
 ):
     final_regrid_target_file = project_base_dir.joinpath(
         run_name, "final_regrid_target_file.nc"
@@ -405,10 +406,15 @@ def create_final_regrid_target_file(
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    cmd = f"conda activate cmip6-utils && \
-            python {make_final_grid_script} \
-            {era5_template_file} \
-            {final_regrid_target_file}"
+    if use_default_grid:
+        # Default grid files are already processed target grids (no time dimension).
+        # Copy directly to the run directory rather than running make_final_target_grid_file.py.
+        cmd = f"cp {era5_template_file} {final_regrid_target_file}"
+    else:
+        cmd = f"conda activate cmip6-utils && \
+                python {make_final_grid_script} \
+                {era5_template_file} \
+                {final_regrid_target_file}"
     try:
         private_key = paramiko.RSAKey(filename=ssh_private_key_path)
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
@@ -785,11 +791,11 @@ def downscale_cmip6(
     scenarios,
     partition,
     cascade_grid_coords_file,
-    final_grid_template_file,
     flow_steps,
     first_regrid_linspace_step,
     second_regrid_linspace_step,
     resolution,
+    final_grid_template_file="",
 ):
     logger = get_run_logger()
 
@@ -798,6 +804,21 @@ def downscale_cmip6(
     project_base_dir = Path(project_base_dir)
     working_dir = project_base_dir.joinpath(run_name)
     slurm_dir = working_dir.joinpath("slurm")
+
+    use_default_grid = not bool(final_grid_template_file)
+    if use_default_grid:
+        default_grid_filename = f"era5_{resolution}km_default_target_grid.nc"
+        final_grid_template_file = str(
+            project_base_dir
+            / repo_name
+            / "downscaling"
+            / "default_target_grid_files"
+            / default_grid_filename
+        )
+        logger.info(
+            f"No final_grid_template_file specified; using default: {final_grid_template_file}"
+        )
+
     flow_steps_list = flow_steps.split()
 
     # this creates the maing working directory
@@ -1112,6 +1133,7 @@ def downscale_cmip6(
         "era5_template_file": final_grid_template_file,
         "project_base_dir": project_base_dir,
         "run_name": run_name,
+        "use_default_grid": use_default_grid,
     }
 
     if flow_steps == "all" or "create_final_regrid_target_file" in flow_steps_list:
@@ -1298,7 +1320,7 @@ if __name__ == "__main__":
     scenarios = "all"
     partition = "t2small"
     cascade_grid_coords_file = "/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/day/tas/gn/v20200528/tas_day_CESM2_ssp370_r11i1p1f1_gn_20150101-20241231.nc"
-    final_grid_template_file = "/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338/t2/t2_1965_era5_4km_3338.nc"
+    final_grid_template_file = ""  # empty → use resolution-based default from repo
     first_regrid_linspace_step = 0.5
     second_regrid_linspace_step = 0.25
     resolution = 4

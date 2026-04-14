@@ -111,20 +111,35 @@ Ensure you have:
 | `scenarios` | str | Space-separated scenarios or `"all"` | `"historical ssp370"` or `"all"` |
 | `partition` | str | SLURM partition | `"t2small"` |
 | `cascade_grid_coords_file` | str | Template file for intermediate grids | See below |
-| `final_grid_template_file` | str | ERA5 file to use as final grid template | See below |
 | `flow_steps` | str | Which steps to run (see [Common Workflows](#common-workflows)) | `"all"` |
 | `first_regrid_linspace_step` | float | Step size for first intermediate grid | `0.5` |
 | `second_regrid_linspace_step` | float | Step size for second intermediate grid | `0.25` |
 | `resolution` | int | Target resolution in km | `4` or `12` |
+
+### Optional Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `final_grid_template_file` | str | `""` | ERA5 file to use as final grid template. Leave blank to use the resolution-based default bundled with the repo (see below). |
 
 ### Template File Parameters
 
 **`cascade_grid_coords_file`** - CMIP6 file used to extract grid coordinates for creating intermediate grids. Any CMIP6 file with a well-behaved grid works.
 - **Default (recommended)**: `/beegfs/CMIP6/arctic-cmip6/CMIP6/ScenarioMIP/NCAR/CESM2/ssp370/r11i1p1f1/day/tas/gn/v20200528/tas_day_CESM2_ssp370_r11i1p1f1_gn_20150101-20241231.nc`
 
-**`final_grid_template_file`** - ERA5 file used to create the final target grid. Any ERA5 variable file at your target resolution works:
-- **4km (recommended)**: `/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338/t2/t2_1965_era5_4km_3338.nc`
-- **12km (recommended)**: `/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_12km_3338/t2/t2_1965_era5_12km_3338.nc`
+**`final_grid_template_file`** - ERA5 file used to create the final target grid. This parameter is **optional**. If left blank (the default), the flow automatically selects a default grid file bundled with the `cmip6-utils` repo based on the specified `resolution`:
+
+- **4km default** (`era5_4km_default_target_grid.nc`): Uses the **legacy ERA5 4km grid**. This requires that all ERA5 inputs have been prepared using `prep_era5_variables.py` in **legacy mode**. Do not use this default with ERA5 data prepared by other means.
+- **12km default** (`era5_12km_default_target_grid.nc`): Standard 12km target grid.
+
+The default files live in the cloned repo at:
+```
+{project_base_dir}/{repo_name}/downscaling/default_target_grid_files/
+```
+
+To override the default, provide an explicit path to any ERA5 variable file at your target resolution:
+- **4km**: `/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_4km_3338/t2/t2_1965_era5_4km_3338.nc`
+- **12km**: `/beegfs/CMIP6/arctic-cmip6/era5/daily_era5_12km_3338/t2/t2_1965_era5_12km_3338.nc`
 
 ---
 
