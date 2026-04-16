@@ -159,7 +159,7 @@ def process_fire_geojson(
             feature["properties"]["acres"] = parse_acres(feature["properties"]["ACRES"])
             # GENERALCAUSE is not always present in the data and it is also too long a field name for a shapefile
             if "GENERALCAUSE" not in feature["properties"]:
-                feature["properties"]["CAUSE"] = "N/A"
+                feature["properties"]["CAUSE"] = ""
 
     for features in [activeFires["features"], inactiveFires["features"]]:
         for feature in features:
@@ -184,7 +184,7 @@ def process_fire_geojson(
                 "GENERALCAUSE" not in feature["properties"]
                 or feature["properties"]["GENERALCAUSE"] is None
             ):
-                feature["properties"]["CAUSE"] = "N/A"
+                feature["properties"]["CAUSE"] = ""
             else:
                 feature["properties"]["CAUSE"] = feature["properties"]["GENERALCAUSE"]
 
@@ -220,7 +220,11 @@ def process_fire_geojson(
             "NAME": feature["properties"]["NAME"],
             "acres": feature["properties"]["acres"],
             "CAUSE": feature["properties"]["CAUSE"],
-            "SUMMARY": feature["properties"]["SUMMARY"],
+            "SUMMARY": (
+                ""
+                if feature["properties"]["SUMMARY"] == "No narritive."
+                else feature["properties"]["SUMMARY"]
+            ),
             "updated": feature["properties"].get("updated", None),
             "OUTDATE": feature["properties"].get("OUTDATE", None),
             "discovered": feature["properties"].get("discovered", None),
@@ -369,7 +373,7 @@ def convert_geojson_to_geopackage(geojson_features, out_gpkg, feature_type="fire
                 feat.SetField("OUTDATE", feature["properties"].get("OUTDATE", ""))
                 feat.SetField("updated", feature["properties"].get("updated", ""))
                 feat.SetField("discovered", feature["properties"].get("discovered", ""))
-                feat.SetField("CAUSE", feature["properties"].get("CAUSE", "N/A"))
+                feat.SetField("CAUSE", feature["properties"].get("CAUSE", ""))
                 feat.SetField("SUMMARY", feature["properties"].get("SUMMARY", ""))
             elif feature_type == "lightning":
                 feat.SetField("amplitude", feature["properties"].get("amplitude", 0))
