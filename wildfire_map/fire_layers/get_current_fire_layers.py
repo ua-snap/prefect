@@ -222,7 +222,7 @@ def process_fire_geojson(
             "CAUSE": feature["properties"]["CAUSE"],
             "SUMMARY": (
                 ""
-                if feature["properties"]["SUMMARY"] == "No narritive."
+                if feature["properties"]["SUMMARY"] == "No narrative."
                 else feature["properties"]["SUMMARY"]
             ),
             "updated": feature["properties"].get("updated", None),
