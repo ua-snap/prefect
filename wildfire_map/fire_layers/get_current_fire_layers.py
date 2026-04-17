@@ -6,7 +6,6 @@ import argparse
 from osgeo import ogr, gdal
 
 script_dir = os.path.dirname(__file__)
-data_dir = os.path.join(script_dir, "data", "debug")
 
 # All of the URLs used to generate the layers
 active_fire_perimeters_url = "https://fire.ak.blm.gov/arcgis/rest/services/MapAndFeatureServices/Fires_Perimeters/MapServer/0/query?where=1%3D1&text=&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&relationParam=&outFields=OBJECTID%2CNAME%2CACRES%2CIRWINID%2CPRESCRIBED%2CLASTUPDATEDATETIME%2CSUMMARY&returnGeometry=true&returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=&having=&returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&resultOffset=&resultRecordCount=&queryByDistance=&returnExtentOnly=false&datumTransformation=&parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&f=geojson"
@@ -23,9 +22,6 @@ fire_layers_update_failed = False
 lightning_layer_update_failed = False
 viirs_layer_update_failed = False
 
-if not os.path.exists(data_dir):
-    os.makedirs(data_dir)
-
 
 def fetch_data(url):
     response = requests.get(url)
@@ -35,32 +31,21 @@ def fetch_data(url):
     return response.json()
 
 
-def load_local_data(file_path):
-    with open(file_path, "r") as f:
-        return json.load(f)
-
-
 def fetch_recent_lightning_geojson():
-    if os.getenv("DEBUG") == "True":
-        print("Fetching recent lightning data from local files...")
-        lightning_strikes = load_local_data(f"{data_dir}/lightning.geojson")
-        lightning_strikes = lightning_strikes["features"]
-    else:
-        print("Fetching recent lightning data from the web...")
-        try:
-            todays_lightning_data = fetch_data(todays_lightning)
-            yesterdays_lightning_data = fetch_data(yesterdays_lightning)
-            lightning_strikes = (
-                todays_lightning_data["features"]
-                + yesterdays_lightning_data["features"]
-            )
-        except:
-            print(
-                "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
-            )
-            global lightning_layer_update_failed
-            lightning_layer_update_failed = True
-            return
+    print("Fetching recent lightning data from the web...")
+    try:
+        todays_lightning_data = fetch_data(todays_lightning)
+        yesterdays_lightning_data = fetch_data(yesterdays_lightning)
+        lightning_strikes = (
+            todays_lightning_data["features"] + yesterdays_lightning_data["features"]
+        )
+    except:
+        print(
+            "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
+        )
+        global lightning_layer_update_failed
+        lightning_layer_update_failed = True
+        return
 
     return process_lightning_geojson(lightning_strikes)
 
@@ -85,54 +70,38 @@ def process_lightning_geojson(lightning_strikes):
 
 
 def fetch_viirs_hotspots_geojson():
-    if os.getenv("DEBUG") == "True":
-        print("Fetching VIIRS hotspot data from local files...")
-        viirs_data = load_local_data(f"{data_dir}/viirs.geojson")
-        viirs_data = viirs_data["features"]
-    else:
-        print("Fetching VIIRS hotspot data from the web...")
-        try:
-            viirs_12hr = fetch_data(viirs_12hr_url)
-            viirs_24hr = fetch_data(viirs_24hr_url)
-            viirs_48hr = fetch_data(viirs_48hr_url)
-            viirs_data = (
-                viirs_12hr["features"] + viirs_24hr["features"] + viirs_48hr["features"]
-            )
-        except:
-            print(
-                "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
-            )
-            global viirs_layer_update_failed
-            viirs_layer_update_failed = True
-            return
+    print("Fetching VIIRS hotspot data from the web...")
+    try:
+        viirs_12hr = fetch_data(viirs_12hr_url)
+        viirs_24hr = fetch_data(viirs_24hr_url)
+        viirs_48hr = fetch_data(viirs_48hr_url)
+        viirs_data = (
+            viirs_12hr["features"] + viirs_24hr["features"] + viirs_48hr["features"]
+        )
+    except:
+        print(
+            "Failed to fetch recent lightning data from the web. Leaving previous shapefiles intact."
+        )
+        global viirs_layer_update_failed
+        viirs_layer_update_failed = True
+        return
     return viirs_data
 
 
 def fetch_fire_geojson():
-    if os.getenv("DEBUG") == "True":
-        print("Fetching fire data from local files...")
-        active_fire_perimeters = load_local_data(
-            f"{data_dir}/activeFirePerimeters.geojson"
+    print("Fetching fire data from the web...")
+    try:
+        active_fire_perimeters = fetch_data(active_fire_perimeters_url)
+        active_fires = fetch_data(active_fires_url)
+        inactive_fire_perimeters = fetch_data(inactive_fire_perimeters_url)
+        inactive_fires = fetch_data(inactive_fires_url)
+    except:
+        print(
+            "Failed to fetch fire data from the web. Leaving previous shapefiles intact."
         )
-        active_fires = load_local_data(f"{data_dir}/activeFires.geojson")
-        inactive_fire_perimeters = load_local_data(
-            f"{data_dir}/inactiveFirePerimeters.geojson"
-        )
-        inactive_fires = load_local_data(f"{data_dir}/inactiveFires.geojson")
-    else:
-        print("Fetching fire data from the web...")
-        try:
-            active_fire_perimeters = fetch_data(active_fire_perimeters_url)
-            active_fires = fetch_data(active_fires_url)
-            inactive_fire_perimeters = fetch_data(inactive_fire_perimeters_url)
-            inactive_fires = fetch_data(inactive_fires_url)
-        except:
-            print(
-                "Failed to fetch fire data from the web. Leaving previous shapefiles intact."
-            )
-            global fire_layers_update_failed
-            fire_layers_update_failed = True
-            return
+        global fire_layers_update_failed
+        fire_layers_update_failed = True
+        return
 
     return process_fire_geojson(
         active_fire_perimeters, active_fires, inactive_fire_perimeters, inactive_fires

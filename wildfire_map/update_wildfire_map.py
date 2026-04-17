@@ -11,7 +11,6 @@ import json
 
 @flow(log_prints=True)
 def update_wildfire_layers(
-    debug,
     home_directory,
     working_directory,
     aqi_forecast_netcdf_path,
@@ -25,7 +24,6 @@ def update_wildfire_layers(
     status = {"updated": datetime.now().strftime("%Y%m%d%H"), "layers": {}}
 
     status["layers"]["wildfires"] = current_fire_layers(
-        debug,
         working_directory,
         "get_current_fire_layers.py",
         shapefile_output_directory,
@@ -86,7 +84,6 @@ if __name__ == "__main__":
         name="Update Wildfire Layers",
         tags=["wildfire_map"],
         parameters={
-            "debug": "False",
             "home_directory": "/home/snapdata",
             "working_directory": "/usr/local/prefect/wildfire_map",
             "aqi_forecast_netcdf_path": "/usr/local/prefect/wildfire_map/aqi_forecast/netcdf_output/",
