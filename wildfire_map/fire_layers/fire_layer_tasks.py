@@ -90,16 +90,13 @@ def install_conda_environment(conda_env_name, conda_env_file, local_install=Fals
 
 
 @task(name="Execute Fire Layers Local Script")
-def execute_local_script(
-    script_path, output_path, conda_env_name="fire_map", debug="False"
-):
+def execute_local_script(script_path, output_path, conda_env_name="fire_map"):
     # Execute the script on the local machine
     process = subprocess.Popen(
         f". /opt/miniconda3/bin/activate {conda_env_name} && /home/snapdata/.conda/envs/{conda_env_name}/bin/python {script_path} --out-dir {output_path}",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env={"DEBUG": debug},
     )
     stdout, stderr = process.communicate()
     exit_code = process.returncode
