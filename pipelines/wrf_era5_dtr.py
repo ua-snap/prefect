@@ -61,8 +61,8 @@ def process_era5_dtr(
     branch_name,
     conda_env_name,
     era5_dir,
-    scratch_dir,
-    work_dir_name,
+    base_output_dir,
+    run_name,
     partition,
     resolution,
 ):
@@ -79,7 +79,7 @@ def process_era5_dtr(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_dir
+            ssh, repo_name, branch_name, base_output_dir
         )
 
         utils.ensure_slurm(ssh)
@@ -92,7 +92,7 @@ def process_era5_dtr(
 
         launcher_script = repo_path.joinpath("derived", "run_wrf_era5_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
-        working_dir = Path(scratch_dir).joinpath(work_dir_name)
+        working_dir = Path(base_output_dir).joinpath(run_name)
         output_dir = working_dir.joinpath(out_dir_name)
         slurm_dir = working_dir.joinpath("slurm")
 
@@ -127,9 +127,10 @@ if __name__ == "__main__":
     branch_name = "main"
     conda_env_name = "cmip6-utils"
     era5_dir = "/beegfs/CMIP6/snapdata/daily_era5_4km_3338"
-    scratch_dir = f"/beegfs/CMIP6/snapdata"
-    work_dir_name = "cmip6_4km_downscaling"
+    project_base_dir = "/beegfs/CMIP6/snapdata"
+    run_name = "cmip6_4km_downscaling"
     partition = "t2small"
+    resolution = 4
 
     process_era5_dtr.serve(
         name="process-dtr-cmip6",
@@ -141,8 +142,9 @@ if __name__ == "__main__":
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
             "era5_dir": era5_dir,
-            "scratch_dir": scratch_dir,
-            "work_dir_name": work_dir_name,
+            "base_output_dir": project_base_dir,
+            "run_name": run_name,
             "partition": partition,
+            "resolution": resolution,
         },
     )
