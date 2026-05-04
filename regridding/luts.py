@@ -9,6 +9,8 @@ all_vars = [
     "evspsbl",  # evaporation including sublimation and transpiration
     "hfls",  # surface upward latent heat flux
     "hfss",  # surface upward sensible heat flux
+    "hurs",  # near-surface relative humidity
+    "hursmin",  # daily minimum near-surface relative humidity
     "hus",  # specific humidity
     "huss",  # near surface specific humidity
     "mrro",  # total runoff

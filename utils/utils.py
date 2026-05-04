@@ -104,13 +104,13 @@ def remote_directory_exists(ssh, directory):
     return not bool(exit_status)
 
 
-def input_is_child_of_scratch_dir(ssh, input_dir, scratch_dir):
-    """Check that an input directory exists as a subdirectory of scratch_dir.
+def input_is_child_of_output_dir(ssh, input_dir, output_dir):
+    """Check that an input directory exists as a subdirectory of output_dir.
     If it does, return the directory. If not, return None.
     """
-    # recursively compare parent of input_dir to scratch_dir
+    # recursively compare parent of input_dir to output_dir
     tmp_path = input_dir.parent
-    while tmp_path != scratch_dir:
+    while tmp_path != output_dir:
         tmp_path = tmp_path.parent
         if tmp_path == Path("/"):
             return False

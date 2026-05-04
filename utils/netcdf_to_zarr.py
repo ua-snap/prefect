@@ -56,7 +56,7 @@ def netcdf_to_zarr(
     branch_name,
     conda_env_name,
     netcdf_dir,
-    scratch_directory,  # e.g. /import/beegfs/kmredilla
+    output_directory,  # e.g. /import/beegfs/kmredilla
     write_dir_name,  # e.g. zarr_bias_adjust_inputs
     zarr_store_name,  # e.g. era5_t2max.zarr
     glob_str=None,
@@ -77,7 +77,7 @@ def netcdf_to_zarr(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_directory
+            ssh, repo_name, branch_name, output_directory
         )
 
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
@@ -91,7 +91,7 @@ def netcdf_to_zarr(
         )
 
         launcher_script = repo_path.joinpath("bias_adjust", "run_netcdf_to_zarr.py")
-        write_directory = Path(scratch_directory).joinpath(write_dir_name)
+        write_directory = Path(output_directory).joinpath(write_dir_name)
         output_directory = write_directory.joinpath("zarr")
         zarr_path = output_directory.joinpath(zarr_store_name)
         slurm_directory = write_directory.joinpath("slurm")
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     repo_name = "cmip6-utils"
     branch_name = "main"
     conda_env_name = "cmip6-utils"
-    scratch_directory = "/import/beegfs/CMIP6/snapdata"
+    output_directory = "/import/beegfs/CMIP6/snapdata"
     write_dir_name = "zarr_bias_adjust_inputs"
 
     netcdf_to_zarr.serve(
@@ -143,7 +143,7 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "conda_env_name": conda_env_name,
-            "scratch_directory": scratch_directory,
+            "output_directory": output_directory,
             "write_dir_name": write_dir_name,
         },
     )

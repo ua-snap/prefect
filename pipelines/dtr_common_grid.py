@@ -63,7 +63,7 @@ def process_dtr(
     models,
     scenarios,
     input_directory,
-    scratch_directory,
+    output_directory,
     out_dir_name,
     partition,
 ):
@@ -82,7 +82,7 @@ def process_dtr(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_directory
+            ssh, repo_name, branch_name, output_directory
         )
 
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
@@ -97,7 +97,7 @@ def process_dtr(
 
         launcher_script = repo_path.joinpath("derived", "slurm_dtr.py")
         worker_script = repo_path.joinpath("derived", "dtr.py")
-        output_directory = Path(scratch_directory).joinpath(out_dir_name)
+        output_directory = Path(output_directory).joinpath(out_dir_name)
         kwargs = {
             "ssh": ssh,
             "launcher_script": launcher_script,
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     models = "all"
     scenarios = "all"
     input_directory = Path("/beegfs/CMIP6/snapdata/cmip6_4km_3338/regrid")
-    scratch_directory = Path(f"/beegfs/CMIP6/snapdata")
+    output_directory = Path(f"/beegfs/CMIP6/snapdata")
     out_dir_name = "cmip6_dtr_4km_3338"
     partition = "t2small"
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
             "models": models,
             "scenarios": scenarios,
             "input_directory": input_directory,
-            "scratch_directory": scratch_directory,
+            "output_directory": output_directory,
             "out_dir_name": out_dir_name,
             "partition": partition,
         },

@@ -65,7 +65,7 @@ def regrid_cmip6_common(
     branch_name,
     cmip6_directory,
     target_grid_source_file,
-    scratch_directory,
+    output_directory,
     out_dir_name,
     no_clobber,
     vars,
@@ -77,7 +77,7 @@ def regrid_cmip6_common(
     rasdafy,
     target_sftlf_fp=None,
 ):
-    target_grid_file = f"{scratch_directory}/target_common_grid.nc"
+    target_grid_file = f"{output_directory}/target_common_grid.nc"
     # Create an SSH client
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -90,7 +90,7 @@ def regrid_cmip6_common(
         ssh.connect(ssh_host, ssh_port, ssh_username, pkey=private_key)
 
         repo_path = utils.clone_github_repository(
-            ssh, repo_name, branch_name, scratch_directory
+            ssh, repo_name, branch_name, output_directory
         )
 
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
@@ -118,7 +118,7 @@ def regrid_cmip6_common(
         "repo_name": repo_name,
         "branch_name": branch_name,
         "cmip6_directory": cmip6_directory,
-        "scratch_directory": scratch_directory,
+        "output_directory": output_directory,
         "out_dir_name": out_dir_name,
         "target_grid_file": target_grid_file,
         "no_clobber": no_clobber,
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     repo_name = "cmip6-utils"
     branch_name = "main"
     cmip6_directory = Path("/beegfs/CMIP6/arctic-cmip6/CMIP6")
-    scratch_directory = Path(f"/beegfs/CMIP6/snapdata/")
+    output_directory = Path(f"/beegfs/CMIP6/snapdata/")
     out_dir_name = "cmip6_common_regrid"
     no_clobber = False
     vars = "all"
@@ -164,7 +164,7 @@ if __name__ == "__main__":
             "repo_name": repo_name,
             "branch_name": branch_name,
             "cmip6_directory": cmip6_directory,
-            "scratch_directory": scratch_directory,
+            "output_directory": output_directory,
             "target_grid_source_file": target_grid_source_fp,
             "out_dir_name": out_dir_name,
             "no_clobber": no_clobber,
