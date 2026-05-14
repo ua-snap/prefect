@@ -2,10 +2,11 @@ from prefect import flow
 from prefect.blocks.system import Secret
 from snapshot_tasks import create_tarball, upload_to_s3, cleanup_temp_file
 from datetime import datetime
+import os
 
 
 @flow(log_prints=True)
-def create_directory_snapshot(
+def create_alaskawildfires_snapshot(
     source_directory,
     s3_bucket,
 ):
@@ -29,7 +30,12 @@ def create_directory_snapshot(
         aws_access_key_id = Secret.load("alaskawildfires-snapshot-access-key").get()
         aws_secret_access_key = Secret.load("alaskawildfires-snapshot-secret-key").get()
 
-        tarball_path = create_tarball(source_directory, f"{source_directory}.tgz")
+        dir_name = os.path.basename(source_directory)
+        parent_dir = os.path.dirname(source_directory)
+        date_str = datetime.now().strftime("%m_%d_%Y")
+        output_path = os.path.join(parent_dir, f"{dir_name}_{date_str}.tgz")
+
+        tarball_path = create_tarball(source_directory, output_path)
         status["tarball_path"] = tarball_path
 
         s3_uri = upload_to_s3(
@@ -58,7 +64,7 @@ def create_directory_snapshot(
 
 
 if __name__ == "__main__":
-    create_directory_snapshot.serve(
+    create_alaskawildfires_snapshot.serve(
         name="Create Alaska Wildfires Snapshot",
         tags=["wildfire snapshot", "backup"],
         parameters={
