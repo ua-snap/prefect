@@ -59,7 +59,7 @@ def create_directory_snapshot(
 
 if __name__ == "__main__":
     create_directory_snapshot.serve(
-        name="Create Directory Snapshot",
+        name="Create Alaska Wildfires Snapshot",
         tags=["wildfire snapshot", "backup"],
         parameters={
             "source_directory": "/usr/share/geoserver/data_dir/data/alaska_wildfires",
