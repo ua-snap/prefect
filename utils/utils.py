@@ -1,5 +1,7 @@
 from pathlib import Path
+from shlex import quote
 from time import sleep
+
 import paramiko
 from prefect import task
 from prefect.logging import get_run_logger
@@ -252,9 +254,9 @@ def install_conda(ssh):
         ssh, "test $HOME/miniconda3 && echo 1 || echo 0"
     )
     conda_installed = bool(int(stdout))
-    assert (
-        not conda_installed
-    ), f"install_conda called, but conda installation found at {stdout}."
+    assert not conda_installed, (
+        f"install_conda called, but conda installation found at {stdout}."
+    )
 
     conda_uri = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
     print("No conda installation found. Installing Miniconda ...")
@@ -515,7 +517,6 @@ def wait_for_jobs_completion(
 
     while job_ids:
         for job_id in job_ids.copy():
-
             # ---- RETRY BLOCK ----
             for attempt in range(1, max_retries + 1):
                 try:
@@ -536,8 +537,7 @@ def wait_for_jobs_completion(
 
             if exit_status != 0:
                 raise Exception(
-                    f"Error checking job status for job ID {job_id}. "
-                    f"Error: {stderr}"
+                    f"Error checking job status for job ID {job_id}. Error: {stderr}"
                 )
 
             # If the job is no longer in the queue, remove it
@@ -797,3 +797,228 @@ def create_directories(ssh, dir_list, logger=None):
 def rsync_task(ssh, source_directory, destination_directory, exclude=None):
     """Task wrapper for utils.rsync"""
     rsync(ssh, source_directory, destination_directory, exclude=None)
+
+
+@task
+def wait_for_single_slurm_job_completion(
+    ssh: paramiko.SSHClient,
+    job_id: str,
+    poll_seconds: int = 30,
+) -> dict[str, str]:
+    """Wait for a SLURM job to finish, then verify it completed successfully.
+
+    This function is different that existing SLURM monitoring functions because it isn't intended for monitoring job arrays, nor is there any job retry functionality.
+    All we're doing is monitoring and waiting for the completion of a single SLURM job."""
+
+    logger = get_run_logger()
+    logger.info("Waiting for SLURM job %s to finish.", job_id)
+
+    # we first poll `squeue` to determine whether the job is still active
+    # once a job disappears from `squeue`, it is no longer active in the queue.
+    # but not being in `squeue` does NOT mean the job succeeded!
+    # only means the job hit some terminal state
+    # so we just check here for "is it still running?"
+    while True:
+        exit_status, stdout, stderr = exec_command(
+            ssh,
+            f"squeue -h -j {quote(job_id)}",
+        )
+
+        # if `squeue` fails we probably have a connection problem and should bail here to avoid false positives
+        if exit_status != 0:
+            raise RuntimeError(
+                "Failed to query SLURM queue.\n"
+                f"Job ID: {job_id}\n"
+                f"Exit status: {exit_status}\n"
+                f"stdout:\n{stdout}\n"
+                f"stderr:\n{stderr}"
+            )
+
+        # `squeue -h -j <job_id>` returns no output when the job is no longer
+        # present in the active queue so when that happens we can break out and stop polling squeue
+        if not stdout.strip():
+            break
+
+        # if there is still output, wait and poll again
+        logger.info(
+            "SLURM job %s is still active. Checking again in %s seconds.",
+            job_id,
+            poll_seconds,
+        )
+        sleep(poll_seconds)
+
+    # sleep to dodge false negatives where the job is done but sacct has not caught up yet
+    sleep(5)
+
+    # `sacct` gives the final state and exit code.
+    # pipe-delimited format (-P) and no-header mode (-n) make parsing easier
+    # output for a successful non-array SLURM job looks like this:
+    #
+    # 644518|COMPLETED|0:0
+    # 644518.batch|COMPLETED|0:0
+    # 644518.extern|COMPLETED|0:0
+    exit_status, stdout, stderr = exec_command(
+        ssh,
+        (f"sacct -j {quote(job_id)} --format=JobID,State,ExitCode -P -n"),
+    )
+
+    # like when we bailed from the squeue fail, if `sacct` fails we should just fail the Prefect task
+    if exit_status != 0:
+        raise RuntimeError(
+            "Failed to query SLURM accounting with sacct.\n"
+            f"Job ID: {job_id}\n"
+            f"Exit status: {exit_status}\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}"
+        )
+
+    # similarly, if `sacct` output is empty, there could be something going on with permissions
+    if not stdout.strip():
+        raise RuntimeError(f"No sacct output found for SLURM job {job_id}.")
+
+    # Parse`sacct` top-level row for job completion status.
+    for line in stdout.splitlines():
+        parts = line.split("|")
+
+        # skip malformed lines rather than crashing
+        if len(parts) < 3:
+            continue
+
+        sacct_job_id, state, exit_code = parts[:3]
+
+        # we can ingonore the .batch and .extern stuff
+        # only the top-level job row matters.
+        if sacct_job_id != job_id:
+            continue
+
+        # we're looking for
+        # - State is COMPLETED
+        # - ExitCode begins with `0:`
+        # ExitCode are usually like 0:0, 1:0, etc.
+        # first number is the process exit code, 0 means the batch script exited successfully
+        if state == "COMPLETED" and exit_code == "0:0":
+            logger.info(
+                "SLURM job %s completed successfully. State=%s; ExitCode=%s",
+                job_id,
+                state,
+                exit_code,
+            )
+            return {
+                "job_id": job_id,
+                "state": state,
+                "exit_code": exit_code,
+            }
+
+        # otherwise if the SLURM job failed, fail the Prefect task
+        raise RuntimeError(
+            "SLURM job did not complete successfully.\n"
+            f"Job ID: {job_id}\n"
+            f"State: {state}\n"
+            f"ExitCode: {exit_code}\n"
+            f"sacct output:\n{stdout}"
+        )
+
+    # if `sacct` returned output, but none of the rows matched the job ID
+    # we have a wronga ssumption so let's fail here too
+    raise RuntimeError(
+        "Could not find top-level SLURM job record in sacct output.\n"
+        f"Job ID: {job_id}\n"
+        f"sacct output:\n{stdout}"
+    )
+
+
+@task
+def ensure_uv(ssh):
+    """
+    Ensure that the latest uv is available on the remote Linux server.
+
+    If uv is already available, this task does not reinstall or upgrade it. If uv
+    is missing, this task installs the latest uv using the official
+    standalone Linux installer, then verifies that the executable works.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+
+    Returns:
+    - str: The detected remote path to the uv executable.
+    """
+    logger = get_run_logger()
+
+    installer_url = "https://astral.sh/uv/install.sh"
+
+    # construct a command to run on the remote
+    #
+    #   1. Define a helper function, `find_uv`, that tries to locate uv.
+    #   2. If uv is already present, print its version and return its path.
+    #   3. If uv is missing, install the latest uv.
+    #   4. Temporarily update PATH for this non-interactive SSH command.
+    #   5. Verify uv now exists and can execute.
+    #
+    # bundling like this should make the task atomic from the Prefect side
+    # either uv is available by the end of the task, or we fail
+    cmd = f"""
+    set -euo pipefail
+
+    UV_INSTALLER_URL="{installer_url}"
+
+    find_uv() {{
+        # first check active PATH, means `uv run ...` should work naturally in this shell.
+        if command -v uv >/dev/null 2>&1; then
+            command -v uv
+            return 0
+        fi
+
+        # also check ~/.local/bin in case it just didn't get sourced
+        if [ -x "$HOME/.local/bin/uv" ]; then
+            echo "$HOME/.local/bin/uv"
+            return 0
+        fi
+
+        # returning nonzero when uv could not be found
+        return 1
+    }}
+
+    # try to find uv before installing anything.
+    # do not reinstall or upgrade uv if it already exists
+    if UV_PATH="$(find_uv)"; then
+        echo "uv already installed at $UV_PATH"
+        "$UV_PATH" --version
+        echo "$UV_PATH"
+        exit 0
+    fi
+
+    echo "uv was not found on PATH or in common user install locations."
+    echo "Installing latest uv from $UV_INSTALLER_URL"
+
+    # install the latest uv
+    curl -LsSf "$UV_INSTALLER_URL" | sh
+
+    # Verify that uv is now installed and executable.
+    if UV_PATH="$(find_uv)"; then
+        echo "uv installed at $UV_PATH"
+        "$UV_PATH" --version
+        echo "$UV_PATH"
+        exit 0
+    fi
+
+    echo "uv installation completed, but uv could not be found afterward." >&2
+    exit 1
+    """
+
+    exit_status, stdout, stderr = exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        raise Exception(
+            "Error ensuring uv is installed on remote Linux server. "
+            f"Exit status: {exit_status}. "
+            f"stdout: {stdout}. "
+            f"stderr: {stderr}"
+        )
+
+    # The remote shell command prints diagnostic messages, the uv version, and
+    # finally the uv path. The final line is intentionally the machine-readable
+    # return value for downstream flow tasks.
+    uv_path = stdout.strip().splitlines()[-1]
+
+    logger.info(f"uv is available at {uv_path}")
+    return uv_path
