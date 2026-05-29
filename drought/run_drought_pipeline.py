@@ -9,6 +9,7 @@ import paramiko
 from prefect import flow, get_run_logger, task
 
 from utils import utils
+from utils.utils import wait_for_single_slurm_job_completion
 
 # SSH connection details for Chinook
 SSH_HOST = "chinook04.rcs.alaska.edu"
@@ -82,6 +83,8 @@ def submit_nws_drought_slurm_jobs(
         ssh_private_key_path=ssh_private_key_path,
     )
 
+    utils.ensure_uv(ssh)
+
     try:
         logger.info("Connected to %s as %s", ssh_host, ssh_username)
 
@@ -90,12 +93,18 @@ def submit_nws_drought_slurm_jobs(
             repo_dir=repo_dir,
             sbatch_script="pipeline_download.sbatch",
         )
+        wait_for_single_slurm_job_completion(
+            ssh=ssh, job_id=download_job_id, poll_seconds=600
+        )
 
         run_job_id = submit_sbatch(
             ssh=ssh,
             repo_dir=repo_dir,
             sbatch_script="pipeline_run.sbatch",
             dependency_job_id=download_job_id,
+        )
+        wait_for_single_slurm_job_completion(
+            ssh=ssh, job_id=run_job_id, poll_seconds=60
         )
 
         return {
