@@ -1,7 +1,13 @@
 import requests
 import time
+import os
+import subprocess
+import psycopg2
+import re
+import csv
 from prefect import task, get_run_logger
-from luts import eds_cached_url, ncr_cached_urls
+from prefect.blocks.system import Secret
+from luts import eds_cached_url, ncr_cached_urls, ardac_cached_urls
 
 status_counts = {}
 error_urls = {}
@@ -31,12 +37,99 @@ def route_type_matches_place_type(route_type, place):
     return True
 
 
+def get_community_coords():
+    subprocess.run(
+        [
+            "git",
+            "submodule",
+            "update",
+            "--init",
+            "--remote",
+        ],
+        check=True,
+    )
+    gvv_vector_path = "./geospatial-vector-veracity/vector_data/point"
+
+    community_coords = {}
+    for filename in os.listdir(gvv_vector_path):
+        if filename.endswith(".csv"):
+            with open(os.path.join(gvv_vector_path, filename), "r", newline="") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if "id" in row and "latitude" in row and "longitude" in row:
+                        community_id = row["id"]
+                        lat = float(row["latitude"])
+                        lon = float(row["longitude"])
+                        community_coords[community_id] = {
+                            "latitude": lat,
+                            "longitude": lon,
+                        }
+    return community_coords
+
+
+def connect_to_umami_db():
+    umami_website_ids = (
+        "1f4a98e7-d5cb-4295-82fc-5a4d41328038",  # EDS
+        "2e69a077-ba5f-49c5-b076-09a44ab6fafd",  # NCR
+    )
+    psql_host = "umami.snap.uaf.edu"
+    psql_port = "5432"
+    psql_database = "umami"
+
+    psql_user = Secret.load("umami-database-username").get()
+    if not psql_user:
+        raise ValueError("Database username not found in Prefect Secret.")
+
+    psql_password = Secret.load("umami-psql-password").get()
+    if not psql_password:
+        raise ValueError("Database password not found in Prefect Secret.")
+
+    # Query Umami DB for community IDs
+    conn = psycopg2.connect(
+        database=psql_database,
+        user=psql_user,
+        password=psql_password,
+        host=psql_host,
+        port=psql_port,
+    )
+    cursor = conn.cursor()
+    sql = """
+        SELECT url_path FROM website_event WHERE website_id IN %(website_id)s
+    """
+    params = {"website_id": umami_website_ids}
+    cursor.execute(sql, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def sort_out_communities(rows):
+    """Extracts community IDs from the URL paths in the rows."""
+    communities = []
+    for row in rows:
+        path = row[0]
+        # Use regex to find patterns like "AK124" for community IDs
+        match = re.search(r"[A-Z]{2}\d+", path)
+        # If a match is found, append it to the communities list
+        if match:
+            communities.append(match.group())
+    # Remove duplicates and sort the list
+    communities = list(set(communities))
+    communities.sort(key=lambda x: (x[:2], int(x[2:])))
+    return communities
+
+
+def get_frequently_used_communities():
+    rows = connect_to_umami_db()
+    return sort_out_communities(rows)
+
+
 @task(name="Recache API")
 def recache_api(cached_apps, cache_url):
     """Recaches the API endpoints for the given applications.
 
     Args:
-        cached_apps - List of applications to recache, e.g., ["eds", "ncr"]
+        cached_apps - List of applications to recache, e.g., ["eds", "ncr", "ardac"]
         cache_url - The base URL for the API cache, e.g., https://earthmaps.io
 
     Returns:
@@ -48,6 +141,9 @@ def recache_api(cached_apps, cache_url):
 
     if "ncr" in cached_apps:
         recache_ncr(cache_url)
+
+    if "ardac" in cached_apps:
+        recache_ardac(cache_url)
 
     logger = get_run_logger()
     logger.info(f"Status code summary: {status_counts}")
@@ -73,6 +169,22 @@ def recache_ncr(cache_url):
     # Iterate over the list of URLs that need to be cached
     for route, route_type in ncr_cached_urls.items():
         get_matching_endpoints(places, route, route_type, cache_url)
+
+
+def recache_ardac(cache_url):
+    # Uses the GVV to get community coordinates
+    community_coords = get_community_coords()
+
+    # We query the Umami database to get frequently used communities
+    # This was because of the large number of communities that ARDAC can access.
+    places = get_frequently_used_communities()
+
+    for place in places:
+        community_coord = community_coords.get(place)
+        if not community_coord:
+            continue
+        for route in ardac_cached_urls:
+            get_endpoint(route, community_coord, "community", cache_url)
 
 
 # For a list of places, request every endpoint
@@ -102,9 +214,11 @@ def get_endpoint(route, place, route_type, cache_url):
 
     # Build the URL to query based on type
     if route_type == "community":
-        url = cache_url + route + str(place["latitude"]) + "/" + str(place["longitude"])
+        url = cache_url + route.format(
+            latitude=place["latitude"], longitude=place["longitude"]
+        )
     else:
-        url = cache_url + route + str(place["id"])
+        url = cache_url + route.format(areaID=str(place["id"]))
 
     logger.info(f"Running URL: {url}")
 

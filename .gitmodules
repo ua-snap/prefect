@@ -1,0 +1,4 @@
+[submodule "recache_api/geospatial-vector-veracity"]
+	path = recache_api/geospatial-vector-veracity
+	url = https://github.com/ua-snap/geospatial-vector-veracity.git
+	branch = main
