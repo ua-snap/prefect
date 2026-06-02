@@ -46,7 +46,7 @@ Some ERA5 variables require additional preprocessing using `~/cmip6-utils/downsc
 - **Temperature variables** (`t2_min`, `t2_max`): Standardize variable and file names, convert from Celsius to Kelvin
 - **Precipitation** (`rainnc_sum`): Standardize variable and file names
 
-Other variables (e.g., `rh2_mean`, `rh2_min`, `snow_sum`, `wspd10_mean`) can be used directly from curation without prep.
+Other variables (e.g., `rh2_mean`, `rh2_min`, `snow_mean`, `wspd10_mean`) can be used directly from curation without prep.
 
 **Example**:
 ```bash
@@ -394,7 +394,7 @@ All SLURM job outputs are written to:
 | `pr` | `pr` | * (multiplicative) | Bilinear | Precipitation, zero-inflated |
 | `hurs` | `rh2_mean` | + (additive) | Bilinear | Near-surface relative humidity |
 | `hursmin` | `rh2_min` | + (additive) | Bilinear | Daily minimum relative humidity |
-| `snw` | `snow_sum` | * (multiplicative) | Conservative | Surface snow amount, land-only, zero-inflated |
+| `snw` | `snow_mean` | * (multiplicative) | Conservative | Surface snow amount, land-only, zero-inflated |
 | `sfcWind` | `wspd10_mean` | * (multiplicative) | Bilinear | Near-surface wind speed |
 
 ### Model and Scenario Availability

@@ -93,7 +93,7 @@ cmip6_to_era5_vars_lut = {
     "dtr": "dtr",
     "hurs": "rh2_mean",
     "hursmin": "rh2_min",
-    "snw": "snow_sum",
+    "snw": "snow_mean",
     "sfcWind": "wspd10_mean",
 }
 
