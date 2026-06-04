@@ -26,18 +26,19 @@ def submit_sbatch(
     """Submit an sbatch script from the nws-drought repo and return the job ID."""
     logger = get_run_logger()
 
+    # the pipeline run sbatch script dependends on the pipelie download via the slurm --dependency flag
     dependency_arg = ""
     if dependency_job_id is not None:
         if not dependency_job_id.isdigit():
             raise ValueError(
                 f"Expected numeric dependency job ID, got: {dependency_job_id!r}"
             )
-
         dependency_arg = f"--dependency=afterok:{dependency_job_id}"
 
     cmd = f"""
     set -euo pipefail
     cd {quote(repo_dir)}
+    cd nws-drought
     sbatch --parsable {dependency_arg} {quote(sbatch_script)}
     """
 
@@ -52,10 +53,6 @@ def submit_sbatch(
             f"stderr:\n{stderr}"
         )
 
-    # sbatch --parsable commonly returns either:
-    #   123456
-    # or:
-    #   123456;cluster_name
     job_id = stdout.strip().splitlines()[-1].split(";")[0]
 
     if not job_id.isdigit():
@@ -65,15 +62,16 @@ def submit_sbatch(
     return job_id
 
 
-@flow(name="submit-nws-drought-slurm-jobs")
-def submit_nws_drought_slurm_jobs(
+@flow(name="submit-drought-slurm-jobs")
+def submit_drought_slurm_jobs(
     ssh_username: str,
     ssh_private_key_path: str,
+    branch_name: str,
     repo_dir: str,
     ssh_host: str = SSH_HOST,
     ssh_port: int = SSH_PORT,
 ) -> dict[str, str]:
-    """Submit the NWS drought download job, then submit processing after download succeeds."""
+    """Submit the drought download job, then submit processing after download succeeds."""
     logger = get_run_logger()
 
     ssh = utils.connect_ssh(
@@ -82,8 +80,8 @@ def submit_nws_drought_slurm_jobs(
         ssh_username=ssh_username,
         ssh_private_key_path=ssh_private_key_path,
     )
-
     utils.ensure_uv(ssh)
+    utils.clone_github_repository(ssh, "nws-drought", branch_name, repo_dir)
 
     try:
         logger.info("Connected to %s as %s", ssh_host, ssh_username)
@@ -95,7 +93,7 @@ def submit_nws_drought_slurm_jobs(
         )
         wait_for_single_slurm_job_completion(
             ssh=ssh, job_id=download_job_id, poll_seconds=600
-        )
+        )  # dowload time is highly variable, no need to poll super frequently, just chill
 
         run_job_id = submit_sbatch(
             ssh=ssh,
@@ -105,7 +103,7 @@ def submit_nws_drought_slurm_jobs(
         )
         wait_for_single_slurm_job_completion(
             ssh=ssh, job_id=run_job_id, poll_seconds=60
-        )
+        )  # processing is pretty fast
 
         return {
             "download_job_id": download_job_id,
@@ -118,8 +116,13 @@ def submit_nws_drought_slurm_jobs(
 
 
 if __name__ == "__main__":
-    submit_nws_drought_slurm_jobs(
-        ssh_username="cparr4",
-        ssh_private_key_path=str(Path.home() / ".ssh" / "id_rsa"),
-        repo_dir="/import/beegfs/CMIP6/cparr4/repos/nws-drought",
-    )
+    submit_drought_slurm_jobs.serve(
+        name="scheduled-drought-processing",
+        cron="0 9 */2 * *",  # 9 AM UTC every other day
+        parameters={
+            "ssh_username": "snapdata",
+            "ssh_private_key_path": str(Path.home() / ".ssh" / "id_rsa"),
+            "branch_name": "main",
+            "repo_dir": "/import/beegfs/CMIP6/snapdata/repos/",
+        },
+    )  # ty:ignore[unused-awaitable]
