@@ -805,26 +805,36 @@ def wait_for_single_slurm_job_completion(
     job_id: str,
     poll_seconds: int = 30,
 ) -> dict[str, str]:
-    """Wait for a SLURM job to finish, then verify it completed successfully.
+    """Wait for a single SLURM job to finish, then verify it completed successfully.
 
-    This function is different that existing SLURM monitoring functions because it isn't intended for monitoring job arrays, nor is there any job retry functionality.
-    All we're doing is monitoring and waiting for the completion of a single SLURM job."""
+    This function is different from existing SLURM monitoring functions because it isn't intended for monitoring job arrays, nor is there any job retry functionality.
+    We do one thing: monitor and verify a success exit code for a single SLURM job."""
 
     logger = get_run_logger()
     logger.info("Waiting for SLURM job %s to finish.", job_id)
 
-    # we first poll `squeue` to determine whether the job is still active
-    # once a job disappears from `squeue`, it is no longer active in the queue.
-    # but not being in `squeue` does NOT mean the job succeeded!
-    # only means the job hit some terminal state
-    # so we just check here for "is it still running?"
+    # Poll `squeue` to determine whether the job is still active. Not being in
+    # `squeue` only means the job reached a terminal state; success is verified
+    # later with `sacct`.
+    #
+    # We pass the job ID twice (e.g. `squeue -h -j 646930,646930`) instead of
+    # once (`squeue -h -j 646930`). On Chinook and many other SLURM installs,
+    # a single-ID query behaves differently depending on job state:
+    #
+    #   - Job still running: exit 0, one row of output → keep polling.
+    #   - Job finished: exit 1, stderr "slurm_load_jobs error: Invalid job id
+    #     specified", empty stdout → our old code raised RuntimeError here even
+    #     though the download had succeeded.
+    #
+    # With two IDs, SLURM returns exit 0 regardless of whether the job has left
+    # the queue (see AiiDA's slurm plugin for the same workaround). Empty stdout
+    # then reliably means "not running" and we can break out to `sacct`.
     while True:
         exit_status, stdout, stderr = exec_command(
             ssh,
-            f"squeue -h -j {quote(job_id)}",
+            f"squeue -h -j {quote(job_id)},{quote(job_id)}",
         )
 
-        # if `squeue` fails we probably have a connection problem and should bail here to avoid false positives
         if exit_status != 0:
             raise RuntimeError(
                 "Failed to query SLURM queue.\n"
@@ -834,8 +844,6 @@ def wait_for_single_slurm_job_completion(
                 f"stderr:\n{stderr}"
             )
 
-        # `squeue -h -j <job_id>` returns no output when the job is no longer
-        # present in the active queue so when that happens we can break out and stop polling squeue
         if not stdout.strip():
             break
 
@@ -853,10 +861,7 @@ def wait_for_single_slurm_job_completion(
     # `sacct` gives the final state and exit code.
     # pipe-delimited format (-P) and no-header mode (-n) make parsing easier
     # output for a successful non-array SLURM job looks like this:
-    #
     # 644518|COMPLETED|0:0
-    # 644518.batch|COMPLETED|0:0
-    # 644518.extern|COMPLETED|0:0
     exit_status, stdout, stderr = exec_command(
         ssh,
         (f"sacct -j {quote(job_id)} --format=JobID,State,ExitCode -P -n"),
@@ -886,15 +891,13 @@ def wait_for_single_slurm_job_completion(
 
         sacct_job_id, state, exit_code = parts[:3]
 
-        # we can ingonore the .batch and .extern stuff
-        # only the top-level job row matters.
+        # ingonore the .batch and .extern stuff, only top-level job row matters.
         if sacct_job_id != job_id:
             continue
 
         # we're looking for
         # - State is COMPLETED
-        # - ExitCode begins with `0:`
-        # ExitCode are usually like 0:0, 1:0, etc.
+        # - ExitCode begins with `0:` ExitCode usually like 0:0, 1:0, etc.
         # first number is the process exit code, 0 means the batch script exited successfully
         if state == "COMPLETED" and exit_code == "0:0":
             logger.info(
@@ -1015,9 +1018,6 @@ def ensure_uv(ssh):
             f"stderr: {stderr}"
         )
 
-    # The remote shell command prints diagnostic messages, the uv version, and
-    # finally the uv path. The final line is intentionally the machine-readable
-    # return value for downstream flow tasks.
     uv_path = stdout.strip().splitlines()[-1]
 
     logger.info(f"uv is available at {uv_path}")
