@@ -15,6 +15,11 @@ from utils.utils import wait_for_single_slurm_job_completion
 SSH_HOST = "chinook04.rcs.alaska.edu"
 SSH_PORT = 22
 
+BASELINE_ZIP_PATH = (
+    "/beegfs/CMIP6/snapdata/drought_indicators_era5land_baseline/"
+    "drought_indicators_baseline_data.zip"
+)
+
 
 @task
 def submit_sbatch(
@@ -62,6 +67,78 @@ def submit_sbatch(
     return job_id
 
 
+@task
+def ensure_recent_data_empty(ssh: paramiko.SSHClient, repo_dir: str) -> None:
+    """Remove existing contents of recent_data before starting a fresh download."""
+    logger = get_run_logger()
+    recent_data_dir = f"{repo_dir.rstrip('/')}/nws-drought/recent_data"
+
+    cmd = f"""
+    set -euo pipefail
+    rm -rf {quote(recent_data_dir)}
+    mkdir -p {quote(recent_data_dir)}
+    """
+
+    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        raise RuntimeError(
+            "Failed to clear recent_data directory.\n"
+            f"Directory: {recent_data_dir}\n"
+            f"Exit status: {exit_status}\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}"
+        )
+
+    logger.info("Cleared recent_data at %s", recent_data_dir)
+
+
+@task
+def ensure_baseline_data_extracted(
+    ssh: paramiko.SSHClient,
+    repo_dir: str,
+    baseline_zip_path: str = BASELINE_ZIP_PATH,
+) -> None:
+    """Ensure drought baseline data zip is extracted to baseline_data in the nws-drought repo."""
+    logger = get_run_logger()
+    baseline_data_dir = f"{repo_dir.rstrip('/')}/nws-drought/baseline_data"
+
+    cmd = f"""
+    set -euo pipefail
+    baseline_dir={quote(baseline_data_dir)}
+    baseline_zip={quote(baseline_zip_path)}
+
+    if [ ! -f "$baseline_zip" ]; then
+      echo "Baseline zip not found: $baseline_zip" >&2
+      exit 1
+    fi
+
+    if [ -d "$baseline_dir" ] && [ -n "$(find "$baseline_dir" -mindepth 1 -print -quit 2>/dev/null)" ]; then
+      echo "Baseline data already extracted at $baseline_dir"
+      exit 0
+    fi
+
+    mkdir -p "$baseline_dir"
+    unzip -q "$baseline_zip" -d "$baseline_dir"
+    """
+
+    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        raise RuntimeError(
+            "Failed to extract baseline data.\n"
+            f"Zip: {baseline_zip_path}\n"
+            f"Directory: {baseline_data_dir}\n"
+            f"Exit status: {exit_status}\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}"
+        )
+
+    if stdout.strip():
+        logger.info(stdout.strip())
+    logger.info("Baseline data available at %s", baseline_data_dir)
+
+
 @flow(name="submit-drought-slurm-jobs")
 def submit_drought_slurm_jobs(
     ssh_username: str,
@@ -85,6 +162,9 @@ def submit_drought_slurm_jobs(
 
     try:
         logger.info("Connected to %s as %s", ssh_host, ssh_username)
+
+        ensure_baseline_data_extracted(ssh=ssh, repo_dir=repo_dir)
+        ensure_recent_data_empty(ssh=ssh, repo_dir=repo_dir)
 
         download_job_id = submit_sbatch(
             ssh=ssh,
@@ -125,4 +205,4 @@ if __name__ == "__main__":
             "branch_name": "main",
             "repo_dir": "/import/beegfs/CMIP6/snapdata/repos/",
         },
-    )  # ty:ignore[unused-awaitable]
+    )  # ty:ignore[unused-awaitable] # CP note: this comment for my `ty` typechecker
