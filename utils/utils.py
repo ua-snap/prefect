@@ -1,5 +1,6 @@
 from pathlib import Path
 from time import sleep
+
 import paramiko
 from prefect import task
 from prefect.logging import get_run_logger
@@ -513,9 +514,9 @@ def wait_for_jobs_completion(
         logger = get_run_logger()
     logger.info(f"Waiting for jobs to complete: {job_ids}")
 
+    jobs_to_validate = list(job_ids)
     while job_ids:
         for job_id in job_ids.copy():
-
             # ---- RETRY BLOCK ----
             for attempt in range(1, max_retries + 1):
                 try:
@@ -536,8 +537,7 @@ def wait_for_jobs_completion(
 
             if exit_status != 0:
                 raise Exception(
-                    f"Error checking job status for job ID {job_id}. "
-                    f"Error: {stderr}"
+                    f"Error checking job status for job ID {job_id}. Error: {stderr}"
                 )
 
             # If the job is no longer in the queue, remove it
@@ -554,7 +554,7 @@ def wait_for_jobs_completion(
         logger.info("Validating job exit statuses...")
         failed_jobs = []
 
-        for job_id in job_ids:
+        for job_id in jobs_to_validate:
             all_succeeded, failed_tasks, total_tasks = check_job_exit_status(
                 ssh, job_id
             )
