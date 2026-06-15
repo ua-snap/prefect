@@ -406,6 +406,13 @@ def check_job_exit_status(ssh, job_id):
     Check the exit status of a completed SLURM job using sacct.
 
     For array jobs, checks all array tasks and returns details on any failures.
+    
+    Note:
+    This function is "fail open" — if the job status cannot be determined (e.g.,
+    sacct command fails or returns no output), it assumes success and returns
+    (True, [], 0) rather than raising an exception. This preserves backward
+    compatibility but means transient monitoring failures will not block downstream
+    pipeline steps.
 
     Parameters:
     - ssh: Paramiko SSHClient object
