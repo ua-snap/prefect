@@ -18,14 +18,11 @@ def slurm_logging_experiment(
     ssh_username: str,
     ssh_private_key_path: str,
     remote_experiment_dir: str = "~/prefect_slurm_logging_experiment",
-    *,
     ssh_host: str = DEFAULT_SSH_HOST,
     ssh_port: int = DEFAULT_SSH_PORT,
     fail_mode: str = "none",
     fail_close: bool = True,
     fetch_logs: bool = True,
-    run_sync_comparison: bool = False,
-    partition: str | None = None,
     skip_deploy: bool = False,
 ) -> dict:
     """Run a SLURM logging experiment and observe what reaches Prefect UI.
@@ -44,10 +41,6 @@ def slurm_logging_experiment(
         If True, raise when sacct reports job failure. If False, only log warnings.
     fetch_logs:
         If True, tail SLURM .out/.err into Prefect logs after the job finishes.
-    run_sync_comparison:
-        If True, also run the worker via blocking srun (streams through SSH).
-    partition:
-        Optional SLURM partition for sbatch/srun.
     skip_deploy:
         If True, assume scripts are already on the HPC at remote_experiment_dir.
     """
@@ -63,7 +56,6 @@ def slurm_logging_experiment(
         "remote_experiment_dir": remote_experiment_dir,
         "job_id": None,
         "slurm_logs": {},
-        "sync_srun": None,
     }
 
     try:
@@ -78,24 +70,10 @@ def slurm_logging_experiment(
                 ssh, remote_experiment_dir
             )
 
-        if run_sync_comparison:
-            exit_status, stdout, stderr = tasks.run_synchronous_srun(
-                ssh,
-                remote_experiment_dir,
-                fail_mode=fail_mode,
-                partition=partition,
-            )
-            result["sync_srun"] = {
-                "exit_status": exit_status,
-                "stdout": stdout,
-                "stderr": stderr,
-            }
-
         job_id = tasks.submit_slurm_job(
             ssh,
             remote_experiment_dir,
             fail_mode=fail_mode,
-            partition=partition,
         )
         result["job_id"] = job_id
 
@@ -123,5 +101,4 @@ if __name__ == "__main__":
         fail_mode="none",
         fail_close=True,
         fetch_logs=True,
-        run_sync_comparison=False,
     )

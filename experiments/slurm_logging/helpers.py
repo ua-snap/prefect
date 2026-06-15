@@ -59,6 +59,9 @@ def upload_experiment_scripts(
             sftp.put(str(local_path), remote_path)
             if name.endswith(".slurm"):
                 sftp.chmod(remote_path, 0o755)
+
+        root_pyproject = LOCAL_EXPERIMENT_DIR.parent.parent / "pyproject.toml"
+        sftp.put(str(root_pyproject), f"{remote_experiment_dir}/pyproject.toml")
     finally:
         sftp.close()
 

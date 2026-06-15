@@ -55,7 +55,6 @@ def submit_slurm_job(
     ssh: paramiko.SSHClient,
     remote_experiment_dir: str,
     fail_mode: str = "none",
-    partition: str | None = None,
 ) -> str:
     """Submit job.slurm on the remote HPC and return the SLURM job ID."""
     logger = get_run_logger()
@@ -64,11 +63,10 @@ def submit_slurm_job(
         raise ValueError(f"fail_mode must be one of {FAIL_MODES}, got {fail_mode!r}")
 
     time_limit = "00:00:30" if fail_mode == "timeout" else "00:02:00"
-    partition_flag = f"--partition={partition} " if partition else ""
     exp_dir = resolve_remote_experiment_dir(ssh, remote_experiment_dir)
     cmd = (
         f"mkdir -p {exp_dir}/logs && "
-        f"sbatch {partition_flag}"
+        f"sbatch --partition=t2small "
         f"--time={time_limit} "
         f'--chdir="{exp_dir}" '
         f'--output="{exp_dir}/logs/slurm-%j.out" '
@@ -87,40 +85,6 @@ def submit_slurm_job(
     job_id = parse_sbatch_job_id(stdout)
     logger.info(f"Submitted SLURM job {job_id} (fail_mode={fail_mode})")
     return job_id
-
-
-@task
-def run_synchronous_srun(
-    ssh: paramiko.SSHClient,
-    remote_experiment_dir: str,
-    fail_mode: str = "none",
-    partition: str | None = None,
-) -> tuple[int, str, str]:
-    """Run the worker synchronously via srun to compare streaming vs sbatch."""
-    logger = get_run_logger()
-
-    if fail_mode not in FAIL_MODES:
-        raise ValueError(f"fail_mode must be one of {FAIL_MODES}, got {fail_mode!r}")
-
-    time_limit = "00:00:30" if fail_mode == "timeout" else "00:02:00"
-    partition_flag = f"--partition={partition} " if partition else ""
-    exp_dir = resolve_remote_experiment_dir(ssh, remote_experiment_dir)
-    cmd = (
-        f'srun {partition_flag}--time={time_limit} --ntasks=1 '
-        f'--chdir="{exp_dir}" '
-        f'python "{exp_dir}/worker.py" --fail {fail_mode} --sleep 3'
-    )
-
-    logger.info(f"Running synchronous srun comparison (fail_mode={fail_mode})")
-    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
-
-    if stdout:
-        logger.info(f"srun stdout:\n{stdout}")
-    if stderr:
-        logger.warning(f"srun stderr:\n{stderr}")
-    logger.info(f"srun exit status: {exit_status}")
-
-    return exit_status, stdout, stderr
 
 
 @task
