@@ -27,7 +27,7 @@ def submit_sbatch(
     """Submit an sbatch script from the nws-drought repo and return the job ID."""
     logger = get_run_logger()
 
-    # the pipeline run sbatch script dependends on the pipelie download via the slurm --dependency flag
+    # the pipeline run sbatch script depends on the pipeline download via the slurm --dependency flag
     dependency_arg = ""
     if dependency_job_id is not None:
         if not dependency_job_id.isdigit():
