@@ -224,8 +224,8 @@ def copy_figures_to_results(
       exit 1
     fi
 
-    dest={quote(results_base.rstrip('/'))}/results_${{analysis_date}}
-    mkdir -p "$dest"
+    dest={quote(results_base.rstrip("/"))}/results_${{analysis_date}}
+    mkdir -p -m 777 "$dest"
     cp -r data_viz/figures/. "$dest"/
 
     echo "$dest"
@@ -324,6 +324,6 @@ if __name__ == "__main__":
             "ssh_username": "snapdata",
             "ssh_private_key_path": str(Path.home() / ".ssh" / "id_rsa"),
             "branch_name": "main",
-            "repos_parent_dir": "/import/beegfs/CMIP6/snapdata/repos/",
+            "repos_parent_dir": "/import/beegfs/CMIP6/snapdata/",
         },
     )  # ty:ignore[unused-awaitable] # CP note: this comment for my `ty` typechecker
