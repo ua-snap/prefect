@@ -225,8 +225,12 @@ def copy_figures_to_results(
     fi
 
     dest={quote(results_base.rstrip("/"))}/results_${{analysis_date}}
-    mkdir -p -m 777 "$dest"
+    mkdir -p "$dest"
+    chmod 775 "$dest"
+
     cp -r data_viz/figures/. "$dest"/
+
+    chmod -R go+rX "$dest"
 
     echo "$dest"
     """
