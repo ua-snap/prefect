@@ -1,5 +1,6 @@
 from pathlib import Path
 from time import sleep
+
 import paramiko
 from prefect import task
 from prefect.logging import get_run_logger
@@ -252,9 +253,9 @@ def install_conda(ssh):
         ssh, "test $HOME/miniconda3 && echo 1 || echo 0"
     )
     conda_installed = bool(int(stdout))
-    assert (
-        not conda_installed
-    ), f"install_conda called, but conda installation found at {stdout}."
+    assert not conda_installed, (
+        f"install_conda called, but conda installation found at {stdout}."
+    )
 
     conda_uri = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
     print("No conda installation found. Installing Miniconda ...")
@@ -515,7 +516,6 @@ def wait_for_jobs_completion(
 
     while job_ids:
         for job_id in job_ids.copy():
-
             # ---- RETRY BLOCK ----
             for attempt in range(1, max_retries + 1):
                 try:
@@ -536,8 +536,7 @@ def wait_for_jobs_completion(
 
             if exit_status != 0:
                 raise Exception(
-                    f"Error checking job status for job ID {job_id}. "
-                    f"Error: {stderr}"
+                    f"Error checking job status for job ID {job_id}. Error: {stderr}"
                 )
 
             # If the job is no longer in the queue, remove it
@@ -797,3 +796,97 @@ def create_directories(ssh, dir_list, logger=None):
 def rsync_task(ssh, source_directory, destination_directory, exclude=None):
     """Task wrapper for utils.rsync"""
     rsync(ssh, source_directory, destination_directory, exclude=None)
+
+
+@task
+def ensure_uv(ssh):
+    """
+    Ensure that the latest uv is available on the remote Linux server.
+
+    If uv is already available, this task does not reinstall or upgrade it. If uv
+    is missing, this task installs the latest uv using the official
+    standalone Linux installer, then verifies that the executable works.
+
+    Parameters:
+    - ssh: Paramiko SSHClient object
+
+    Returns:
+    - str: The detected remote path to the uv executable.
+    """
+    logger = get_run_logger()
+
+    installer_url = "https://astral.sh/uv/install.sh"
+
+    # construct a command to run on the remote
+    #
+    #   1. Define a helper function, `find_uv`, that tries to locate uv.
+    #   2. If uv is already present, print its version and return its path.
+    #   3. If uv is missing, install the latest uv.
+    #   4. Temporarily update PATH for this non-interactive SSH command.
+    #   5. Verify uv now exists and can execute.
+    #
+    # bundling like this should make the task atomic from the Prefect side
+    # either uv is available by the end of the task, or we fail
+    cmd = f"""
+    set -euo pipefail
+
+    UV_INSTALLER_URL="{installer_url}"
+
+    find_uv() {{
+        # first check active PATH, means `uv run ...` should work naturally in this shell.
+        if command -v uv >/dev/null 2>&1; then
+            command -v uv
+            return 0
+        fi
+
+        # also check ~/.local/bin in case it just didn't get sourced
+        if [ -x "$HOME/.local/bin/uv" ]; then
+            echo "$HOME/.local/bin/uv"
+            return 0
+        fi
+
+        # returning nonzero when uv could not be found
+        return 1
+    }}
+
+    # try to find uv before installing anything.
+    # do not reinstall or upgrade uv if it already exists
+    if UV_PATH="$(find_uv)"; then
+        echo "uv already installed at $UV_PATH"
+        "$UV_PATH" --version
+        echo "$UV_PATH"
+        exit 0
+    fi
+
+    echo "uv was not found on PATH or in common user install locations."
+    echo "Installing latest uv from $UV_INSTALLER_URL"
+
+    # install the latest uv
+    curl -LsSf "$UV_INSTALLER_URL" | sh
+
+    # Verify that uv is now installed and executable.
+    if UV_PATH="$(find_uv)"; then
+        echo "uv installed at $UV_PATH"
+        "$UV_PATH" --version
+        echo "$UV_PATH"
+        exit 0
+    fi
+
+    echo "uv installation completed, but uv could not be found afterward." >&2
+    exit 1
+    """
+
+    exit_status, stdout, stderr = exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        raise Exception(
+            "Error ensuring uv is installed on remote Linux server. "
+            f"Exit status: {exit_status}. "
+            f"stdout: {stdout}. "
+            f"stderr: {stderr}"
+        )
+
+    uv_path = stdout.strip().splitlines()[-1]
+
+    logger.info(f"uv is available at {uv_path}")
+    return uv_path
