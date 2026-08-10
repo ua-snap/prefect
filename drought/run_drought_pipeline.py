@@ -250,6 +250,73 @@ def copy_figures_to_results(
     return dest
 
 
+@task
+def archive_drought_outputs_to_results(
+    ssh: paramiko.SSHClient,
+    repos_parent_dir: str,
+    results_dir: str,
+) -> str:
+    """Move drought output NetCDF files into an existing results directory.
+
+    Moves only top-level ``drought_outputs/*.nc`` files and returns the
+    destination directory.
+    """
+    logger = get_run_logger()
+    repo_dir = f"{repos_parent_dir.rstrip('/')}/nws-drought"
+
+    cmd = f"""
+    set -euo pipefail
+    cd {quote(repo_dir)}
+
+    if [ ! -d drought_outputs ]; then
+      echo "Drought outputs directory drought_outputs not found" >&2
+      exit 1
+    fi
+
+    has_netcdf=false
+    for output_nc_file in drought_outputs/*.nc; do
+      if [ -f "$output_nc_file" ]; then
+        has_netcdf=true
+        break
+      fi
+    done
+
+    if [ "$has_netcdf" != true ]; then
+      echo "No .nc files found in drought_outputs" >&2
+      exit 1
+    fi
+
+    dest={quote(results_dir)}
+    if [ ! -d "$dest" ]; then
+      echo "Results directory $dest not found" >&2
+      exit 1
+    fi
+
+    for output_nc_file in drought_outputs/*.nc; do
+      if [ -f "$output_nc_file" ]; then
+        mv "$output_nc_file" "$dest"/
+      fi
+    done
+
+    chmod -R go+rX "$dest"
+    echo "$dest"
+    """
+
+    exit_status, stdout, stderr = utils.exec_command(ssh, cmd)
+
+    if exit_status != 0:
+        raise RuntimeError(
+            "Failed to archive drought output NetCDF files.\n"
+            f"Exit status: {exit_status}\n"
+            f"stdout:\n{stdout}\n"
+            f"stderr:\n{stderr}"
+        )
+
+    dest = stdout.strip().splitlines()[-1]
+    logger.info("Archived drought output NetCDF files to %s", dest)
+    return dest
+
+
 @flow(name="submit-drought-slurm-jobs")
 def submit_drought_slurm_jobs(
     ssh_username: str,
@@ -259,9 +326,14 @@ def submit_drought_slurm_jobs(
     ssh_host: str = SSH_HOST,
     ssh_port: int = SSH_PORT,
 ) -> dict[str, str]:
-    """Submit download, processing, and plotting SLURM jobs with afterok dependencies.
+    """Submit drought download, processing, and plotting SLURM jobs on Chinook.
 
-    Returns job IDs immediately without waiting for SLURM completion.
+    Submits three dependent jobs (download → run → plot), waits for plotting to
+    finish, then copies figures and moves drought output NetCDF files into
+    ``results_<analysis_date>`` under the CKAN drought directory. The analysis
+    date is parsed from the NetCDF file in ``recent_data``.
+
+    Returns SLURM job IDs and the archived results directory path.
     """
     logger = get_run_logger()
 
@@ -271,11 +343,12 @@ def submit_drought_slurm_jobs(
         ssh_username=ssh_username,
         ssh_private_key_path=ssh_private_key_path,
     )
-    utils.ensure_uv(ssh)
-    utils.clone_github_repository(ssh, "nws-drought", branch_name, repos_parent_dir)
 
     try:
         logger.info("Connected to %s as %s", ssh_host, ssh_username)
+
+        utils.ensure_uv(ssh)
+        utils.clone_github_repository(ssh, "nws-drought", branch_name, repos_parent_dir)
 
         ensure_baseline_data_extracted(ssh=ssh, repos_parent_dir=repos_parent_dir)
         ensure_recent_data_empty(ssh=ssh, repos_parent_dir=repos_parent_dir)
@@ -306,6 +379,11 @@ def submit_drought_slurm_jobs(
         results_dir = copy_figures_to_results(
             ssh=ssh,
             repos_parent_dir=repos_parent_dir,
+        )
+        archive_drought_outputs_to_results(
+            ssh=ssh,
+            repos_parent_dir=repos_parent_dir,
+            results_dir=results_dir,
         )
 
         return {
