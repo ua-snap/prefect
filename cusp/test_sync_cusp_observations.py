@@ -1,0 +1,199 @@
+from unittest.mock import Mock, patch
+
+import pytest
+
+from cusp.github_release import Release, ReleaseAsset
+from cusp.sync_cusp_observations import sync_cusp_observations_to_geoserver
+
+FLOW_KWARGS = {
+    "wfs_base_url": "https://gs.invalid/geoserver/wfs",
+    "rest_base_url": "https://gs.invalid/geoserver/rest",
+    "geoserver_username": "admin",
+    "geoserver_password": "secret",
+    "workspace": "cusp",
+    "datastore": "cusp_observations",
+    "gpkg_destination_path": "/data/cusp/cusp_observations.gpkg",
+    "bib_destination_path": "/data/cusp/cusp_sources.bib",
+}
+
+
+def build_release(version="1.1"):
+    def asset(name):
+        return ReleaseAsset(
+            name=name,
+            download_url=f"https://example.invalid/{name}",
+            sha256="a" * 64,
+        )
+
+    return Release(
+        version=version,
+        csv=asset(f"cusp_v{version}.csv"),
+        bib=asset(f"cusp_sources_v{version}.bib"),
+        release_info=asset("RELEASE_INFO.md"),
+    )
+
+
+def test_matching_versions_report_up_to_date_without_touching_geoserver():
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            return_value="1.1",
+        ),
+        patch("cusp.sync_cusp_observations.create_markdown_artifact") as artifact,
+        patch(
+            "cusp.sync_cusp_observations.github_release.download_asset"
+        ) as download_asset,
+        patch("cusp.sync_cusp_observations.publish_file") as publish,
+        patch("cusp.sync_cusp_observations.geoserver.reset_datastore") as reset,
+    ):
+        result = sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    assert result == {
+        "status": "up_to_date",
+        "github_version": "1.1",
+        "geoserver_version": "1.1",
+        "layer": "cusp:cusp_observations",
+    }
+    download_asset.assert_not_called()
+    publish.assert_not_called()
+    reset.assert_not_called()
+    artifact.assert_called_once()
+
+
+def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
+    events = []
+
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            side_effect=[None, "1.1"],
+        ),
+        patch(
+            "cusp.sync_cusp_observations.github_release.download_asset",
+            side_effect=lambda asset, directory, token=None: (
+                events.append(f"download:{asset.name}"),
+                tmp_path / asset.name,
+            )[1],
+        ),
+        patch(
+            "cusp.sync_cusp_observations.subprocess.run",
+            side_effect=lambda *_, **__: events.append("prep"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.publish_file",
+            side_effect=lambda **kwargs: events.append(
+                f"publish:{kwargs['destination_path']}"
+            ),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.reset_datastore",
+            side_effect=lambda **_: events.append("reset"),
+        ),
+        patch("cusp.sync_cusp_observations.create_markdown_artifact"),
+    ):
+        result = sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    assert result["status"] == "updated"
+    assert result["github_version"] == "1.1"
+    assert result["geoserver_version"] is None
+    assert events == [
+        "download:cusp_v1.1.csv",
+        "download:cusp_sources_v1.1.bib",
+        "download:RELEASE_INFO.md",
+        "prep",
+        "publish:/data/cusp/cusp_observations.gpkg",
+        "publish:/data/cusp/cusp_sources.bib",
+        "reset",
+    ]
+
+
+def test_the_geopackage_swap_is_backed_up_but_the_bib_is_not(tmp_path):
+    publish_calls = []
+
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            side_effect=["1.0", "1.1"],
+        ),
+        patch(
+            "cusp.sync_cusp_observations.github_release.download_asset",
+            side_effect=lambda asset, directory, token=None: tmp_path / asset.name,
+        ),
+        patch("cusp.sync_cusp_observations.subprocess.run"),
+        patch(
+            "cusp.sync_cusp_observations.publish_file",
+            side_effect=lambda **kwargs: publish_calls.append(kwargs),
+        ),
+        patch("cusp.sync_cusp_observations.geoserver.reset_datastore"),
+        patch("cusp.sync_cusp_observations.create_markdown_artifact"),
+    ):
+        sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    gpkg_call = publish_calls[0]
+    bib_call = publish_calls[1]
+
+    assert gpkg_call["destination_path"] == "/data/cusp/cusp_observations.gpkg"
+    assert gpkg_call["backup"] is True
+    assert bib_call["destination_path"] == "/data/cusp/cusp_sources.bib"
+    assert "backup" not in bib_call
+
+
+def test_geoserver_ahead_of_github_fails_without_publishing():
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.0"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            return_value="1.1",
+        ),
+        patch("cusp.sync_cusp_observations.publish_file") as publish,
+    ):
+        with pytest.raises(RuntimeError, match="ahead of the latest GitHub release"):
+            sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    publish.assert_not_called()
+
+
+def test_verification_failure_names_the_rollback_file(tmp_path):
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            side_effect=["1.0", "1.0", "1.0", "1.0"],
+        ) as read_version,
+        patch(
+            "cusp.sync_cusp_observations.github_release.download_asset",
+            side_effect=lambda asset, directory, token=None: tmp_path / asset.name,
+        ),
+        patch("cusp.sync_cusp_observations.subprocess.run"),
+        patch("cusp.sync_cusp_observations.publish_file"),
+        patch("cusp.sync_cusp_observations.geoserver.reset_datastore"),
+        patch("cusp.sync_cusp_observations.time.sleep") as sleep,
+    ):
+        with pytest.raises(RuntimeError, match=r"cusp_observations\.gpkg\.bak"):
+            sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    assert read_version.call_count == 4
+    assert sleep.call_count == 2
