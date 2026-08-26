@@ -1,12 +1,14 @@
 import shutil
 import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from cusp.prep_for_geoserver_gpkg import (
     LAYER_NAME,
     build_config,
+    find_ogr2ogr,
     main,
     parse_args,
     verify_version_matches_filename,
@@ -65,6 +67,39 @@ def test_version_disagreeing_with_the_source_filename_is_rejected():
 def test_an_unrecognized_source_filename_is_rejected():
     with pytest.raises(ValueError, match="cusp_v<version>.csv"):
         verify_version_matches_filename(Path("/work/observations.csv"), "1.1")
+
+
+def test_find_ogr2ogr_prefers_the_path_lookup():
+    with patch(
+        "cusp.prep_for_geoserver_gpkg.shutil.which",
+        return_value="/usr/bin/ogr2ogr",
+    ):
+        assert find_ogr2ogr() == "/usr/bin/ogr2ogr"
+
+
+def test_find_ogr2ogr_falls_back_to_the_interpreter_directory(tmp_path):
+    fake_ogr2ogr = tmp_path / "ogr2ogr"
+    fake_ogr2ogr.write_text("")
+
+    with (
+        patch("cusp.prep_for_geoserver_gpkg.shutil.which", return_value=None),
+        patch(
+            "cusp.prep_for_geoserver_gpkg.sys.executable",
+            str(tmp_path / "python"),
+        ),
+    ):
+        assert find_ogr2ogr() == str(fake_ogr2ogr)
+
+
+def test_find_ogr2ogr_returns_none_when_absent_everywhere(tmp_path):
+    with (
+        patch("cusp.prep_for_geoserver_gpkg.shutil.which", return_value=None),
+        patch(
+            "cusp.prep_for_geoserver_gpkg.sys.executable",
+            str(tmp_path / "python"),
+        ),
+    ):
+        assert find_ogr2ogr() is None
 
 
 CSV_HEADER = (

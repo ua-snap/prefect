@@ -25,6 +25,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -447,6 +448,27 @@ def write_geopackage(
     )
 
 
+def find_ogr2ogr() -> str | None:
+    """Locate the ogr2ogr executable, falling back to the interpreter's bin dir.
+
+    A PM2-spawned process inherits the PM2 daemon's PATH, which does not
+    include the conda environment's bin directory just because the interpreter
+    lives there (no shell activation ever ran). conda installs ogr2ogr beside
+    python, so when the PATH lookup misses, look next to ``sys.executable``.
+    """
+    found = shutil.which("ogr2ogr")
+
+    if found is not None:
+        return found
+
+    candidate = Path(sys.executable).parent / "ogr2ogr"
+
+    if candidate.is_file():
+        return str(candidate)
+
+    return None
+
+
 def finalize_observation_date_column(config: PrepConfig) -> None:
     """Re-declare observation_date as DATE and rebuild the GeoPackage.
 
@@ -494,11 +516,12 @@ def finalize_observation_date_column(config: PrepConfig) -> None:
         conn.execute(f'ALTER TABLE "{temp_table}" RENAME TO "{LAYER_NAME}"')
         conn.commit()
 
-    ogr2ogr = shutil.which("ogr2ogr")
+    ogr2ogr = find_ogr2ogr()
     if ogr2ogr is None:
         raise RuntimeError(
             "observation_date must be stored as DATE, but ogr2ogr was not found "
-            "on PATH to rebuild the GeoPackage after updating the column type."
+            "on PATH or beside the Python interpreter to rebuild the GeoPackage "
+            "after updating the column type."
         )
 
     temp_gpkg = config.output_gpkg.with_suffix(".tmp.gpkg")
