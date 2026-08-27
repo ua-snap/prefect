@@ -15,6 +15,11 @@ This flow is served on the GeoServer host itself (kept alive by PM2), so the
 GeoPackage swap is a local filesystem operation and no SSH is involved. It is
 on-demand only: runs are triggered from the Prefect UI or CLI, and there is no
 schedule.
+
+Credentials: WFS reads are anonymous and the file swap relies on the serving
+user's filesystem permissions. The only authenticated call is the store reset
+against the REST admin API, whose credentials are read from the Prefect Secret
+blocks named by ``GEOSERVER_USERNAME_BLOCK`` and ``GEOSERVER_PASSWORD_BLOCK``.
 """
 
 from __future__ import annotations
@@ -27,6 +32,7 @@ from pathlib import Path
 
 from prefect import flow, get_run_logger
 from prefect.artifacts import create_markdown_artifact
+from prefect.blocks.system import Secret
 
 from cusp import geoserver, github_release
 from cusp.publish import publish_file
@@ -39,6 +45,12 @@ TYPE_NAME = "cusp:cusp_observations"
 # GeoServer never changes; only the file's contents (and its embedded
 # release_version attribute) do.
 PUBLISHED_GPKG_NAME = "cusp_observations.gpkg"
+
+# Prefect Secret blocks holding the GeoServer admin credentials used for the
+# store reset. These live encrypted on the Prefect server, matching how the
+# wildfire flows handle their credentials.
+GEOSERVER_USERNAME_BLOCK = "geoserver-username"
+GEOSERVER_PASSWORD_BLOCK = "geoserver-password"
 
 
 def build_sync_summary(result: dict) -> str:
@@ -61,6 +73,19 @@ def build_sync_summary(result: dict) -> str:
         f"- **Layer:** {result['layer']}\n"
         f"- **Latest GitHub release:** {result['github_version']}\n"
         f"- **GeoServer version before this run:** {result['geoserver_version']}\n"
+    )
+
+
+def load_geoserver_admin_auth() -> tuple[str, str]:
+    """Read the GeoServer admin credentials from their Prefect Secret blocks.
+
+    Called at the start of the update path, before any file is downloaded or
+    swapped, so a missing or misnamed block fails the run while the live
+    layer is still untouched and still being served.
+    """
+    return (
+        Secret.load(GEOSERVER_USERNAME_BLOCK).get(),
+        Secret.load(GEOSERVER_PASSWORD_BLOCK).get(),
     )
 
 
@@ -102,7 +127,6 @@ def run_prep(
 def verify_published_version(
     wfs_base_url: str,
     type_name: str,
-    auth: tuple[str, str],
     expected_version: str,
     attempts: int = 3,
     delay_seconds: int = 5,
@@ -116,7 +140,6 @@ def verify_published_version(
     Args:
         wfs_base_url: The WFS endpoint to verify against.
         type_name: The qualified layer name.
-        auth: GeoServer ``(username, password)``.
         expected_version: The version that should now be published.
         attempts: Total read attempts before giving up.
         delay_seconds: Pause between attempts.
@@ -132,7 +155,6 @@ def verify_published_version(
         published = geoserver.get_published_release_version(
             wfs_base_url=wfs_base_url,
             type_name=type_name,
-            auth=auth,
         )
 
         if published == expected_version:
@@ -148,8 +170,6 @@ def verify_published_version(
 def sync_cusp_observations_to_geoserver(
     wfs_base_url: str,
     rest_base_url: str,
-    geoserver_username: str,
-    geoserver_password: str,
     workspace: str,
     datastore: str,
     gpkg_destination_path: str,
@@ -160,12 +180,14 @@ def sync_cusp_observations_to_geoserver(
 ) -> dict:
     """Publish the latest CUSP release to GeoServer when the layer is behind.
 
+    GeoServer admin credentials are not flow parameters: they are read from
+    the Prefect Secret blocks ``geoserver-username`` and
+    ``geoserver-password``, and used only for the store reset. WFS reads are
+    anonymous.
+
     Args:
         wfs_base_url: WFS endpoint, e.g. ``https://host/geoserver/wfs``.
         rest_base_url: REST endpoint, e.g. ``https://host/geoserver/rest``.
-        geoserver_username: GeoServer admin username (used for the WFS read
-            and the store reset).
-        geoserver_password: GeoServer admin password.
         workspace: Workspace containing the CUSP data store.
         datastore: Data store name from the GeoServer configuration. This is
             the *store* name, which is not necessarily the layer name.
@@ -196,7 +218,6 @@ def sync_cusp_observations_to_geoserver(
             to roll back to.
     """
     logger = get_run_logger()
-    auth = (geoserver_username, geoserver_password)
 
     release = github_release.fetch_latest_release(
         owner_repo=owner_repo,
@@ -205,7 +226,6 @@ def sync_cusp_observations_to_geoserver(
     published_version = geoserver.get_published_release_version(
         wfs_base_url=wfs_base_url,
         type_name=type_name,
-        auth=auth,
     )
 
     logger.info(
@@ -237,6 +257,12 @@ def sync_cusp_observations_to_geoserver(
             markdown=build_sync_summary(result),
         )
         return result
+
+    # The reset credentials are loaded before any file is downloaded or
+    # swapped: the reset is mandatory after a swap, so failing on a missing
+    # secret block now leaves the live layer untouched instead of stranding a
+    # swapped file that is not yet served.
+    reset_auth = load_geoserver_admin_auth()
 
     # Everything below runs only when GeoServer is behind. Downloads and
     # preprocessing happen in an ephemeral work directory; nothing touches the
@@ -279,13 +305,12 @@ def sync_cusp_observations_to_geoserver(
         rest_base_url=rest_base_url,
         workspace=workspace,
         datastore=datastore,
-        auth=auth,
+        auth=reset_auth,
     )
 
     verified = verify_published_version(
         wfs_base_url=wfs_base_url,
         type_name=type_name,
-        auth=auth,
         expected_version=release.version,
     )
 

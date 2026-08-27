@@ -8,13 +8,20 @@ from cusp.sync_cusp_observations import sync_cusp_observations_to_geoserver
 FLOW_KWARGS = {
     "wfs_base_url": "https://gs.invalid/geoserver/wfs",
     "rest_base_url": "https://gs.invalid/geoserver/rest",
-    "geoserver_username": "admin",
-    "geoserver_password": "secret",
     "workspace": "cusp",
     "datastore": "cusp_observations",
     "gpkg_destination_path": "/data/cusp/cusp_observations.gpkg",
     "bib_destination_path": "/data/cusp/cusp_sources.bib",
 }
+
+SECRET_VALUES = {
+    "geoserver-username": "gs-admin",
+    "geoserver-password": "gs-secret",
+}
+
+
+def fake_secret_load(name):
+    return Mock(get=Mock(return_value=SECRET_VALUES[name]))
 
 
 def build_release(version="1.1"):
@@ -50,6 +57,7 @@ def test_matching_versions_report_up_to_date_without_touching_geoserver():
         ) as download_asset,
         patch("cusp.sync_cusp_observations.publish_file") as publish,
         patch("cusp.sync_cusp_observations.geoserver.reset_datastore") as reset,
+        patch("cusp.sync_cusp_observations.Secret") as secret,
     ):
         result = sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
 
@@ -62,7 +70,26 @@ def test_matching_versions_report_up_to_date_without_touching_geoserver():
     download_asset.assert_not_called()
     publish.assert_not_called()
     reset.assert_not_called()
+    secret.load.assert_not_called()
     artifact.assert_called_once()
+
+
+def test_wfs_reads_are_anonymous():
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            return_value="1.1",
+        ) as read_version,
+        patch("cusp.sync_cusp_observations.create_markdown_artifact"),
+    ):
+        sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    assert "auth" not in read_version.call_args.kwargs
 
 
 def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
@@ -98,9 +125,11 @@ def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
         patch(
             "cusp.sync_cusp_observations.geoserver.reset_datastore",
             side_effect=lambda **_: events.append("reset"),
-        ),
+        ) as reset,
         patch("cusp.sync_cusp_observations.create_markdown_artifact"),
+        patch("cusp.sync_cusp_observations.Secret") as secret,
     ):
+        secret.load.side_effect = fake_secret_load
         result = sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
 
     assert result["status"] == "updated"
@@ -115,6 +144,7 @@ def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
         "publish:/data/cusp/cusp_sources.bib",
         "reset",
     ]
+    assert reset.call_args.kwargs["auth"] == ("gs-admin", "gs-secret")
 
 
 def test_the_geopackage_swap_is_backed_up_but_the_bib_is_not(tmp_path):
@@ -141,7 +171,9 @@ def test_the_geopackage_swap_is_backed_up_but_the_bib_is_not(tmp_path):
         ),
         patch("cusp.sync_cusp_observations.geoserver.reset_datastore"),
         patch("cusp.sync_cusp_observations.create_markdown_artifact"),
+        patch("cusp.sync_cusp_observations.Secret") as secret,
     ):
+        secret.load.side_effect = fake_secret_load
         sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
 
     gpkg_call = publish_calls[0]
@@ -172,6 +204,34 @@ def test_geoserver_ahead_of_github_fails_without_publishing():
     publish.assert_not_called()
 
 
+def test_a_missing_secret_block_fails_before_any_download_or_publish():
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            return_value="1.0",
+        ),
+        patch(
+            "cusp.sync_cusp_observations.github_release.download_asset"
+        ) as download_asset,
+        patch("cusp.sync_cusp_observations.publish_file") as publish,
+        patch("cusp.sync_cusp_observations.Secret") as secret,
+    ):
+        secret.load.side_effect = ValueError(
+            "Unable to find block document named geoserver-username"
+        )
+
+        with pytest.raises(ValueError, match="geoserver-username"):
+            sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
+
+    download_asset.assert_not_called()
+    publish.assert_not_called()
+
+
 def test_verification_failure_names_the_rollback_file(tmp_path):
     with (
         patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
@@ -191,7 +251,10 @@ def test_verification_failure_names_the_rollback_file(tmp_path):
         patch("cusp.sync_cusp_observations.publish_file"),
         patch("cusp.sync_cusp_observations.geoserver.reset_datastore"),
         patch("cusp.sync_cusp_observations.time.sleep") as sleep,
+        patch("cusp.sync_cusp_observations.Secret") as secret,
     ):
+        secret.load.side_effect = fake_secret_load
+
         with pytest.raises(RuntimeError, match=r"cusp_observations\.gpkg\.bak"):
             sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
 

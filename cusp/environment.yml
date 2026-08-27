@@ -2,8 +2,9 @@ name: cusp
 channels:
   - conda-forge
 dependencies:
-  - python=3.9
+  - python>=3.11
   - prefect=2.14.2
+  - griffe<1.0
   - requests
   - packaging
   - pandas
