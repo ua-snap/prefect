@@ -41,7 +41,13 @@ from cusp.versions import GEOSERVER_AHEAD, UP_TO_DATE, decide_sync_action
 CUSP_REPO = "jonschwenk/cusp"
 TYPE_NAME = "cusp:cusp_observations"
 WFS_BASE_URL = "https://gs.earthmaps.io/geoserver/wfs"
-DATASTORE = "cusp"
+REST_BASE_URL = "https://gs.earthmaps.io/geoserver/rest"
+WORKSPACE = "cusp"
+DATASTORE = "cusp_observations"
+
+GEOSERVER_DATA_DIR = "/usr/share/geoserver/data_dir/data/playground"
+DEFAULT_GPKG_DESTINATION = f"{GEOSERVER_DATA_DIR}/cusp_observations.gpkg"
+DEFAULT_BIB_DESTINATION = f"{GEOSERVER_DATA_DIR}/cusp_sources.bib"
 
 # The stable filename inside the work directory. The published path on
 # GeoServer never changes; only the file's contents (and its embedded
@@ -127,7 +133,6 @@ def run_prep(
 
 
 def verify_published_version(
-    type_name: str,
     expected_version: str,
     attempts: int = 3,
     delay_seconds: int = 5,
@@ -139,7 +144,6 @@ def verify_published_version(
     race it. A few short retries absorb that without masking a real failure.
 
     Args:
-        type_name: The qualified layer name.
         expected_version: The version that should now be published.
         attempts: Total read attempts before giving up.
         delay_seconds: Pause between attempts.
@@ -154,7 +158,7 @@ def verify_published_version(
     for attempt in range(attempts):
         published = geoserver.get_published_release_version(
             wfs_base_url=WFS_BASE_URL,
-            type_name=type_name,
+            type_name=TYPE_NAME,
         )
 
         if published == expected_version:
@@ -168,12 +172,9 @@ def verify_published_version(
 
 @flow(name="sync-cusp-observations-to-geoserver", log_prints=True)
 def sync_cusp_observations_to_geoserver(
-    rest_base_url: str,
-    workspace: str,
-    gpkg_destination_path: str,
-    bib_destination_path: str,
+    gpkg_destination_path: str = DEFAULT_GPKG_DESTINATION,
+    bib_destination_path: str = DEFAULT_BIB_DESTINATION,
     owner_repo: str = CUSP_REPO,
-    type_name: str = TYPE_NAME,
 ) -> dict:
     """Publish the latest CUSP release to GeoServer when the layer is behind.
 
@@ -183,14 +184,11 @@ def sync_cusp_observations_to_geoserver(
     anonymous.
 
     Args:
-        rest_base_url: REST endpoint, e.g. ``https://host/geoserver/rest``.
-        workspace: Workspace containing the CUSP data store.
         gpkg_destination_path: Stable path of the published GeoPackage in the
             GeoServer data directory. Never versioned; the previous file is
             kept beside it as ``<path>.bak``.
         bib_destination_path: Stable path for the sources bibliography.
         owner_repo: GitHub repository to sync from, in ``owner/name`` form.
-        type_name: Qualified layer name used for WFS reads.
 
     Returns:
         A structured result recorded on the run::
@@ -215,7 +213,7 @@ def sync_cusp_observations_to_geoserver(
     release = github_release.fetch_latest_release(owner_repo=owner_repo)
     published_version = geoserver.get_published_release_version(
         wfs_base_url=WFS_BASE_URL,
-        type_name=type_name,
+        type_name=TYPE_NAME,
     )
 
     logger.info(
@@ -238,7 +236,7 @@ def sync_cusp_observations_to_geoserver(
         "status": UP_TO_DATE if action == UP_TO_DATE else "updated",
         "github_version": release.version,
         "geoserver_version": published_version,
-        "layer": type_name,
+        "layer": TYPE_NAME,
     }
 
     if action == UP_TO_DATE:
@@ -288,20 +286,19 @@ def sync_cusp_observations_to_geoserver(
         )
 
     geoserver.reset_datastore(
-        rest_base_url=rest_base_url,
-        workspace=workspace,
+        rest_base_url=REST_BASE_URL,
+        workspace=WORKSPACE,
         datastore=DATASTORE,
         auth=reset_auth,
     )
 
     verified = verify_published_version(
-        type_name=type_name,
         expected_version=release.version,
     )
 
     if verified != release.version:
         raise RuntimeError(
-            f"{type_name} still publishes {verified} after replacing the GeoPackage "
+            f"{TYPE_NAME} still publishes {verified} after replacing the GeoPackage "
             f"and resetting the {DATASTORE!r} store. The previous file is available "
             f"at {gpkg_destination_path}.bak for rollback."
         )

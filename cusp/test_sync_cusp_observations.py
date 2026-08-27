@@ -4,13 +4,14 @@ import pytest
 
 from cusp.github_release import Release, ReleaseAsset
 from cusp.sync_cusp_observations import (
+    REST_BASE_URL,
+    TYPE_NAME,
     WFS_BASE_URL,
+    WORKSPACE,
     sync_cusp_observations_to_geoserver,
 )
 
 FLOW_KWARGS = {
-    "rest_base_url": "https://gs.invalid/geoserver/rest",
-    "workspace": "cusp",
     "gpkg_destination_path": "/data/cusp/cusp_observations.gpkg",
     "bib_destination_path": "/data/cusp/cusp_sources.bib",
 }
@@ -92,6 +93,7 @@ def test_wfs_reads_are_anonymous():
 
     assert "auth" not in read_version.call_args.kwargs
     assert read_version.call_args.kwargs["wfs_base_url"] == WFS_BASE_URL
+    assert read_version.call_args.kwargs["type_name"] == TYPE_NAME
 
 
 def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
@@ -147,7 +149,9 @@ def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
         "reset",
     ]
     assert reset.call_args.kwargs["auth"] == ("gs-admin", "gs-secret")
-    assert reset.call_args.kwargs["datastore"] == "cusp"
+    assert reset.call_args.kwargs["rest_base_url"] == REST_BASE_URL
+    assert reset.call_args.kwargs["workspace"] == WORKSPACE
+    assert reset.call_args.kwargs["datastore"] == "cusp_observations"
 
 
 def test_the_geopackage_swap_is_backed_up_but_the_bib_is_not(tmp_path):
