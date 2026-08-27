@@ -3,13 +3,14 @@ from unittest.mock import Mock, patch
 import pytest
 
 from cusp.github_release import Release, ReleaseAsset
-from cusp.sync_cusp_observations import sync_cusp_observations_to_geoserver
+from cusp.sync_cusp_observations import (
+    WFS_BASE_URL,
+    sync_cusp_observations_to_geoserver,
+)
 
 FLOW_KWARGS = {
-    "wfs_base_url": "https://gs.invalid/geoserver/wfs",
     "rest_base_url": "https://gs.invalid/geoserver/rest",
     "workspace": "cusp",
-    "datastore": "cusp_observations",
     "gpkg_destination_path": "/data/cusp/cusp_observations.gpkg",
     "bib_destination_path": "/data/cusp/cusp_sources.bib",
 }
@@ -90,6 +91,7 @@ def test_wfs_reads_are_anonymous():
         sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS)
 
     assert "auth" not in read_version.call_args.kwargs
+    assert read_version.call_args.kwargs["wfs_base_url"] == WFS_BASE_URL
 
 
 def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
@@ -107,7 +109,7 @@ def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
         ),
         patch(
             "cusp.sync_cusp_observations.github_release.download_asset",
-            side_effect=lambda asset, directory, token=None: (
+            side_effect=lambda asset, directory: (
                 events.append(f"download:{asset.name}"),
                 tmp_path / asset.name,
             )[1],
@@ -145,6 +147,7 @@ def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
         "reset",
     ]
     assert reset.call_args.kwargs["auth"] == ("gs-admin", "gs-secret")
+    assert reset.call_args.kwargs["datastore"] == "cusp"
 
 
 def test_the_geopackage_swap_is_backed_up_but_the_bib_is_not(tmp_path):
@@ -162,7 +165,7 @@ def test_the_geopackage_swap_is_backed_up_but_the_bib_is_not(tmp_path):
         ),
         patch(
             "cusp.sync_cusp_observations.github_release.download_asset",
-            side_effect=lambda asset, directory, token=None: tmp_path / asset.name,
+            side_effect=lambda asset, directory: tmp_path / asset.name,
         ),
         patch("cusp.sync_cusp_observations.subprocess.run"),
         patch(
@@ -245,7 +248,7 @@ def test_verification_failure_names_the_rollback_file(tmp_path):
         ) as read_version,
         patch(
             "cusp.sync_cusp_observations.github_release.download_asset",
-            side_effect=lambda asset, directory, token=None: tmp_path / asset.name,
+            side_effect=lambda asset, directory: tmp_path / asset.name,
         ),
         patch("cusp.sync_cusp_observations.subprocess.run"),
         patch("cusp.sync_cusp_observations.publish_file"),

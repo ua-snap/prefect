@@ -61,19 +61,7 @@ class Release:
     release_info: ReleaseAsset
 
 
-def _auth_headers(token: str | None) -> dict[str, str]:
-    """Build GitHub API headers, adding a bearer token when one is provided.
-
-    Unauthenticated requests are limited to 60 per hour per IP, which is
-    plenty for on-demand runs; a token raises that ceiling if it is ever
-    needed.
-    """
-    headers = {"Accept": "application/vnd.github+json"}
-
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-
-    return headers
+GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
 
 
 def select_asset(assets: list[dict], pattern: str) -> ReleaseAsset:
@@ -147,7 +135,6 @@ def parse_release(payload: dict) -> Release:
 
 def fetch_latest_release(
     owner_repo: str = CUSP_REPO,
-    token: str | None = None,
     timeout: int = 30,
 ) -> Release:
     """Read the latest published release from the GitHub API.
@@ -158,7 +145,6 @@ def fetch_latest_release(
 
     Args:
         owner_repo: The GitHub repository in ``owner/name`` form.
-        token: Optional GitHub API token for a higher rate limit.
         timeout: Request timeout in seconds.
 
     Returns:
@@ -170,7 +156,7 @@ def fetch_latest_release(
     """
     response = requests.get(
         f"{GITHUB_API_URL}/repos/{owner_repo}/releases/latest",
-        headers=_auth_headers(token),
+        headers=GITHUB_HEADERS,
         timeout=timeout,
     )
     response.raise_for_status()
@@ -181,7 +167,6 @@ def fetch_latest_release(
 def download_asset(
     asset: ReleaseAsset,
     destination_dir: Path | str,
-    token: str | None = None,
     timeout: int = 300,
     chunk_size: int = 1024 * 1024,
 ) -> Path:
@@ -195,8 +180,6 @@ def download_asset(
         asset: The asset to download, including its expected sha256.
         destination_dir: Directory to write into; the file keeps the asset's
             own name.
-        token: Optional GitHub API token, forwarded for private repositories
-            and rate limits.
         timeout: Request timeout in seconds.
         chunk_size: Streaming chunk size in bytes.
 
@@ -214,7 +197,7 @@ def download_asset(
 
     with requests.get(
         asset.download_url,
-        headers=_auth_headers(token),
+        headers=GITHUB_HEADERS,
         stream=True,
         timeout=timeout,
     ) as response:

@@ -96,16 +96,6 @@ def test_fetch_latest_release_calls_the_releases_latest_endpoint():
     )
 
 
-def test_fetch_latest_release_sends_a_bearer_token_when_provided():
-    response = Mock()
-    response.json.return_value = build_payload()
-
-    with patch("cusp.github_release.requests.get", return_value=response) as get:
-        fetch_latest_release(owner_repo="jonschwenk/cusp", token="secret-token")
-
-    assert get.call_args.kwargs["headers"]["Authorization"] == "Bearer secret-token"
-
-
 class FakeStreamedResponse:
     def __init__(self, chunks):
         self._chunks = chunks

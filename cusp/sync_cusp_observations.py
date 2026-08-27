@@ -40,6 +40,8 @@ from cusp.versions import GEOSERVER_AHEAD, UP_TO_DATE, decide_sync_action
 
 CUSP_REPO = "jonschwenk/cusp"
 TYPE_NAME = "cusp:cusp_observations"
+WFS_BASE_URL = "https://gs.earthmaps.io/geoserver/wfs"
+DATASTORE = "cusp"
 
 # The stable filename inside the work directory. The published path on
 # GeoServer never changes; only the file's contents (and its embedded
@@ -125,7 +127,6 @@ def run_prep(
 
 
 def verify_published_version(
-    wfs_base_url: str,
     type_name: str,
     expected_version: str,
     attempts: int = 3,
@@ -138,7 +139,6 @@ def verify_published_version(
     race it. A few short retries absorb that without masking a real failure.
 
     Args:
-        wfs_base_url: The WFS endpoint to verify against.
         type_name: The qualified layer name.
         expected_version: The version that should now be published.
         attempts: Total read attempts before giving up.
@@ -153,7 +153,7 @@ def verify_published_version(
 
     for attempt in range(attempts):
         published = geoserver.get_published_release_version(
-            wfs_base_url=wfs_base_url,
+            wfs_base_url=WFS_BASE_URL,
             type_name=type_name,
         )
 
@@ -168,15 +168,12 @@ def verify_published_version(
 
 @flow(name="sync-cusp-observations-to-geoserver", log_prints=True)
 def sync_cusp_observations_to_geoserver(
-    wfs_base_url: str,
     rest_base_url: str,
     workspace: str,
-    datastore: str,
     gpkg_destination_path: str,
     bib_destination_path: str,
     owner_repo: str = CUSP_REPO,
     type_name: str = TYPE_NAME,
-    github_token: str | None = None,
 ) -> dict:
     """Publish the latest CUSP release to GeoServer when the layer is behind.
 
@@ -186,18 +183,14 @@ def sync_cusp_observations_to_geoserver(
     anonymous.
 
     Args:
-        wfs_base_url: WFS endpoint, e.g. ``https://host/geoserver/wfs``.
         rest_base_url: REST endpoint, e.g. ``https://host/geoserver/rest``.
         workspace: Workspace containing the CUSP data store.
-        datastore: Data store name from the GeoServer configuration. This is
-            the *store* name, which is not necessarily the layer name.
         gpkg_destination_path: Stable path of the published GeoPackage in the
             GeoServer data directory. Never versioned; the previous file is
             kept beside it as ``<path>.bak``.
         bib_destination_path: Stable path for the sources bibliography.
         owner_repo: GitHub repository to sync from, in ``owner/name`` form.
         type_name: Qualified layer name used for WFS reads.
-        github_token: Optional GitHub API token (only needed for rate limits).
 
     Returns:
         A structured result recorded on the run::
@@ -219,12 +212,9 @@ def sync_cusp_observations_to_geoserver(
     """
     logger = get_run_logger()
 
-    release = github_release.fetch_latest_release(
-        owner_repo=owner_repo,
-        token=github_token,
-    )
+    release = github_release.fetch_latest_release(owner_repo=owner_repo)
     published_version = geoserver.get_published_release_version(
-        wfs_base_url=wfs_base_url,
+        wfs_base_url=WFS_BASE_URL,
         type_name=type_name,
     )
 
@@ -270,14 +260,10 @@ def sync_cusp_observations_to_geoserver(
     with tempfile.TemporaryDirectory(prefix="cusp-sync-") as work_dir:
         work_path = Path(work_dir)
 
-        source_csv = github_release.download_asset(
-            release.csv, work_path, token=github_token
-        )
-        bibliography = github_release.download_asset(
-            release.bib, work_path, token=github_token
-        )
+        source_csv = github_release.download_asset(release.csv, work_path)
+        bibliography = github_release.download_asset(release.bib, work_path)
         release_info = github_release.download_asset(
-            release.release_info, work_path, token=github_token
+            release.release_info, work_path
         )
 
         output_gpkg = work_path / PUBLISHED_GPKG_NAME
@@ -304,12 +290,11 @@ def sync_cusp_observations_to_geoserver(
     geoserver.reset_datastore(
         rest_base_url=rest_base_url,
         workspace=workspace,
-        datastore=datastore,
+        datastore=DATASTORE,
         auth=reset_auth,
     )
 
     verified = verify_published_version(
-        wfs_base_url=wfs_base_url,
         type_name=type_name,
         expected_version=release.version,
     )
@@ -317,7 +302,7 @@ def sync_cusp_observations_to_geoserver(
     if verified != release.version:
         raise RuntimeError(
             f"{type_name} still publishes {verified} after replacing the GeoPackage "
-            f"and resetting the {datastore!r} store. The previous file is available "
+            f"and resetting the {DATASTORE!r} store. The previous file is available "
             f"at {gpkg_destination_path}.bak for rollback."
         )
 
