@@ -4,8 +4,10 @@ The flow is a single linear sequence:
 
 1. Read the latest release tag from GitHub.
 2. Read the currently published ``release_version`` over WFS.
-3. Compare. When they match, record an artifact and stop; when GeoServer is
-   ahead of GitHub, fail rather than overwrite newer data.
+3. Compare. When they match, record an artifact and stop, unless
+   ``force_refresh`` is set -- then the update path still runs so a
+   preprocessing change can be republished onto the same release. When
+   GeoServer is ahead of GitHub, fail rather than overwrite newer data.
 4. Otherwise: download the release assets (checksum-verified), preprocess the
    CSV into a GeoPackage in a temporary work directory, atomically swap the
    GeoPackage and bibliography into the GeoServer data directory, reset that
@@ -36,7 +38,7 @@ from prefect.blocks.system import Secret
 
 from cusp import geoserver, github_release
 from cusp.publish import publish_file
-from cusp.versions import GEOSERVER_AHEAD, UP_TO_DATE, decide_sync_action
+from cusp.versions import GEOSERVER_AHEAD, UPDATE, UP_TO_DATE, decide_sync_action
 
 CUSP_REPO = "jonschwenk/cusp"
 TYPE_NAME = "cusp:cusp_observations"
@@ -71,7 +73,12 @@ def build_sync_summary(result: dict) -> str:
     headline = (
         "No action needed. GeoServer already publishes the latest release."
         if result["status"] == UP_TO_DATE
-        else "Published a new release to GeoServer."
+        else (
+            "Refreshed the published layer in place."
+            if result.get("force_refresh")
+            and result["github_version"] == result["geoserver_version"]
+            else "Published a new release to GeoServer."
+        )
     )
 
     return (
@@ -81,6 +88,7 @@ def build_sync_summary(result: dict) -> str:
         f"- **Layer:** {result['layer']}\n"
         f"- **Latest GitHub release:** {result['github_version']}\n"
         f"- **GeoServer version before this run:** {result['geoserver_version']}\n"
+        f"- **Force refresh:** {result['force_refresh']}\n"
     )
 
 
@@ -102,6 +110,7 @@ def run_prep(
     release_version: str,
     output_gpkg: Path,
     release_info: Path,
+    sources_bib: Path,
 ) -> None:
     """Convert the release CSV into the GeoPackage GeoServer will publish.
 
@@ -125,6 +134,8 @@ def run_prep(
             release_version,
             "--output-gpkg",
             str(output_gpkg),
+            "--sources-bib",
+            str(sources_bib),
             "--release-info",
             str(release_info),
         ],
@@ -175,6 +186,7 @@ def sync_cusp_observations_to_geoserver(
     gpkg_destination_path: str = DEFAULT_GPKG_DESTINATION,
     bib_destination_path: str = DEFAULT_BIB_DESTINATION,
     owner_repo: str = CUSP_REPO,
+    force_refresh: bool = False,
 ) -> dict:
     """Publish the latest CUSP release to GeoServer when the layer is behind.
 
@@ -189,6 +201,11 @@ def sync_cusp_observations_to_geoserver(
             kept beside it as ``<path>.bak``.
         bib_destination_path: Stable path for the sources bibliography.
         owner_repo: GitHub repository to sync from, in ``owner/name`` form.
+        force_refresh: When True, run the full download / prep / publish path
+            even if GitHub and GeoServer already report the same version.
+            Use this after a preprocessing change (a new field, a dropped
+            field) that must be burned into the currently published release.
+            Does not override the GeoServer-ahead refusal.
 
     Returns:
         A structured result recorded on the run::
@@ -230,6 +247,13 @@ def sync_cusp_observations_to_geoserver(
             f"GitHub release {release.version}. Refusing to overwrite newer data."
         )
 
+    if action == UP_TO_DATE and force_refresh:
+        logger.info(
+            "Versions match (%s); force_refresh is set, so the layer will be rebuilt",
+            release.version,
+        )
+        action = UPDATE
+
     # geoserver_version is deliberately the pre-run observation: on an update
     # it records what was replaced, and on a bootstrap run it is None.
     result = {
@@ -237,6 +261,7 @@ def sync_cusp_observations_to_geoserver(
         "github_version": release.version,
         "geoserver_version": published_version,
         "layer": TYPE_NAME,
+        "force_refresh": force_refresh,
     }
 
     if action == UP_TO_DATE:
@@ -252,17 +277,16 @@ def sync_cusp_observations_to_geoserver(
     # swapped file that is not yet served.
     reset_auth = load_geoserver_admin_auth()
 
-    # Everything below runs only when GeoServer is behind. Downloads and
-    # preprocessing happen in an ephemeral work directory; nothing touches the
-    # GeoServer data directory until prep has fully succeeded.
+    # Everything below runs when GeoServer is behind, or when force_refresh
+    # was set on a matching-version run. Downloads and preprocessing happen
+    # in an ephemeral work directory; nothing touches the GeoServer data
+    # directory until prep has fully succeeded.
     with tempfile.TemporaryDirectory(prefix="cusp-sync-") as work_dir:
         work_path = Path(work_dir)
 
         source_csv = github_release.download_asset(release.csv, work_path)
         bibliography = github_release.download_asset(release.bib, work_path)
-        release_info = github_release.download_asset(
-            release.release_info, work_path
-        )
+        release_info = github_release.download_asset(release.release_info, work_path)
 
         output_gpkg = work_path / PUBLISHED_GPKG_NAME
 
@@ -271,6 +295,7 @@ def sync_cusp_observations_to_geoserver(
             release_version=release.version,
             output_gpkg=output_gpkg,
             release_info=release_info,
+            sources_bib=bibliography,
         )
 
         # The GeoPackage gets a .bak backup because it is the layer's data

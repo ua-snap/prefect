@@ -29,12 +29,15 @@ def test_parse_args_collects_the_required_paths_and_version():
             "1.1",
             "--output-gpkg",
             "/work/cusp_observations.gpkg",
+            "--sources-bib",
+            "/work/cusp_sources_v1.1.bib",
         ]
     )
 
     assert args.source_csv == Path("/work/cusp_v1.1.csv")
     assert args.release_version == "1.1"
     assert args.output_gpkg == Path("/work/cusp_observations.gpkg")
+    assert args.sources_bib == Path("/work/cusp_sources_v1.1.bib")
 
 
 def test_build_config_defaults_the_manifest_beside_the_geopackage():
@@ -46,6 +49,8 @@ def test_build_config_defaults_the_manifest_beside_the_geopackage():
             "1.1",
             "--output-gpkg",
             "/work/cusp_observations.gpkg",
+            "--sources-bib",
+            "/work/cusp_sources_v1.1.bib",
         ]
     )
 
@@ -53,6 +58,7 @@ def test_build_config_defaults_the_manifest_beside_the_geopackage():
 
     assert config.manifest_path == Path("/work/cusp_observations_gpkg_manifest.json")
     assert config.release_info is None
+    assert config.sources_bib == Path("/work/cusp_sources_v1.1.bib")
 
 
 def test_version_matching_the_source_filename_is_accepted():
@@ -118,21 +124,51 @@ def write_source_csv(directory: Path, version: str) -> Path:
     return source_csv
 
 
+def write_sources_bib(directory: Path) -> Path:
+    sources_bib = directory / "cusp_sources_v1.1.bib"
+    sources_bib.write_text(
+        """
+@dataset{CALM,
+ author = {Streletskiy, Dmitry A},
+ year = {2025},
+ title = {GTN-P CALM},
+ publisher = {PANGAEA},
+ doi = {10.1594/PANGAEA.972777},
+}
+
+@dataset{NCSS,
+ author = {{USDA Natural Resources Conservation Service}},
+ year = {2026},
+ title = {NCSS Lab Data Mart},
+ publisher = {USDA Natural Resources Conservation Service},
+ url = {https://ncsslabdatamart.sc.egov.usda.gov/},
+}
+""",
+        encoding="utf-8",
+    )
+    return sources_bib
+
+
+def prep_argv(source_csv: Path, output_gpkg: Path, sources_bib: Path) -> list[str]:
+    return [
+        "--source-csv",
+        str(source_csv),
+        "--release-version",
+        "1.1",
+        "--output-gpkg",
+        str(output_gpkg),
+        "--sources-bib",
+        str(sources_bib),
+    ]
+
+
 @requires_ogr2ogr
 def test_every_feature_carries_the_release_version(tmp_path):
     source_csv = write_source_csv(tmp_path, "1.1")
+    sources_bib = write_sources_bib(tmp_path)
     output_gpkg = tmp_path / "cusp_observations.gpkg"
 
-    main(
-        [
-            "--source-csv",
-            str(source_csv),
-            "--release-version",
-            "1.1",
-            "--output-gpkg",
-            str(output_gpkg),
-        ]
-    )
+    main(prep_argv(source_csv, output_gpkg, sources_bib))
 
     with sqlite3.connect(output_gpkg) as connection:
         versions = connection.execute(
@@ -151,20 +187,45 @@ def test_every_feature_carries_the_release_version(tmp_path):
 
 
 @requires_ogr2ogr
-def test_main_writes_the_stable_layer_name_and_passes_qa(tmp_path):
+def test_every_feature_carries_the_source_citation(tmp_path):
     source_csv = write_source_csv(tmp_path, "1.1")
+    sources_bib = write_sources_bib(tmp_path)
     output_gpkg = tmp_path / "cusp_observations.gpkg"
 
-    main(
-        [
-            "--source-csv",
-            str(source_csv),
-            "--release-version",
-            "1.1",
-            "--output-gpkg",
-            str(output_gpkg),
-        ]
-    )
+    main(prep_argv(source_csv, output_gpkg, sources_bib))
+
+    with sqlite3.connect(output_gpkg) as connection:
+        rows = connection.execute(
+            f"SELECT source, citation FROM {LAYER_NAME} ORDER BY cusp_obs_id"
+        ).fetchall()
+        column_type = connection.execute(
+            "SELECT type FROM pragma_table_info(?) WHERE name = 'citation'",
+            (LAYER_NAME,),
+        ).fetchone()[0]
+
+    assert rows == [
+        (
+            "CALM",
+            "Streletskiy, Dmitry A (2025). GTN-P CALM. PANGAEA. "
+            "https://doi.org/10.1594/PANGAEA.972777",
+        ),
+        (
+            "NCSS",
+            "USDA Natural Resources Conservation Service (2026). "
+            "NCSS Lab Data Mart. USDA Natural Resources Conservation Service. "
+            "https://ncsslabdatamart.sc.egov.usda.gov/",
+        ),
+    ]
+    assert column_type.upper() == "TEXT"
+
+
+@requires_ogr2ogr
+def test_main_writes_the_stable_layer_name_and_passes_qa(tmp_path):
+    source_csv = write_source_csv(tmp_path, "1.1")
+    sources_bib = write_sources_bib(tmp_path)
+    output_gpkg = tmp_path / "cusp_observations.gpkg"
+
+    main(prep_argv(source_csv, output_gpkg, sources_bib))
 
     with sqlite3.connect(output_gpkg) as connection:
         layers = connection.execute("SELECT table_name FROM gpkg_contents").fetchall()
@@ -183,15 +244,50 @@ def test_main_writes_the_stable_layer_name_and_passes_qa(tmp_path):
 
 def test_main_rejects_a_version_that_disagrees_with_the_csv_name(tmp_path):
     source_csv = write_source_csv(tmp_path, "1.0")
+    sources_bib = write_sources_bib(tmp_path)
 
     with pytest.raises(ValueError, match="does not match source CSV"):
         main(
-            [
-                "--source-csv",
-                str(source_csv),
-                "--release-version",
-                "1.1",
-                "--output-gpkg",
-                str(tmp_path / "cusp_observations.gpkg"),
-            ]
+            prep_argv(
+                source_csv,
+                tmp_path / "cusp_observations.gpkg",
+                sources_bib,
+            )
+        )
+
+
+def test_main_rejects_a_source_without_a_bib_entry(tmp_path):
+    source_csv = write_source_csv(tmp_path, "1.1")
+    sources_bib = tmp_path / "cusp_sources_v1.1.bib"
+    sources_bib.write_text(
+        """
+@dataset{CALM,
+ author = {Streletskiy, Dmitry A},
+ year = {2025},
+ title = {GTN-P CALM},
+}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Missing BibTeX entries"):
+        main(
+            prep_argv(
+                source_csv,
+                tmp_path / "cusp_observations.gpkg",
+                sources_bib,
+            )
+        )
+
+
+def test_main_rejects_a_missing_bibliography(tmp_path):
+    source_csv = write_source_csv(tmp_path, "1.1")
+
+    with pytest.raises(FileNotFoundError, match="bibliography"):
+        main(
+            prep_argv(
+                source_csv,
+                tmp_path / "cusp_observations.gpkg",
+                tmp_path / "missing.bib",
+            )
         )

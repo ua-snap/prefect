@@ -8,6 +8,7 @@ from cusp.sync_cusp_observations import (
     TYPE_NAME,
     WFS_BASE_URL,
     WORKSPACE,
+    run_prep,
     sync_cusp_observations_to_geoserver,
 )
 
@@ -42,6 +43,25 @@ def build_release(version="1.1"):
     )
 
 
+def test_run_prep_passes_the_sources_bibliography(tmp_path):
+    source_csv = tmp_path / "cusp_v1.1.csv"
+    output_gpkg = tmp_path / "cusp_observations.gpkg"
+    release_info = tmp_path / "RELEASE_INFO.md"
+    sources_bib = tmp_path / "cusp_sources_v1.1.bib"
+
+    with patch("cusp.sync_cusp_observations.subprocess.run") as run:
+        run_prep(
+            source_csv=source_csv,
+            release_version="1.1",
+            output_gpkg=output_gpkg,
+            release_info=release_info,
+            sources_bib=sources_bib,
+        )
+
+    argv = run.call_args.args[0]
+    assert argv[argv.index("--sources-bib") + 1] == str(sources_bib)
+
+
 def test_matching_versions_report_up_to_date_without_touching_geoserver():
     with (
         patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
@@ -68,12 +88,88 @@ def test_matching_versions_report_up_to_date_without_touching_geoserver():
         "github_version": "1.1",
         "geoserver_version": "1.1",
         "layer": "cusp:cusp_observations",
+        "force_refresh": False,
     }
     download_asset.assert_not_called()
     publish.assert_not_called()
     reset.assert_not_called()
     secret.load.assert_not_called()
     artifact.assert_called_once()
+
+
+def test_force_refresh_republishes_when_versions_already_match(tmp_path):
+    events = []
+
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.1"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            side_effect=["1.1", "1.1"],
+        ),
+        patch(
+            "cusp.sync_cusp_observations.github_release.download_asset",
+            side_effect=lambda asset, directory: (
+                events.append(f"download:{asset.name}"),
+                tmp_path / asset.name,
+            )[1],
+        ),
+        patch(
+            "cusp.sync_cusp_observations.subprocess.run",
+            side_effect=lambda *_, **__: events.append("prep"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.publish_file",
+            side_effect=lambda **kwargs: events.append(
+                f"publish:{kwargs['destination_path']}"
+            ),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.reset_datastore",
+            side_effect=lambda **_: events.append("reset"),
+        ),
+        patch("cusp.sync_cusp_observations.create_markdown_artifact"),
+        patch("cusp.sync_cusp_observations.Secret") as secret,
+    ):
+        secret.load.side_effect = fake_secret_load
+        result = sync_cusp_observations_to_geoserver.fn(
+            **FLOW_KWARGS, force_refresh=True
+        )
+
+    assert result["status"] == "updated"
+    assert result["github_version"] == "1.1"
+    assert result["geoserver_version"] == "1.1"
+    assert events == [
+        "download:cusp_v1.1.csv",
+        "download:cusp_sources_v1.1.bib",
+        "download:RELEASE_INFO.md",
+        "prep",
+        "publish:/data/cusp/cusp_observations.gpkg",
+        "publish:/data/cusp/cusp_sources.bib",
+        "reset",
+    ]
+
+
+def test_force_refresh_does_not_overwrite_when_geoserver_is_ahead():
+    with (
+        patch("cusp.sync_cusp_observations.get_run_logger", return_value=Mock()),
+        patch(
+            "cusp.sync_cusp_observations.github_release.fetch_latest_release",
+            return_value=build_release("1.0"),
+        ),
+        patch(
+            "cusp.sync_cusp_observations.geoserver.get_published_release_version",
+            return_value="1.1",
+        ),
+        patch("cusp.sync_cusp_observations.publish_file") as publish,
+    ):
+        with pytest.raises(RuntimeError, match="ahead of the latest GitHub release"):
+            sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS, force_refresh=True)
+
+    publish.assert_not_called()
 
 
 def test_wfs_reads_are_anonymous():
