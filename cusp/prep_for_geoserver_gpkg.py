@@ -8,6 +8,7 @@ Invoked by the sync flow as::
         --source-csv /work/cusp_v1.1.csv \\
         --release-version 1.1 \\
         --output-gpkg /work/cusp_observations.gpkg \\
+        --sources-bib /work/cusp_sources_v1.1.bib \\
         --release-info /work/RELEASE_INFO.md
 
 Outputs
@@ -34,6 +35,8 @@ import geopandas as gpd
 import pandas as pd
 import pyogrio
 
+from cusp.citations import lookup_citations
+
 # ---------------------------------------------------------------------
 # Output configuration
 # ---------------------------------------------------------------------
@@ -56,6 +59,7 @@ class PrepConfig:
     release_version: str
     output_gpkg: Path
     manifest_path: Path
+    sources_bib: Path
     release_info: Path | None = None
 
 
@@ -67,6 +71,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--source-csv", required=True, type=Path)
     parser.add_argument("--release-version", required=True)
     parser.add_argument("--output-gpkg", required=True, type=Path)
+    parser.add_argument("--sources-bib", required=True, type=Path)
     parser.add_argument("--release-info", type=Path, default=None)
     parser.add_argument("--manifest", type=Path, default=None)
 
@@ -89,6 +94,7 @@ def build_config(args: argparse.Namespace) -> PrepConfig:
         release_version=args.release_version,
         output_gpkg=args.output_gpkg,
         manifest_path=manifest_path,
+        sources_bib=args.sources_bib,
         release_info=args.release_info,
     )
 
@@ -177,6 +183,7 @@ PF_OBSERVED_LABELS = {
 PROPERTY_COLUMNS = [
     "cusp_obs_id",
     "source",
+    "citation",
     "site_id",
     "observation_date",
     "obs_month",
@@ -198,6 +205,7 @@ PROPERTY_COLUMNS = [
 GPKG_ATTRIBUTE_TYPES = {
     "cusp_obs_id": "TEXT",
     "source": "TEXT",
+    "citation": "TEXT",
     "site_id": "TEXT",
     "observation_date": "DATE",
     "obs_month": "INTEGER",
@@ -333,6 +341,9 @@ def prepare_geodataframe(
 
     df["cusp_obs_id"] = normalize_text(df["cusp_obs_id"])
     df["source"] = normalize_text(df["source"])
+    # Stamp the formatted source citation onto every feature so WFS clients
+    # do not need to join the published bibliography.
+    df["citation"] = lookup_citations(df["source"], config.sources_bib)
     df["site_id"] = normalize_text(df["site_id"])
     df["quality_flags"] = normalize_text(df["quality_flags"])
 
@@ -694,6 +705,8 @@ def write_manifest(
         "release_version": config.release_version,
         "source_csv": str(config.source_csv),
         "source_csv_sha256": sha256_file(config.source_csv),
+        "sources_bib": str(config.sources_bib),
+        "sources_bib_sha256": sha256_file(config.sources_bib),
         "release_info": (
             str(config.release_info)
             if config.release_info and config.release_info.exists()
@@ -750,9 +763,15 @@ def main(argv: list[str] | None = None) -> None:
             f"Expected source CSV was not found: {config.source_csv}"
         )
 
+    if not config.sources_bib.exists():
+        raise FileNotFoundError(
+            f"Expected sources bibliography was not found: {config.sources_bib}"
+        )
+
     verify_version_matches_filename(config.source_csv, config.release_version)
 
     print(f"Source CSV: {config.source_csv}")
+    print(f"Sources bibliography: {config.sources_bib}")
     print(f"Output GeoPackage: {config.output_gpkg}")
     print(f"Layer name: {LAYER_NAME}")
     print(f"Release version: {config.release_version}")
