@@ -1,10 +1,11 @@
 """Discover and download CUSP release assets from GitHub.
 
-The sync flow needs two files from each CUSP release: the observations CSV
-(the preprocessing input) and the sources bibliography (published beside the
-GeoPackage and also joined to the data to ). This module resolves those assets from the GitHub releases API
-and downloads them with sha256 verification, so a corrupted or partial
-download can never reach the preprocessing step.
+The sync flow needs two files from each CUSP release: the observations CSV (the
+preprocessing input) and the sources bibliography (published beside the
+GeoPackage and joined to the data as citations). This module resolves those
+assets from the GitHub Releases API and downloads them with sha256
+verification, so a corrupted or partial download can never reach the
+preprocessing step.
 """
 
 from __future__ import annotations
