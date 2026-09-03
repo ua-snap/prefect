@@ -1,16 +1,20 @@
+import json
 import shutil
 import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
 from cusp.prep_for_geoserver_gpkg import (
     LAYER_NAME,
+    PrepConfig,
     build_config,
     find_ogr2ogr,
     main,
     parse_args,
+    prepare_geodataframe,
     verify_version_matches_filename,
 )
 
@@ -40,6 +44,24 @@ def test_parse_args_collects_the_required_paths_and_version():
     assert args.sources_bib == Path("/work/cusp_sources_v1.1.bib")
 
 
+def test_parse_args_rejects_the_removed_release_info_option():
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--source-csv",
+                "/work/cusp_v1.1.csv",
+                "--release-version",
+                "1.1",
+                "--output-gpkg",
+                "/work/cusp_observations.gpkg",
+                "--sources-bib",
+                "/work/cusp_sources_v1.1.bib",
+                "--release-info",
+                "/work/RELEASE_INFO.md",
+            ]
+        )
+
+
 def test_build_config_defaults_the_manifest_beside_the_geopackage():
     args = parse_args(
         [
@@ -57,7 +79,6 @@ def test_build_config_defaults_the_manifest_beside_the_geopackage():
     config = build_config(args)
 
     assert config.manifest_path == Path("/work/cusp_observations_gpkg_manifest.json")
-    assert config.release_info is None
     assert config.sources_bib == Path("/work/cusp_sources_v1.1.bib")
 
 
@@ -162,6 +183,96 @@ def prep_argv(source_csv: Path, output_gpkg: Path, sources_bib: Path) -> list[st
     ]
 
 
+def build_prep_config(tmp_path: Path) -> PrepConfig:
+    """Build a config for dataframe-only preparation tests."""
+    return build_config(
+        parse_args(
+            prep_argv(
+                tmp_path / "cusp_v1.1.csv",
+                tmp_path / "cusp_observations.gpkg",
+                tmp_path / "cusp_sources_v1.1.bib",
+            )
+        )
+    )
+
+
+def build_source_dataframe() -> pd.DataFrame:
+    """Build one valid source row with optional fields intentionally absent."""
+    return pd.DataFrame(
+        [
+            {
+                "cusp_obs_id": " obs-1 ",
+                "source": " CALM ",
+                "lat": "90",
+                "lon": "-180",
+                "date": "2020-07-01",
+                "pf_observed": "1",
+                "thaw_depth": "55",
+                "pf_depth": None,
+                "obs_limit": None,
+                "method": " GP ",
+            }
+        ]
+    )
+
+
+def test_prepare_geodataframe_curates_fields_without_mutating_source(
+    tmp_path: Path,
+) -> None:
+    source = build_source_dataframe()
+    original = source.copy(deep=True)
+
+    gdf = prepare_geodataframe(
+        source,
+        build_prep_config(tmp_path),
+        {"CALM": "CALM reference"},
+    )
+
+    assert source.equals(original)
+    assert gdf.loc[0, "cusp_obs_id"] == "obs-1"
+    assert gdf.loc[0, "source"] == "CALM"
+    assert gdf.loc[0, "citation"] == "CALM reference"
+    assert pd.isna(gdf.loc[0, "site_id"])
+    assert pd.isna(gdf.loc[0, "quality_flags"])
+    assert gdf.loc[0, "observation_date"].isoformat() == "2020-07-01"
+    assert gdf.loc[0, "obs_month"] == 7
+    assert gdf.loc[0, "method"] == "gp"
+    assert gdf.loc[0, "method_label"] == "Ground probe"
+    assert gdf.loc[0, "pf_observed_label"] == "Permafrost observed"
+    assert gdf.loc[0, "thaw_depth_cm"] == 55.0
+    assert gdf.loc[0, "has_thaw_depth"]
+    assert not gdf.loc[0, "has_pf_depth"]
+    assert not gdf.loc[0, "has_obs_limit"]
+    assert gdf.loc[0, "release_version"] == "1.1"
+
+
+@pytest.mark.parametrize(
+    ("column", "value", "message"),
+    [
+        ("lat", "90.1", "invalid latitude"),
+        ("lon", "-180.1", "invalid longitude"),
+        ("date", "not-a-date", "dates could not be parsed"),
+        ("pf_observed", "2", "Unexpected pf_observed values"),
+        ("thaw_depth", "-1", "negative thaw_depth"),
+    ],
+)
+def test_prepare_geodataframe_rejects_invalid_source_values(
+    tmp_path: Path,
+    column: str,
+    value: str,
+    message: str,
+) -> None:
+    source = build_source_dataframe()
+    source.loc[0, column] = value
+
+    with pytest.raises(ValueError, match=message):
+        prepare_geodataframe(
+            source,
+            build_prep_config(tmp_path),
+            {"CALM": "CALM reference"},
+        )
+
+
 @requires_ogr2ogr
 def test_every_feature_carries_the_release_version(tmp_path):
     source_csv = write_source_csv(tmp_path, "1.1")
@@ -182,8 +293,13 @@ def test_every_feature_carries_the_release_version(tmp_path):
     assert versions == [("1.1",)]
     assert column_type.upper() == "TEXT"
 
-    manifest_path = tmp_path / "cusp_observations_gpkg_manifest.json"
-    assert manifest_path.exists()
+    manifest = json.loads(
+        (tmp_path / "cusp_observations_gpkg_manifest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "release_info" not in manifest
+    assert "release_info_sha256" not in manifest
 
 
 @requires_ogr2ogr

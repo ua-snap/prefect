@@ -10,4 +10,5 @@ dependencies:
   - pandas
   - geopandas
   - pyogrio
+  - pytest
   - libgdal-core # provides the ogr2ogr binary the prep script shells out to

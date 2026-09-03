@@ -1,9 +1,16 @@
-"""Format CUSP source citations from the release bibliography."""
+"""Format CUSP source citations from the release bibliography.
+
+This module is a deconstruction of the big hairy ".bib" format file of
+citation information that accompanies the CUSP source data bundle on GitHub.
+The basics steps are parsing the release bibliography, formatting each entry for human-readability,
+and checking that every observation source key has a usable citation.
+"""
 
 from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
@@ -29,6 +36,8 @@ def _unwrap_bibtex_value(value: str) -> str:
     return value
 
 
+# CP note: external bibtex parsing libraries exist, but below func is small enough IMO
+# And, I don't even know if upstream bibliography is "standard" bibtex, if such a thing exists
 def _split_bibtex_fields(body: str) -> list[str]:
     """Split a BibTeX entry body at top-level commas."""
     fields: list[str] = []
@@ -147,6 +156,7 @@ def format_citation(fields: dict[str, str]) -> str:
     over a URL and is written as ``https://doi.org/{doi}`` unless it is
     already a URL.
     """
+    # basically this is what you're going to see in ARDAC for example
     author = _unwrap_bibtex_value(fields.get("author") or "")
     year = (fields.get("year") or "").strip()
     title = _unwrap_bibtex_value(fields.get("title") or "")
@@ -183,36 +193,45 @@ def citations_by_source(bib_path: Path) -> dict[str, str]:
     formatted: dict[str, str] = {}
 
     for source, entries in parse_bibtex_entries(bib_path).items():
+        # if one key has two citations, keep both: "citation1 | citation 2"
         formatted[source] = " | ".join(format_citation(entry) for entry in entries)
 
     return formatted
 
 
-def lookup_citations(sources: pd.Series, bib_path: Path) -> pd.Series:
-    """Resolve each source key to its formatted citation.
+def resolve_citations(
+    sources: pd.Series,
+    citations: Mapping[str, str],
+) -> pd.Series:
+    """Resolve each source key from a preloaded citation mapping.
 
     Raises:
         ValueError: If a source has no BibTeX entry, or a matched entry
             formats to an empty string.
     """
-    by_source = citations_by_source(bib_path)
     unique = [
         value for value in sources.dropna().astype(str).str.strip().unique() if value
     ]
-    missing = [source for source in unique if source not in by_source]
+    missing = [source for source in unique if source not in citations]
 
     if missing:
         raise ValueError(
             f"Missing BibTeX entries for source keys: {', '.join(missing)}"
         )
 
-    empty = [source for source in unique if not by_source[source].strip()]
+    empty = [source for source in unique if not citations[source].strip()]
 
     if empty:
         raise ValueError(
-            f"BibTeX entry produced an empty citation for source keys: {', '.join(empty)}"
+            "BibTeX entry produced an empty citation for source keys: "
+            f"{', '.join(empty)}"
         )
 
     return sources.map(
-        lambda value: by_source[str(value).strip()] if pd.notna(value) else pd.NA
+        lambda value: citations[str(value).strip()] if pd.notna(value) else pd.NA
     )
+
+
+def lookup_citations(sources: pd.Series, bib_path: Path) -> pd.Series:
+    """Read a bibliography and resolve each source key to its citation."""
+    return resolve_citations(sources, citations_by_source(bib_path))

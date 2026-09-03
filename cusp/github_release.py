@@ -1,11 +1,10 @@
 """Discover and download CUSP release assets from GitHub.
 
-The sync flow needs three files from each CUSP release: the observations CSV
-(the preprocessing input), the sources bibliography (published beside the
-GeoPackage), and the release notes (recorded for provenance). This module
-resolves those assets from the GitHub releases API and downloads them with
-sha256 verification, so a corrupted or partial download can never reach the
-preprocessing step.
+The sync flow needs two files from each CUSP release: the observations CSV
+(the preprocessing input) and the sources bibliography (published beside the
+GeoPackage and also joined to the data to ). This module resolves those assets from the GitHub releases API
+and downloads them with sha256 verification, so a corrupted or partial
+download can never reach the preprocessing step.
 """
 
 from __future__ import annotations
@@ -22,11 +21,11 @@ from cusp.versions import normalize_tag
 GITHUB_API_URL = "https://api.github.com"
 CUSP_REPO = "jonschwenk/cusp"
 
-# Unlike the CSV and bibliography, the release notes file is not versioned in
-# its filename, so it is matched by its literal name.
-RELEASE_INFO_NAME = "RELEASE_INFO.md"
 
-
+# These data classes turn the release JSON into named, structured data.
+# This lets the flow use clear attributes such as `release.csv.download_url`
+# instead of murky nested dictionary lookups.`frozen=True` also prevents the
+# validated release details from being changed accidentally later in the flow.
 @dataclass(frozen=True)
 class ReleaseAsset:
     """A single downloadable file attached to a GitHub release.
@@ -46,19 +45,17 @@ class ReleaseAsset:
 
 @dataclass(frozen=True)
 class Release:
-    """The three CUSP release assets the sync flow needs.
+    """The two CUSP release assets the sync flow needs.
 
     Attributes:
         version: The normalized release version, e.g. ``1.1`` for tag ``v1.1``.
         csv: The observations CSV (``cusp_v{version}.csv``).
         bib: The sources bibliography (``cusp_sources_v{version}.bib``).
-        release_info: The release notes (``RELEASE_INFO.md``).
     """
 
     version: str
     csv: ReleaseAsset
     bib: ReleaseAsset
-    release_info: ReleaseAsset
 
 
 GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
@@ -70,7 +67,8 @@ def select_asset(assets: list[dict], pattern: str) -> ReleaseAsset:
     Exactly-one matching is deliberate: zero matches means the release layout
     changed (or the expected file was not attached), and multiple matches mean
     the pattern is ambiguous. Both should fail loudly rather than let the flow
-    guess which file to publish.
+    guess which file to publish. Our expectation is that the schema of the
+    GitHub relase bundle doesn't change.
 
     Args:
         assets: The ``assets`` list from a GitHub releases API payload.
@@ -98,6 +96,9 @@ def select_asset(assets: list[dict], pattern: str) -> ReleaseAsset:
     asset = matches[0]
     digest = asset.get("digest") or ""
 
+    # An interesting LLM approach: make GitHub provide a checksum
+    # No checksum means no publish...probably a good safety consideration when
+    # we are slurping down some file from GitHub and sticking it on our production GS
     if not digest.startswith("sha256:"):
         raise ValueError(
             f"Release asset {asset['name']!r} has no sha256 digest: {digest!r}"
@@ -119,7 +120,7 @@ def parse_release(payload: dict) -> Release:
 
     Raises:
         ValueError: If the tag does not parse as a version, or any of the
-            three expected assets cannot be resolved unambiguously.
+            two expected assets cannot be resolved unambiguously.
     """
     version = normalize_tag(payload["tag_name"])
     assets = payload.get("assets", [])
@@ -129,7 +130,6 @@ def parse_release(payload: dict) -> Release:
         version=version,
         csv=select_asset(assets, rf"cusp_v{escaped}\.csv"),
         bib=select_asset(assets, rf"cusp_sources_v{escaped}\.bib"),
-        release_info=select_asset(assets, re.escape(RELEASE_INFO_NAME)),
     )
 
 
@@ -148,7 +148,7 @@ def fetch_latest_release(
         timeout: Request timeout in seconds.
 
     Returns:
-        The parsed release with its three resolved assets.
+        The parsed release with its two resolved assets.
 
     Raises:
         requests.HTTPError: If the API call fails.

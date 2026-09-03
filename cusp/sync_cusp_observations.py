@@ -31,6 +31,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Literal, TypedDict
 
 from prefect import flow, get_run_logger
 from prefect.artifacts import create_markdown_artifact
@@ -38,7 +39,7 @@ from prefect.blocks.system import Secret
 
 from cusp import geoserver, github_release
 from cusp.publish import publish_file
-from cusp.versions import GEOSERVER_AHEAD, UPDATE, UP_TO_DATE, decide_sync_action
+from cusp.versions import GEOSERVER_AHEAD, UP_TO_DATE, UPDATE, decide_sync_action
 
 CUSP_REPO = "jonschwenk/cusp"
 TYPE_NAME = "cusp:cusp_observations"
@@ -63,7 +64,17 @@ GEOSERVER_USERNAME_BLOCK = "geoserver-username"
 GEOSERVER_PASSWORD_BLOCK = "geoserver-password"
 
 
-def build_sync_summary(result: dict) -> str:
+class SyncResult(TypedDict):
+    """The stable, serialized result returned by a CUSP sync run."""
+
+    status: Literal["up_to_date", "updated"]
+    github_version: str
+    geoserver_version: str | None
+    layer: str
+    force_refresh: bool
+
+
+def build_sync_summary(result: SyncResult) -> str:
     """Render the flow result as the body of the run's markdown artifact.
 
     The artifact shows up on the flow run page in the Prefect UI, so someone
@@ -109,7 +120,6 @@ def run_prep(
     source_csv: Path,
     release_version: str,
     output_gpkg: Path,
-    release_info: Path,
     sources_bib: Path,
 ) -> None:
     """Convert the release CSV into the GeoPackage GeoServer will publish.
@@ -136,8 +146,6 @@ def run_prep(
             str(output_gpkg),
             "--sources-bib",
             str(sources_bib),
-            "--release-info",
-            str(release_info),
         ],
         check=True,
     )
@@ -187,7 +195,7 @@ def sync_cusp_observations_to_geoserver(
     bib_destination_path: str = DEFAULT_BIB_DESTINATION,
     owner_repo: str = CUSP_REPO,
     force_refresh: bool = False,
-) -> dict:
+) -> SyncResult:
     """Publish the latest CUSP release to GeoServer when the layer is behind.
 
     GeoServer admin credentials are not flow parameters: they are read from
@@ -216,6 +224,7 @@ def sync_cusp_observations_to_geoserver(
                 "geoserver_version": "1.0",  # as observed BEFORE this run,
                                              # so None on a bootstrap run
                 "layer": "cusp:cusp_observations",
+                "force_refresh": False,
             }
 
     Raises:
@@ -256,7 +265,7 @@ def sync_cusp_observations_to_geoserver(
 
     # geoserver_version is deliberately the pre-run observation: on an update
     # it records what was replaced, and on a bootstrap run it is None.
-    result = {
+    result: SyncResult = {
         "status": UP_TO_DATE if action == UP_TO_DATE else "updated",
         "github_version": release.version,
         "geoserver_version": published_version,
@@ -286,7 +295,6 @@ def sync_cusp_observations_to_geoserver(
 
         source_csv = github_release.download_asset(release.csv, work_path)
         bibliography = github_release.download_asset(release.bib, work_path)
-        release_info = github_release.download_asset(release.release_info, work_path)
 
         output_gpkg = work_path / PUBLISHED_GPKG_NAME
 
@@ -294,7 +302,6 @@ def sync_cusp_observations_to_geoserver(
             source_csv=source_csv,
             release_version=release.version,
             output_gpkg=output_gpkg,
-            release_info=release_info,
             sources_bib=bibliography,
         )
 
@@ -327,6 +334,7 @@ def sync_cusp_observations_to_geoserver(
             f"and resetting the {DATASTORE!r} store. The previous file is available "
             f"at {gpkg_destination_path}.bak for rollback."
         )
+    # Record success only after WFS confirms the new release is actually live.
 
     create_markdown_artifact(
         key="cusp-geoserver-sync",

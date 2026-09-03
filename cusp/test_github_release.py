@@ -27,7 +27,6 @@ def build_payload():
         "assets": [
             build_asset("cusp_sources_v1.1.bib"),
             build_asset("cusp_v1.1.csv"),
-            build_asset("RELEASE_INFO.md"),
         ],
     }
 
@@ -61,13 +60,12 @@ def test_select_asset_requires_a_sha256_digest():
         select_asset(assets, r"cusp_v1\.1\.csv")
 
 
-def test_parse_release_normalizes_the_tag_and_finds_all_three_assets():
+def test_parse_release_normalizes_the_tag_and_finds_both_required_assets():
     release = parse_release(build_payload())
 
     assert release.version == "1.1"
     assert release.csv.name == "cusp_v1.1.csv"
     assert release.bib.name == "cusp_sources_v1.1.bib"
-    assert release.release_info.name == "RELEASE_INFO.md"
 
 
 def test_parse_release_does_not_match_an_asset_from_a_different_version():
@@ -75,7 +73,6 @@ def test_parse_release_does_not_match_an_asset_from_a_different_version():
     payload["assets"] = [
         build_asset("cusp_v1.0.csv"),
         build_asset("cusp_sources_v1.1.bib"),
-        build_asset("RELEASE_INFO.md"),
     ]
 
     with pytest.raises(ValueError, match="found 0"):

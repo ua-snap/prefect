@@ -8,8 +8,7 @@ Invoked by the sync flow as::
         --source-csv /work/cusp_v1.1.csv \\
         --release-version 1.1 \\
         --output-gpkg /work/cusp_observations.gpkg \\
-        --sources-bib /work/cusp_sources_v1.1.bib \\
-        --release-info /work/RELEASE_INFO.md
+        --sources-bib /work/cusp_sources_v1.1.bib
 
 Outputs
 -------
@@ -27,15 +26,17 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TypedDict
 
 import geopandas as gpd
 import pandas as pd
 import pyogrio
 
-from cusp.citations import lookup_citations
+from cusp.citations import citations_by_source, resolve_citations
 
 # ---------------------------------------------------------------------
 # Output configuration
@@ -60,7 +61,6 @@ class PrepConfig:
     output_gpkg: Path
     manifest_path: Path
     sources_bib: Path
-    release_info: Path | None = None
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -72,7 +72,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--release-version", required=True)
     parser.add_argument("--output-gpkg", required=True, type=Path)
     parser.add_argument("--sources-bib", required=True, type=Path)
-    parser.add_argument("--release-info", type=Path, default=None)
     parser.add_argument("--manifest", type=Path, default=None)
 
     return parser.parse_args(argv)
@@ -95,7 +94,6 @@ def build_config(args: argparse.Namespace) -> PrepConfig:
         output_gpkg=args.output_gpkg,
         manifest_path=manifest_path,
         sources_bib=args.sources_bib,
-        release_info=args.release_info,
     )
 
 
@@ -173,35 +171,11 @@ PF_OBSERVED_LABELS = {
 # Output attribute fields
 # ---------------------------------------------------------------------
 
-# PROPERTY_COLUMNS and GPKG_ATTRIBUTE_TYPES must stay in sync: the DATE-column
-# rebuild in finalize_observation_date_column() generates its SQL from both,
-# so a column listed in one but not the other breaks the rebuild.
-#
 # release_version is stamped onto every feature and is what the sync flow
 # reads back over WFS to decide whether GeoServer is behind the latest
 # GitHub release.
-PROPERTY_COLUMNS = [
-    "cusp_obs_id",
-    "source",
-    "citation",
-    "site_id",
-    "observation_date",
-    "obs_month",
-    "method",
-    "method_label",
-    "pf_observed",
-    "pf_observed_label",
-    "thaw_depth_cm",
-    "pf_depth_cm",
-    "obs_limit_cm",
-    "has_thaw_depth",
-    "has_pf_depth",
-    "has_obs_limit",
-    "quality_flags",
-    "release_version",
-]
-
-
+# Python preserves mapping insertion order, so this one definition controls
+# both the published field order and the types used by the DATE-column repair.
 GPKG_ATTRIBUTE_TYPES = {
     "cusp_obs_id": "TEXT",
     "source": "TEXT",
@@ -222,6 +196,8 @@ GPKG_ATTRIBUTE_TYPES = {
     "quality_flags": "TEXT",
     "release_version": "TEXT",
 }
+
+PROPERTY_COLUMNS = list(GPKG_ATTRIBUTE_TYPES)
 
 
 # ---------------------------------------------------------------------
@@ -262,6 +238,11 @@ def read_source_csv(config: PrepConfig) -> pd.DataFrame:
             "None",
         ],
     )
+
+
+def read_source_citations(config: PrepConfig) -> dict[str, str]:
+    """Read the source-keyed citations needed to curate one release."""
+    return citations_by_source(config.sources_bib)
 
 
 def validate_source_schema(df: pd.DataFrame) -> None:
@@ -328,93 +309,92 @@ def normalize_text(series: pd.Series) -> pd.Series:
     return series.astype("string").str.strip().replace("", pd.NA)
 
 
-def prepare_geodataframe(
-    source: pd.DataFrame,
-    config: PrepConfig,
-) -> gpd.GeoDataFrame:
-    """Create the public-facing GeoDataFrame."""
-    df = source.copy()
-
+def _add_optional_source_columns(df: pd.DataFrame) -> None:
+    """Add nullable optional source fields that are absent from a release."""
     for column in OPTIONAL_SOURCE_COLUMNS:
         if column not in df.columns:
             df[column] = pd.NA
 
-    df["cusp_obs_id"] = normalize_text(df["cusp_obs_id"])
-    df["source"] = normalize_text(df["source"])
-    # Stamp the formatted source citation onto every feature so WFS clients
-    # do not need to join the published bibliography.
-    df["citation"] = lookup_citations(df["source"], config.sources_bib)
-    df["site_id"] = normalize_text(df["site_id"])
-    df["quality_flags"] = normalize_text(df["quality_flags"])
 
-    df["lat"] = pd.to_numeric(
-        df["lat"],
-        errors="coerce",
+def _normalize_source_text_columns(df: pd.DataFrame) -> None:
+    """Normalize the source text fields that are published without remapping."""
+    for column in ("cusp_obs_id", "source", "site_id", "quality_flags"):
+        df[column] = normalize_text(df[column])
+
+
+def _coerce_source_value_columns(df: pd.DataFrame) -> None:
+    """Coerce raw source measurements into the dtypes used for validation."""
+    df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
+    df["observation_date"] = pd.to_datetime(df["date"], errors="coerce").dt.normalize()
+    df["pf_observed"] = pd.to_numeric(df["pf_observed"], errors="coerce").astype(
+        "Int64"
     )
 
-    df["lon"] = pd.to_numeric(
-        df["lon"],
-        errors="coerce",
-    )
+    for column in ("thaw_depth", "pf_depth", "obs_limit"):
+        df[column] = pd.to_numeric(df[column], errors="coerce")
 
-    df["observation_date"] = pd.to_datetime(
-        df["date"],
-        errors="coerce",
-    ).dt.normalize()
 
-    df["pf_observed"] = pd.to_numeric(
-        df["pf_observed"],
-        errors="coerce",
-    ).astype("Int64")
+def _add_citation_column(
+    df: pd.DataFrame,
+    citations: Mapping[str, str],
+) -> None:
+    """Add the formatted citation for each normalized source key."""
+    df["citation"] = resolve_citations(df["source"], citations)
 
-    for column in [
-        "thaw_depth",
-        "pf_depth",
-        "obs_limit",
-    ]:
-        df[column] = pd.to_numeric(
-            df[column],
-            errors="coerce",
-        )
 
-    validate_source_values(df)
-
+def _add_derived_observation_columns(
+    df: pd.DataFrame,
+    release_version: str,
+) -> None:
+    """Add the public labels, flags, and release metadata for each observation."""
     df["method"] = normalize_text(df["method"]).fillna("unknown").str.lower()
-
     df["method_label"] = df["method"].map(METHOD_LABELS).fillna(df["method"])
-
     df["pf_observed_label"] = (
         df["pf_observed"].map(PF_OBSERVED_LABELS).fillna("Missing or unknown status")
     )
 
-    df["thaw_depth_cm"] = df["thaw_depth"]
-    df["pf_depth_cm"] = df["pf_depth"]
-    df["obs_limit_cm"] = df["obs_limit"]
-
-    df["has_thaw_depth"] = df["thaw_depth_cm"].notna()
-    df["has_pf_depth"] = df["pf_depth_cm"].notna()
-    df["has_obs_limit"] = df["obs_limit_cm"].notna()
+    for source_column, output_column in (
+        ("thaw_depth", "thaw_depth_cm"),
+        ("pf_depth", "pf_depth_cm"),
+        ("obs_limit", "obs_limit_cm"),
+    ):
+        df[output_column] = df[source_column]
+        df[f"has_{source_column}"] = df[output_column].notna()
 
     df["obs_month"] = df["observation_date"].dt.month.astype("Int64")
-
     df["observation_date"] = df["observation_date"].dt.date
+    df["release_version"] = release_version
 
-    # Stamp the release version onto every feature. This attribute is the
-    # version truth on GeoServer; catalog metadata does not refresh when the
-    # GeoPackage file is replaced in place.
-    df["release_version"] = config.release_version
 
-    geometry = gpd.points_from_xy(
-        x=df["lon"],
-        y=df["lat"],
-        crs=CRS,
-    )
+def _build_observation_geodataframe(df: pd.DataFrame) -> gpd.GeoDataFrame:
+    """Build the published point layer from curated observation attributes."""
+    geometry = gpd.points_from_xy(x=df["lon"], y=df["lat"], crs=CRS)
 
     return gpd.GeoDataFrame(
         df[PROPERTY_COLUMNS],
         geometry=geometry,
         crs=CRS,
     )
+
+
+def prepare_geodataframe(
+    source: pd.DataFrame,
+    config: PrepConfig,
+    citations: Mapping[str, str],
+) -> gpd.GeoDataFrame:
+    """Create the public-facing GeoDataFrame without modifying ``source``."""
+    df = source.copy()
+
+    _add_optional_source_columns(df)
+    _normalize_source_text_columns(df)
+    _add_citation_column(df, citations)
+    _coerce_source_value_columns(df)
+
+    validate_source_values(df)
+    _add_derived_observation_columns(df, config.release_version)
+
+    return _build_observation_geodataframe(df)
 
 
 # ---------------------------------------------------------------------
@@ -480,36 +460,38 @@ def find_ogr2ogr() -> str | None:
     return None
 
 
-def finalize_observation_date_column(config: PrepConfig) -> None:
-    """Re-declare observation_date as DATE and rebuild the GeoPackage.
-
-    pyogrio can write the column as a full timestamp type, but the published
-    layer should expose plain dates. The fix is done in two stages: the table
-    is rebuilt in SQLite with the exact attribute types from
-    GPKG_ATTRIBUTE_TYPES, then ogr2ogr rewrites the whole file so GeoPackage
-    internals (gpkg_contents, spatial index, metadata) stay consistent with
-    the new table definition. If the column already reads DATE, this is a
-    no-op.
-    """
-    with sqlite3.connect(config.output_gpkg) as conn:
-        column_type = conn.execute(
+def _read_layer_column_type(
+    geopackage_path: Path,
+    column_name: str,
+) -> str:
+    """Return the declared SQLite type for one published layer column."""
+    with sqlite3.connect(geopackage_path) as conn:
+        row = conn.execute(
             """
             SELECT type
             FROM pragma_table_info(?)
-            WHERE name = 'observation_date'
+            WHERE name = ?
             """,
-            (LAYER_NAME,),
-        ).fetchone()[0]
+            (LAYER_NAME, column_name),
+        ).fetchone()
 
-        if column_type.upper() == "DATE":
-            return
-
-        temp_table = f"{LAYER_NAME}__date_fix"
-        attribute_columns = ",\n                ".join(
-            f'"{column}" {GPKG_ATTRIBUTE_TYPES[column]}' for column in PROPERTY_COLUMNS
+    if row is None:
+        raise RuntimeError(
+            f"GeoPackage layer {LAYER_NAME!r} has no {column_name!r} column."
         )
-        quoted_columns = ", ".join(f'"{column}"' for column in PROPERTY_COLUMNS)
 
+    return str(row[0])
+
+
+def _rebuild_observation_layer_with_declared_types(geopackage_path: Path) -> None:
+    """Rebuild the observation table with the schema declared for publication."""
+    temp_table = f"{LAYER_NAME}__date_fix"
+    attribute_columns = ",\n                ".join(
+        f'"{column}" {GPKG_ATTRIBUTE_TYPES[column]}' for column in PROPERTY_COLUMNS
+    )
+    quoted_columns = ", ".join(f'"{column}"' for column in PROPERTY_COLUMNS)
+
+    with sqlite3.connect(geopackage_path) as conn:
         conn.execute(f'DROP TABLE IF EXISTS "{temp_table}"')
         conn.execute(f"""
             CREATE TABLE "{temp_table}" (
@@ -525,17 +507,14 @@ def finalize_observation_date_column(config: PrepConfig) -> None:
             """)
         conn.execute(f'DROP TABLE "{LAYER_NAME}"')
         conn.execute(f'ALTER TABLE "{temp_table}" RENAME TO "{LAYER_NAME}"')
-        conn.commit()
 
-    ogr2ogr = find_ogr2ogr()
-    if ogr2ogr is None:
-        raise RuntimeError(
-            "observation_date must be stored as DATE, but ogr2ogr was not found "
-            "on PATH or beside the Python interpreter to rebuild the GeoPackage "
-            "after updating the column type."
-        )
 
-    temp_gpkg = config.output_gpkg.with_suffix(".tmp.gpkg")
+def _rebuild_geopackage_metadata(
+    geopackage_path: Path,
+    ogr2ogr: str,
+) -> None:
+    """Regenerate GeoPackage metadata and its spatial index after a table rebuild."""
+    temp_gpkg = geopackage_path.with_suffix(".tmp.gpkg")
     if temp_gpkg.exists():
         temp_gpkg.unlink()
 
@@ -545,12 +524,44 @@ def finalize_observation_date_column(config: PrepConfig) -> None:
             "-f",
             "GPKG",
             str(temp_gpkg),
-            str(config.output_gpkg),
+            str(geopackage_path),
             LAYER_NAME,
         ],
         check=True,
     )
-    temp_gpkg.replace(config.output_gpkg)
+    temp_gpkg.replace(geopackage_path)
+
+
+def finalize_observation_date_column(config: PrepConfig) -> None:
+    """Re-declare observation_date as DATE and rebuild the GeoPackage.
+
+    pyogrio can write the column as a full timestamp type, but the published
+    layer should expose plain dates. The fix is done in two stages: the table
+    is rebuilt in SQLite with the exact attribute types from
+    GPKG_ATTRIBUTE_TYPES, then ogr2ogr rewrites the whole file so GeoPackage
+    internals (gpkg_contents, spatial index, metadata) stay consistent with
+    the new table definition. If the column already reads DATE, this is a
+    no-op.
+    """
+    column_type = _read_layer_column_type(
+        config.output_gpkg,
+        "observation_date",
+    )
+
+    if column_type.upper() == "DATE":
+        return
+
+    _rebuild_observation_layer_with_declared_types(config.output_gpkg)
+
+    ogr2ogr = find_ogr2ogr()
+    if ogr2ogr is None:
+        raise RuntimeError(
+            "observation_date must be stored as DATE, but ogr2ogr was not found "
+            "on PATH or beside the Python interpreter to rebuild the GeoPackage "
+            "after updating the column type."
+        )
+
+    _rebuild_geopackage_metadata(config.output_gpkg, ogr2ogr)
 
 
 # ---------------------------------------------------------------------
@@ -558,7 +569,31 @@ def finalize_observation_date_column(config: PrepConfig) -> None:
 # ---------------------------------------------------------------------
 
 
-def inspect_geopackage(config: PrepConfig) -> dict:
+class GeoPackageContents(TypedDict):
+    """Metadata describing the published observation table."""
+
+    table_name: str
+    data_type: str
+    identifier: str
+    srs_id: int
+    bbox: list[float | None]
+
+
+class GeoPackageInspection(TypedDict):
+    """The integrity and schema checks collected from a written GeoPackage."""
+
+    driver: str
+    feature_count: int
+    geometry_type: str
+    crs: str
+    fields: list[str]
+    dtypes: list[str]
+    sqlite_integrity_check: str
+    spatial_index_exists: bool
+    gpkg_contents: GeoPackageContents
+
+
+def inspect_geopackage(config: PrepConfig) -> GeoPackageInspection:
     """Inspect layer metadata and GeoPackage integrity."""
     info = pyogrio.read_info(
         config.output_gpkg,
@@ -624,30 +659,9 @@ def inspect_geopackage(config: PrepConfig) -> dict:
     }
 
 
-def print_sample_observation_dates(
-    config: PrepConfig,
-    sample_size: int = 10,
-) -> None:
-    """Print random observation dates from the written GeoPackage."""
-    with sqlite3.connect(config.output_gpkg) as conn:
-        rows = conn.execute(
-            f"""
-            SELECT observation_date
-            FROM {LAYER_NAME}
-            ORDER BY RANDOM()
-            LIMIT ?
-            """,
-            (sample_size,),
-        ).fetchall()
-
-    print(f"\nSample observation dates from GeoPackage ({len(rows)}):")
-    for (observation_date,) in rows:
-        print(f"  {observation_date}")
-
-
 def validate_output(
     gdf: gpd.GeoDataFrame,
-    info: dict,
+    info: GeoPackageInspection,
     config: PrepConfig,
 ) -> None:
     """Confirm the output matches the prepared GeoDataFrame."""
@@ -672,15 +686,10 @@ def validate_output(
     if not info["spatial_index_exists"]:
         raise RuntimeError("GeoPackage QA failed: spatial index was not created.")
 
-    with sqlite3.connect(config.output_gpkg) as conn:
-        observation_date_type = conn.execute(
-            """
-            SELECT type
-            FROM pragma_table_info(?)
-            WHERE name = 'observation_date'
-            """,
-            (LAYER_NAME,),
-        ).fetchone()[0]
+    observation_date_type = _read_layer_column_type(
+        config.output_gpkg,
+        "observation_date",
+    )
 
     if observation_date_type.upper() != "DATE":
         raise RuntimeError(
@@ -696,7 +705,7 @@ def validate_output(
 
 def write_manifest(
     gdf: gpd.GeoDataFrame,
-    output_info: dict,
+    output_info: GeoPackageInspection,
     config: PrepConfig,
 ) -> None:
     """Write provenance and QA information beside the GeoPackage."""
@@ -707,16 +716,6 @@ def write_manifest(
         "source_csv_sha256": sha256_file(config.source_csv),
         "sources_bib": str(config.sources_bib),
         "sources_bib_sha256": sha256_file(config.sources_bib),
-        "release_info": (
-            str(config.release_info)
-            if config.release_info and config.release_info.exists()
-            else None
-        ),
-        "release_info_sha256": (
-            sha256_file(config.release_info)
-            if config.release_info and config.release_info.exists()
-            else None
-        ),
         "output_geopackage": str(config.output_gpkg),
         "output_geopackage_sha256": sha256_file(config.output_gpkg),
         "output_size_bytes": config.output_gpkg.stat().st_size,
@@ -783,19 +782,21 @@ def main(argv: list[str] | None = None) -> None:
     print("2. Validating source schema")
     validate_source_schema(source_df)
 
-    print("3. Curating fields and creating point geometry")
-    gdf = prepare_geodataframe(source_df, config)
+    print("3. Reading source citations")
+    citations = read_source_citations(config)
 
-    print("4. Writing GeoPackage")
+    print("4. Curating fields and creating point geometry")
+    gdf = prepare_geodataframe(source_df, config, citations)
+
+    print("5. Writing GeoPackage")
     write_geopackage(gdf, config)
     finalize_observation_date_column(config)
 
-    print("5. Inspecting and validating GeoPackage")
+    print("6. Inspecting and validating GeoPackage")
     output_info = inspect_geopackage(config)
     validate_output(gdf, output_info, config)
-    print_sample_observation_dates(config)
 
-    print("6. Writing manifest")
+    print("7. Writing manifest")
     write_manifest(gdf, output_info, config)
 
     size_mb = config.output_gpkg.stat().st_size / 1024**2

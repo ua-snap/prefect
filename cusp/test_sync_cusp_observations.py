@@ -39,14 +39,12 @@ def build_release(version="1.1"):
         version=version,
         csv=asset(f"cusp_v{version}.csv"),
         bib=asset(f"cusp_sources_v{version}.bib"),
-        release_info=asset("RELEASE_INFO.md"),
     )
 
 
-def test_run_prep_passes_the_sources_bibliography(tmp_path):
+def test_run_prep_passes_the_source_assets(tmp_path):
     source_csv = tmp_path / "cusp_v1.1.csv"
     output_gpkg = tmp_path / "cusp_observations.gpkg"
-    release_info = tmp_path / "RELEASE_INFO.md"
     sources_bib = tmp_path / "cusp_sources_v1.1.bib"
 
     with patch("cusp.sync_cusp_observations.subprocess.run") as run:
@@ -54,12 +52,13 @@ def test_run_prep_passes_the_sources_bibliography(tmp_path):
             source_csv=source_csv,
             release_version="1.1",
             output_gpkg=output_gpkg,
-            release_info=release_info,
             sources_bib=sources_bib,
         )
 
     argv = run.call_args.args[0]
+    assert argv[argv.index("--source-csv") + 1] == str(source_csv)
     assert argv[argv.index("--sources-bib") + 1] == str(sources_bib)
+    assert "--release-info" not in argv
 
 
 def test_matching_versions_report_up_to_date_without_touching_geoserver():
@@ -145,7 +144,6 @@ def test_force_refresh_republishes_when_versions_already_match(tmp_path):
     assert events == [
         "download:cusp_v1.1.csv",
         "download:cusp_sources_v1.1.bib",
-        "download:RELEASE_INFO.md",
         "prep",
         "publish:/data/cusp/cusp_observations.gpkg",
         "publish:/data/cusp/cusp_sources.bib",
@@ -238,7 +236,6 @@ def test_missing_published_version_bootstraps_a_full_update_in_order(tmp_path):
     assert events == [
         "download:cusp_v1.1.csv",
         "download:cusp_sources_v1.1.bib",
-        "download:RELEASE_INFO.md",
         "prep",
         "publish:/data/cusp/cusp_observations.gpkg",
         "publish:/data/cusp/cusp_sources.bib",
