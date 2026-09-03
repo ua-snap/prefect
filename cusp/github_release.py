@@ -69,7 +69,7 @@ def select_asset(assets: list[dict], pattern: str) -> ReleaseAsset:
     changed (or the expected file was not attached), and multiple matches mean
     the pattern is ambiguous. Both should fail loudly rather than let the flow
     guess which file to publish. Our expectation is that the schema of the
-    GitHub relase bundle doesn't change.
+    GitHub release bundle doesn't change.
 
     Args:
         assets: The ``assets`` list from a GitHub releases API payload.
