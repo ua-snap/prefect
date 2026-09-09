@@ -1,0 +1,14 @@
+name: cusp
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.11
+  - prefect=2.14.2
+  - griffe<1.0
+  - requests
+  - packaging
+  - pandas
+  - geopandas
+  - pyogrio
+  - pytest
+  - libgdal-core # provides the ogr2ogr binary the prep script shells out to
