@@ -41,8 +41,8 @@ def publish_file(
             default ``664`` keeps it readable (and writable) by the GeoServer
             service account's group.
         backup: Copy the existing destination to ``<destination>.bak`` before
-            replacing it. Used for the GeoPackage; unnecessary for the
-            bibliography.
+            replacing it. Used for both the GeoPackage and bibliography so
+            the flow can roll back the pair if either swap or reset fails.
 
     Raises:
         FileNotFoundError: If ``source_path`` does not exist.
@@ -67,4 +67,15 @@ def publish_file(
     # with wrong permissions, then rename into place atomically.
     shutil.copyfile(source, temporary)
     os.chmod(temporary, int(file_mode, 8))
+    os.replace(temporary, destination)
+
+
+def restore_backup(destination_path: Path | str) -> None:
+    """Restore a published file from its last ``.bak`` copy atomically."""
+    destination = Path(destination_path)
+    backup = destination.parent / f"{destination.name}.bak"
+    if not backup.is_file():
+        raise FileNotFoundError(f"No rollback backup exists: {backup}")
+    temporary = destination.parent / f"{destination.name}.tmp"
+    shutil.copy2(backup, temporary)
     os.replace(temporary, destination)

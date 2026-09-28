@@ -2,7 +2,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cusp.geoserver import get_published_release_version, reset_datastore
+from cusp.geoserver import (
+    get_published_property_names,
+    get_published_release_version,
+    reset_datastore,
+)
 
 
 def build_response(payload):
@@ -80,6 +84,18 @@ def test_returns_none_when_the_attribute_is_blank():
         )
 
     assert version is None
+
+
+def test_reads_the_live_wfs_property_names():
+    response = build_response(
+        {"features": [{"properties": {"release_version": "1.1", "source": "CALM"}}]}
+    )
+    with patch("cusp.geoserver.requests.get", return_value=response):
+        fields = get_published_property_names(
+            wfs_base_url="https://gs.invalid/geoserver/wfs",
+            type_name="cusp:cusp_observations",
+        )
+    assert fields == {"release_version", "source"}
 
 
 def test_reset_posts_to_the_store_scoped_endpoint():

@@ -294,9 +294,7 @@ def test_every_feature_carries_the_release_version(tmp_path):
     assert column_type.upper() == "TEXT"
 
     manifest = json.loads(
-        (tmp_path / "cusp_observations_gpkg_manifest.json").read_text(
-            encoding="utf-8"
-        )
+        (tmp_path / "cusp_observations_gpkg_manifest.json").read_text(encoding="utf-8")
     )
     assert "release_info" not in manifest
     assert "release_info_sha256" not in manifest
