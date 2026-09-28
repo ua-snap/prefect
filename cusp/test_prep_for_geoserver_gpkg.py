@@ -235,7 +235,7 @@ def test_prepare_geodataframe_curates_fields_without_mutating_source(
     assert pd.isna(gdf.loc[0, "site_id"])
     assert pd.isna(gdf.loc[0, "quality_flags"])
     assert gdf.loc[0, "observation_date"].isoformat() == "2020-07-01"
-    assert gdf.loc[0, "obs_month"] == 7
+    assert "obs_month" not in gdf.columns
     assert gdf.loc[0, "method"] == "gp"
     assert gdf.loc[0, "method_label"] == "Ground probe"
     assert gdf.loc[0, "pf_observed_label"] == "Permafrost observed"
@@ -350,10 +350,15 @@ def test_main_writes_the_stable_layer_name_and_passes_qa(tmp_path):
             "SELECT type FROM pragma_table_info(?) WHERE name = 'observation_date'",
             (LAYER_NAME,),
         ).fetchone()[0]
+        fields = {
+            row[1]
+            for row in connection.execute(f"PRAGMA table_info({LAYER_NAME})").fetchall()
+        }
 
     assert layers == [("cusp_observations",)]
     assert feature_count == 2
     assert date_type.upper() == "DATE"
+    assert "obs_month" not in fields
 
 
 def test_main_rejects_a_version_that_disagrees_with_the_csv_name(tmp_path):

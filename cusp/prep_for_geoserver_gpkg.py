@@ -182,7 +182,6 @@ GPKG_ATTRIBUTE_TYPES = {
     "citation": "TEXT",
     "site_id": "TEXT",
     "observation_date": "DATE",
-    "obs_month": "INTEGER",
     "method": "TEXT",
     "method_label": "TEXT",
     "pf_observed": "INTEGER",
@@ -362,7 +361,6 @@ def _add_derived_observation_columns(
         df[output_column] = df[source_column]
         df[f"has_{source_column}"] = df[output_column].notna()
 
-    df["obs_month"] = df["observation_date"].dt.month.astype("Int64")
     df["observation_date"] = df["observation_date"].dt.date
     df["release_version"] = release_version
 
