@@ -300,6 +300,19 @@ def sync_cusp_observations_to_geoserver(
     the draft and resume the flow in Prefect. Resuming authorizes DOI
     publication. Matching GitHub and Zenodo versions skip draft creation;
     GeoServer can still be rebuilt from Zenodo with ``force_refresh=True``.
+
+    Args:
+        force_refresh: When GitHub and Zenodo have the same version, rebuild
+            GeoServer from the published Zenodo archive even if GeoServer is
+            current. Turn on after changing the preprocessing steps; leave
+            off for routine runs. This does not create a new Zenodo version.
+        publish: For a new GitHub version, turn on to create a Zenodo draft
+            and pause for up to 20 minutes. After review, resume in Prefect
+            to publish the DOI and rebuild the GeoServer store from Zenodo.
+            Turn off to leave the draft unpublished; this run ends without
+            changing GeoServer. When Zenodo already has the GitHub version,
+            this setting has no effect: GeoServer still refreshes if it is
+            behind or force_refresh is on.
     """
     logger = get_run_logger()
     release = github_release.fetch_latest_release()
