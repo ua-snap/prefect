@@ -7,6 +7,8 @@ from cusp.release_bundle import BundleFiles
 from cusp.sync_cusp_observations import (
     REST_BASE_URL,
     WORKSPACE,
+    SyncResult,
+    build_sync_summary,
     download_and_prepare_zenodo,
     run_prep,
     sync_cusp_observations_to_geoserver,
@@ -18,6 +20,33 @@ FLOW_KWARGS = {
     "gpkg_destination_path": "/data/cusp/cusp_observations.gpkg",
     "bib_destination_path": "/data/cusp/cusp_sources.bib",
 }
+
+
+def test_draft_artifact_distinguishes_review_from_draft_only() -> None:
+    result: SyncResult = {
+        "status": "draft_created",
+        "github_version": "1.1",
+        "publication_date": "2026-08-07",
+        "zenodo_version": "1.0",
+        "zenodo_record_id": 42,
+        "zenodo_doi": "10.5281/zenodo.42",
+        "geoserver_version": "1.0",
+        "layer": "cusp:cusp_observations",
+        "force_refresh": False,
+        "publish_requested": True,
+        "draft_url": "https://zenodo.org/deposit/99",
+        "archive_sha256": "a" * 64,
+    }
+    paused_summary = build_sync_summary(result)
+    result["publish_requested"] = False
+    draft_only_summary = build_sync_summary(result)
+
+    assert "https://zenodo.org/deposit/99" in paused_summary
+    assert "Published version at this stage:** 1.0" in paused_summary
+    assert "This release has no published DOI yet" in paused_summary
+    assert "resume this Prefect flow run within 20 minutes" in paused_summary
+    assert "This run has ended" in draft_only_summary
+    assert "resume this Prefect flow run" not in draft_only_summary
 
 
 def build_release(version="1.1"):
@@ -128,6 +157,7 @@ def test_new_version_creates_only_a_draft_when_publish_is_false(monkeypatch):
 
     assert result["status"] == "draft_created"
     assert result["draft_url"] == "https://zenodo.org/deposit/99"
+    assert result["archive_sha256"]
     assert result["zenodo_version"] == "1.0"
     assert client.create_new_draft.call_args.args == (22802827,)
     client.delete_draft_files.assert_called_once_with(99)

@@ -57,27 +57,110 @@ class SyncResult(TypedDict):
     geoserver_version: str | None
     layer: str
     force_refresh: bool
+    publish_requested: bool
     draft_url: str | None
+    archive_sha256: str | None
+
+
+def describe_sync_stage(result: SyncResult) -> tuple[str, str]:
+    """Return the outcome and next action for the current sync stage."""
+    status = result["status"]
+    if status == "draft_created":
+        outcome = (
+            f"A Zenodo draft for GitHub release {result['github_version']} is ready "
+            "for review. This release has no published DOI yet, and GeoServer "
+            "has not been changed."
+        )
+        if result["publish_requested"]:
+            next_step = (
+                "Inspect the draft, then resume this Prefect flow run within 20 "
+                "minutes. Resuming authorizes DOI publication and a GeoServer "
+                "refresh from the published Zenodo archive."
+            )
+        else:
+            next_step = (
+                "Inspect the draft in Zenodo. This run has ended and will not "
+                "publish the DOI or refresh GeoServer."
+            )
+    elif status == "zenodo_published":
+        outcome = "The new Zenodo DOI is published; the GeoServer refresh is pending."
+        next_step = "The flow is preparing GeoServer inputs from the published archive."
+    elif status == "updated":
+        outcome = "GeoServer was refreshed from the published Zenodo archive."
+        next_step = "No further action is required for this run."
+    else:
+        outcome = "GitHub, Zenodo, and GeoServer already match; no update was needed."
+        next_step = "No further action is required for this run."
+    return outcome, next_step
+
+
+def get_geoserver_version_at_stage(result: SyncResult) -> str | None:
+    """Return the serving version after the current sync stage."""
+    if result["status"] == "updated":
+        return result["github_version"]
+    return result["geoserver_version"]
 
 
 def build_sync_summary(result: SyncResult) -> str:
-    """Describe the run and its DOI provenance in a Prefect artifact."""
+    """Format the current sync stage as a Prefect Markdown artifact."""
+    outcome, next_step = describe_sync_stage(result)
+    status = result["status"]
+    geoserver_after = get_geoserver_version_at_stage(result) or "Not detected"
     lines = [
         "# CUSP release sync",
         "",
-        f"- **Status:** {result['status']}",
-        f"- **GitHub release:** {result['github_version']}",
-        f"- **Publication date from GitHub:** {result['publication_date']}",
-        f"- **Concept DOI:** {zenodo.CONCEPT_DOI}",
-        f"- **Zenodo version:** {result['zenodo_version']}",
-        f"- **Published Zenodo DOI:** {result['zenodo_doi']}",
-        f"- **Published Zenodo record:** https://zenodo.org/records/{result['zenodo_record_id']}",
-        f"- **GeoServer layer:** {result['layer']}",
-        f"- **GeoServer version before this run:** {result['geoserver_version']}",
-        f"- **Force refresh:** {result['force_refresh']}",
+        "## Outcome",
+        f"- **Stage:** `{status}`",
+        f"- **What happened:** {outcome}",
+        f"- **Next step:** {next_step}",
     ]
-    if result["draft_url"]:
-        lines.extend([f"- **Draft for review:** {result['draft_url']}"])
+    if status == "draft_created" and result["draft_url"]:
+        lines.extend(
+            [
+                "",
+                "## Draft review",
+                f"- **Open the draft:** {result['draft_url']}",
+                f"- **Expected version:** {result['github_version']}",
+                f"- **Expected publication date:** {result['publication_date']}",
+                f"- **Expected file:** `v{result['github_version']}.zip`",
+                "- **Check:** Review the metadata and confirm the draft contains "
+                "only the expected release ZIP.",
+            ]
+        )
+        if result["archive_sha256"]:
+            lines.append(f"- **Staged ZIP SHA-256:** `{result['archive_sha256']}`")
+    lines.extend(
+        [
+            "",
+            "## GitHub release",
+            f"- **Version:** {result['github_version']}",
+            f"- **Publication date (UTC):** {result['publication_date']}",
+            "",
+            "## Zenodo",
+            f"- **Concept DOI:** https://doi.org/{zenodo.CONCEPT_DOI}",
+            f"- **Published version at this stage:** {result['zenodo_version']}",
+            "- **Published DOI at this stage:** "
+            f"https://doi.org/{result['zenodo_doi']}",
+            "- **Published record:** "
+            f"https://zenodo.org/records/{result['zenodo_record_id']}",
+            "",
+            "## GeoServer",
+            f"- **Layer:** {result['layer']}",
+            "- **Version at run start:** "
+            f"{result['geoserver_version'] or 'Not detected'}",
+            f"- **Version at this stage:** {geoserver_after}",
+            "- **Force refresh requested:** "
+            f"{'Yes' if result['force_refresh'] else 'No'}",
+        ]
+    )
+    if result["archive_sha256"] and status != "draft_created":
+        lines.extend(
+            [
+                "",
+                "## Archive verification",
+                f"- **Staged ZIP SHA-256:** `{result['archive_sha256']}`",
+            ]
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -345,7 +428,9 @@ def sync_cusp_observations_to_geoserver(
         "geoserver_version": published_version,
         "layer": TYPE_NAME,
         "force_refresh": force_refresh,
+        "publish_requested": publish,
         "draft_url": None,
+        "archive_sha256": None,
     }
     logger.info(
         "GitHub %s; Zenodo %s (%s); GeoServer %s",
@@ -376,6 +461,7 @@ def sync_cusp_observations_to_geoserver(
                 destination=work_path / f"v{release.version}.zip",
             )
             archive_sha256 = zenodo.hash_file(archive, algorithm="sha256")
+            result["archive_sha256"] = archive_sha256
             draft = create_reviewed_draft(client, latest.id, release, archive)
             result["status"] = "draft_created"
             result["draft_url"] = draft.review_url
