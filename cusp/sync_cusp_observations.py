@@ -20,6 +20,7 @@ from typing import Literal, TypedDict
 from prefect import flow, get_run_logger, pause_flow_run
 from prefect.artifacts import create_markdown_artifact
 from prefect.blocks.system import Secret
+from prefect.logging.handlers import APILogHandler
 
 from cusp import geoserver, github_release, zenodo
 from cusp.publish import publish_file, restore_backup
@@ -385,8 +386,10 @@ def sync_cusp_observations_to_geoserver(
 
             reviewed_metadata = dict(client.fetch_deposition(draft.id)["metadata"])
             logger.info(
-                "Paused for Zenodo draft review. Resume this run in Prefect to publish."
+                "Pausing for Zenodo draft review. Resume this run in Prefect to publish."
             )
+            # Prefect batches API logs; send the review instructions before blocking.
+            APILogHandler.flush()
             pause_flow_run(timeout=1200)
             client.verify_draft(
                 draft.id,

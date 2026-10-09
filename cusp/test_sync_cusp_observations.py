@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 
@@ -192,13 +192,16 @@ def test_publish_resumes_then_rechecks_draft_and_updates_from_zenodo(
     module, client, _ = mock_common(
         monkeypatch, version="1.1", zenodo_version="1.0", gs_version="1.0"
     )
+    timeline = Mock()
+    monkeypatch.setattr(module, "get_run_logger", lambda: timeline.logger)
+    monkeypatch.setattr(module.APILogHandler, "flush", timeline.flush)
     monkeypatch.setattr(module, "download_github_bundle", make_github_files)
     prepare = Mock()
     monkeypatch.setattr(module, "prepare_geopackage", prepare)
     monkeypatch.setattr(
         module, "load_geoserver_admin_auth", lambda: ("admin", "secret")
     )
-    pause = Mock()
+    pause = timeline.pause
     monkeypatch.setattr(module, "pause_flow_run", pause)
     gpkg = tmp_path / "from-zenodo.gpkg"
     bib = tmp_path / "from-zenodo.bib"
@@ -210,6 +213,18 @@ def test_publish_resumes_then_rechecks_draft_and_updates_from_zenodo(
     result = sync_cusp_observations_to_geoserver.fn(**FLOW_KWARGS, publish=True)
 
     assert pause.call_args.kwargs == {"timeout": 1200}
+    timeline.assert_has_calls(
+        [
+            call.logger.info(
+                "Review the Zenodo draft at %s", "https://zenodo.org/deposit/99"
+            ),
+            call.logger.info(
+                "Pausing for Zenodo draft review. Resume this run in Prefect to publish."
+            ),
+            call.flush(),
+            call.pause(timeout=1200),
+        ]
+    )
     prepare.assert_not_called()
     assert client.verify_draft.call_count == 2
     assert client.verify_draft.call_args.kwargs["expected_metadata"] == {
