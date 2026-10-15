@@ -4,7 +4,7 @@ ncr_cached_urls = {
     "/beetles/point/": "community",
     "/elevation/point/": "community",
     "/taspr/point/": "community",
-    "/indicators/base/point/": "community",
+    "/indicators/cmip5/point/": "community",
     "/ncr/permafrost/point/": "community",
     "/eds/hydrology/point/": "community",
     "/alfresco/flammability/area/": "area",
@@ -12,7 +12,7 @@ ncr_cached_urls = {
     "/beetles/area/": "area",
     "/elevation/area/": "area",
     "/taspr/area/": "area",
-    "/indicators/base/area/": "area",
+    "/indicators/cmip5/area/": "area",
 }
 
 eds_cached_url = "/eds/all/"
