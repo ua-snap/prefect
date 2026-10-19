@@ -5,7 +5,7 @@ import ingest_tasks
 
 @flow(log_prints=True)
 def cmip6_fwi(
-    branch_name="cmip6_fwi_test",
+    branch_name="main",
     working_directory="/opt/rasdaman/user_data/snapdata/",
     ingest_directory="/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_fwi",
 ):
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         name="Rasdaman Coverages: cmip6_dc, cmip6_dmc, cmip6_ffmc, cmip6_bui, cmip6_fwi, cmip6_isi",
         tags=["CMIP6", "CFFDRS", "Fire Weather Index"],
         parameters={
-            "branch_name": "cmip6_fwi_test",
+            "branch_name": "main",
             "working_directory": "/opt/rasdaman/user_data/snapdata/",
             "ingest_directory": "/opt/rasdaman/user_data/snapdata/rasdaman-ingest/ardac/cmip6_fwi",
         },
