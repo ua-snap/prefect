@@ -24,7 +24,9 @@ def build_asset(name, digest="sha256:" + "a" * 64):
 def build_payload():
     return {
         "tag_name": "v1.1",
+        "published_at": "2026-08-07T14:41:18Z",
         "assets": [
+            build_asset("RELEASE_INFO.md"),
             build_asset("cusp_sources_v1.1.bib"),
             build_asset("cusp_v1.1.csv"),
         ],
@@ -60,12 +62,14 @@ def test_select_asset_requires_a_sha256_digest():
         select_asset(assets, r"cusp_v1\.1\.csv")
 
 
-def test_parse_release_normalizes_the_tag_and_finds_both_required_assets():
+def test_parse_release_normalizes_the_tag_and_finds_all_required_assets():
     release = parse_release(build_payload())
 
     assert release.version == "1.1"
     assert release.csv.name == "cusp_v1.1.csv"
     assert release.bib.name == "cusp_sources_v1.1.bib"
+    assert release.release_info.name == "RELEASE_INFO.md"
+    assert release.publication_date == "2026-08-07"
 
 
 def test_parse_release_does_not_match_an_asset_from_a_different_version():

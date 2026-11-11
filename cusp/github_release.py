@@ -1,18 +1,11 @@
-"""Discover and download CUSP release assets from GitHub.
-
-The sync flow needs two files from each CUSP release: the observations CSV (the
-preprocessing input) and the sources bibliography (published beside the
-GeoPackage and joined to the data as citations). This module resolves those
-assets from the GitHub Releases API and downloads them with sha256
-verification, so a corrupted or partial download can never reach the
-preprocessing step.
-"""
+"""Discover and SHA256-verify the three CUSP GitHub release assets."""
 
 from __future__ import annotations
 
 import hashlib
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -46,17 +39,21 @@ class ReleaseAsset:
 
 @dataclass(frozen=True)
 class Release:
-    """The two CUSP release assets the sync flow needs.
+    """The three CUSP assets and publication date needed for a Zenodo version.
 
     Attributes:
         version: The normalized release version, e.g. ``1.1`` for tag ``v1.1``.
         csv: The observations CSV (``cusp_v{version}.csv``).
         bib: The sources bibliography (``cusp_sources_v{version}.bib``).
+        release_info: The release provenance document.
+        publication_date: The GitHub release date in UTC, as ``YYYY-MM-DD``.
     """
 
     version: str
     csv: ReleaseAsset
     bib: ReleaseAsset
+    release_info: ReleaseAsset
+    publication_date: str
 
 
 GITHUB_HEADERS = {"Accept": "application/vnd.github+json"}
@@ -120,10 +117,19 @@ def parse_release(payload: dict) -> Release:
     release) is a zero-match failure rather than a silent wrong pick.
 
     Raises:
-        ValueError: If the tag does not parse as a version, or any of the
-            two expected assets cannot be resolved unambiguously.
+        ValueError: If the tag or publication date is invalid, or any of the
+            three expected assets cannot be resolved unambiguously.
     """
     version = normalize_tag(payload["tag_name"])
+    published_at = payload.get("published_at")
+    if not published_at:
+        raise ValueError("GitHub release has no published_at timestamp")
+    publication_date = (
+        datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+        .astimezone(timezone.utc)
+        .date()
+        .isoformat()
+    )
     assets = payload.get("assets", [])
     escaped = re.escape(version)
 
@@ -131,6 +137,8 @@ def parse_release(payload: dict) -> Release:
         version=version,
         csv=select_asset(assets, rf"cusp_v{escaped}\.csv"),
         bib=select_asset(assets, rf"cusp_sources_v{escaped}\.bib"),
+        release_info=select_asset(assets, r"RELEASE_INFO\.md"),
+        publication_date=publication_date,
     )
 
 
@@ -149,7 +157,7 @@ def fetch_latest_release(
         timeout: Request timeout in seconds.
 
     Returns:
-        The parsed release with its two resolved assets.
+        The parsed release with its three resolved assets.
 
     Raises:
         requests.HTTPError: If the API call fails.

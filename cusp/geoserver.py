@@ -17,7 +17,7 @@ import requests
 
 # The feature attribute that carries the published release version. The
 # preprocessing script stamps it onto every row, and the sync flow compares it
-# against the latest GitHub release tag.
+# against the latest published Zenodo version and GitHub release tag.
 VERSION_ATTRIBUTE = "release_version"
 
 
@@ -77,6 +77,31 @@ def get_published_release_version(
         return None
 
     return str(value).strip()
+
+
+def get_published_property_names(
+    wfs_base_url: str,
+    type_name: str,
+    timeout: int = 30,
+) -> set[str]:
+    """Read the live WFS field names for same-version refresh verification."""
+    response = requests.get(
+        wfs_base_url,
+        params={
+            "service": "WFS",
+            "version": "2.0.0",
+            "request": "GetFeature",
+            "typeNames": type_name,
+            "count": "1",
+            "outputFormat": "application/json",
+        },
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    features = response.json().get("features") or []
+    if not features:
+        raise RuntimeError("Cannot verify the CUSP WFS schema without a feature")
+    return set((features[0].get("properties") or {}).keys())
 
 
 def reset_datastore(
