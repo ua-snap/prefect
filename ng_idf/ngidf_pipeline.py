@@ -289,18 +289,19 @@ def ngidf_pipeline(
             log.warning("The clone on Chinook has uncommitted changes; every stage that runs will carry a warning.")
         plan = pipe.run("plan")[0]
         actions = decide(plan, stop_before, retry_failed)
-        create_markdown_artifact(key="ngidf-plan", markdown=art.plan_markdown(info, plan, actions, params),
-                                 description=f"Plan for model {info['model']['MODEL_LABEL']}")
-        if actions.get("app") in ("run", "retry"):
-            check_app_access(pipe, info["model"])
-
         upstream = {s["fingerprint"]: s["stage"] for s in plan if s.get("fingerprint")}
         reports, ran_now = {}, set()
-        # document the reused stages first: the flow run's artifacts are the complete record
+        # read the existing results first, so the plan can say why each stage has its status
         for s in plan:
             if actions[s["stage"]] in ("reuse", "skip-failed"):
                 reports[s["stage"]] = read_report(pipe, s["dir"])
-                publish_stage(s["stage"], reports[s["stage"]], False, [], upstream)
+        create_markdown_artifact(key="ngidf-plan", markdown=art.plan_markdown(info, plan, actions, params, reports),
+                                 description=f"Plan for model {info['model']['MODEL_LABEL']}")
+        if actions.get("app") in ("run", "retry"):
+            check_app_access(pipe, info["model"])
+        # document the reused stages too: the flow run's artifacts are the complete record
+        for name, rep in list(reports.items()):
+            publish_stage(name, rep, False, [], upstream)
 
         attempted = set()
         while True:

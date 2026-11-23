@@ -43,6 +43,17 @@ identified by its path rather than by hashing its contents. It is SNAP's read-on
 stage records its file counts and sizes.
 """
 
+LEGEND = (
+    "**Key:** ✅ **Passed**: every check passed. "
+    "⚠️ **Passed with warnings**: the outputs passed every check that decides whether they can be used, but at "
+    "least one check flagged something a person should know; each warning is listed below the table. "
+    "❌ **Failed**: a check that decides whether the outputs can be used did not pass; stages that depend on it "
+    "do not run.")
+ADOPTED_WHY = (
+    "These stages use outputs made on 2026-11-17, before the pipeline existed, rather than recomputing them (the "
+    "forcing alone is about 30 TB of reads). Every check was run on them again; the warning only records that the "
+    "pipeline did not make them itself. It goes away for any stage the pipeline runs itself.")
+
 # warnings every stage carries for the same reason; listed once in the summary, not per stage
 ROUTINE_WARNINGS = ("outputs produced by this pipeline (not adopted)", "curation code committed")
 
@@ -122,8 +133,16 @@ def headline(report):
 
 
 # --------------------------------------------------------------------------------- run plan
-def plan_markdown(info, plan, actions, flow_params):
-    """Artifact at the start of a flow run: what will run, what is reused, and why."""
+def compact_needs(needs):
+    forcing = [n for n in needs if n.startswith("forcing_")]
+    rest = [n for n in needs if not n.startswith("forcing_")]
+    return ", ".join(rest + ([f"{len(forcing)} forcing stages"] if len(forcing) > 2 else forcing)) or "–"
+
+
+def plan_markdown(info, plan, actions, flow_params, reports=None):
+    """Artifact at the start of a flow run: what will run, what is reused, and why.
+    reports: the report.json of each stage that already has one, for the 'why' of its status."""
+    reports = reports or {}
     m = info["model"]
     commit = info["curation_commit"] or "?"
     remote = info.get("curation_remote", "").removesuffix(".git")
@@ -164,14 +183,19 @@ def plan_markdown(info, plan, actions, flow_params):
         "",
         "## Stages",
         "",
-        "| Stage | Now | This run | Needs |",
-        "|---|---|---|---|",
+        LEGEND,
+        "",
+        "| Stage | Now | Why | This run | Needs |",
+        "|---|---|---|---|---|",
     ]
     verb = {"run": "▶️ run", "retry": "▶️ run again (earlier attempt kept)", "resume": "🔄 wait for jobs already submitted",
             "reuse": "♻️ reuse", "wait": "⏳ after its inputs", "exclude": "⏸️ not this run", "skip-failed": "❌ left failed"}
     for s in plan:
-        L.append(f"| **{s['stage']}** {cell(s.get('title', ''))} | {label(s['status'])} | {verb.get(actions[s['stage']], actions[s['stage']])} "
-                 f"| {', '.join(s.get('needs', [])) or '–'} |")
+        r = reports.get(s["stage"])
+        why = headline(r) if r else s.get("reason", "")
+        L.append(f"| **{s['stage']}** {cell(s.get('title', ''))} | {label(s['status'])} | {cell(why, 200)} "
+                 f"| {verb.get(actions[s['stage']], actions[s['stage']])} | {compact_needs(s.get('needs', []))} |")
+    L += warnings_md(reports)
     if flow_params:
         L += ["", "## Flow parameters", "", md_table([dict(parameter=k, value=v) for k, v in flow_params.items()])]
     return "\n".join(L) + "\n"
@@ -288,12 +312,19 @@ def summary_markdown(info, plan, reports, ran_now, release=None, excluded=()):
     if release:
         L += ["## Release", "", f"Released as **{release['release']}** in `{release['dir']}` "
               f"(stage reports, report.html and a link to the coverage files).", ""]
-    L += ["## Stages", "", "| Stage | Result | This run | Headline |", "|---|---|---|---|"]
+    L += ["## Stages", "", LEGEND, "", "| Stage | Result | This run | Why |", "|---|---|---|---|"]
     for s in plan:
         r = reports.get(s["stage"])
         status = "excluded" if s["stage"] in excluded and s["status"] not in ("pass", "warn", "fail") else s["status"]
         how = "ran" if s["stage"] in ran_now else ("reused" if r else "–")
         L.append(f"| **{s['stage']}** | {label(status)} | {how} | {cell(headline(r) if r else s.get('reason', ''), 200)} |")
+    L += warnings_md(reports)
+    return "\n".join(L) + "\n"
+
+
+def warnings_md(reports):
+    """Every warning and failure across the stages, grouped by check: the ones about the results first,
+    then the bookkeeping ones, each with who has it and why."""
     warns = {}
     for name, r in reports.items():
         for c in r.get("checks", []):
@@ -301,14 +332,16 @@ def summary_markdown(info, plan, reports, ran_now, release=None, excluded=()):
                 warns.setdefault((c["status"], c["name"]), []).append((name, c.get("detail", "")))
     science = {k: v for k, v in warns.items() if k[1] not in ROUTINE_WARNINGS}
     routine = {k: v for k, v in warns.items() if k[1] in ROUTINE_WARNINGS}
+    L = []
     if science:
-        L += ["", "## Warnings and failures to read", ""]
+        L += ["", "## Warnings and failures about the results", "",
+              "Each is explained in the stage's own artifact (`ngidf-<stage>`) and in the HTML report.", ""]
         for (status, name), hits in sorted(science.items(), key=lambda kv: kv[0][0] != "fail"):
             L.append(f"- {CHECK[status]} **{name}** ({', '.join(h[0] for h in hits)}): {cell(hits[0][1], 400)}")
     if routine:
         L += ["", "## Bookkeeping warnings", ""]
         for (status, name), hits in routine.items():
-            why = ("these stages reuse outputs made before the pipeline existed; they were checked again"
-                   if name.startswith("outputs produced") else "the curation repo had uncommitted changes when these ran")
-            L.append(f"- {CHECK[status]} **{name}**: {len(hits)} stages ({why}).")
-    return "\n".join(L) + "\n"
+            why = ADOPTED_WHY if name.startswith("outputs produced") else \
+                "The code these stages ran is not committed to the curation repo, so the results cannot be reproduced from a commit."
+            L.append(f"- {CHECK[status]} **{name}** ({len(hits)} stages: {', '.join(h[0] for h in hits)}). {why}")
+    return L

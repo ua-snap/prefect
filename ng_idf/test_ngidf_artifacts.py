@@ -112,3 +112,22 @@ def test_summary_lists_science_warnings_and_report_path():
     assert "`/data/stages/qa/3f7f/out/report.html`" in md
     assert "**runs completed** (runs): 6649 of 6709 ok" in md
     assert "1 of 2 stages ran in this flow run" in md
+
+
+def test_plan_explains_each_status_and_lists_warnings():
+    info = dict(model=dict(MODEL_LABEL="a582a5c", APP_COMMIT="a582a5c"), curation_commit="da49b1a" * 6,
+                curation_remote="https://github.com/ua-snap/ng-idf_curation.git", curation_branch="prefect-flow",
+                curation_dirty=False, data_root="/data", slurm=dict(partition="t2small", qos="tier2"))
+    adopted = dict(name="outputs produced by this pipeline (not adopted)", status="warn", detail="adopted from /x")
+    plan = [dict(stage="forcing_WRF_high", status="warn", title="Forcing", needs=["places"]),
+            dict(stage="runs", status="warn", title="Runs", needs=["reference"] + [f"forcing_{i}" for i in range(12)])]
+    reports = dict(forcing_WRF_high=report(stage="forcing_WRF_high", checks=[adopted]), runs=report())
+    md = art.plan_markdown(info, plan, dict(forcing_WRF_high="reuse", runs="reuse"), {}, reports)
+    assert "**Key:** ✅ **Passed**" in md
+    assert "| Stage | Now | Why | This run | Needs |" in md
+    assert "all 0 checks on the outputs passed (outputs adopted from earlier work)" in md
+    assert "runs completed: 6649 of 6709 ok" in md
+    assert "reference, 12 forcing stages" in md
+    assert "## Warnings and failures about the results" in md and "## Bookkeeping warnings" in md
+    assert "made on 2026-11-17, before the pipeline existed" in md
+    assert "## What a fingerprint is" in md
