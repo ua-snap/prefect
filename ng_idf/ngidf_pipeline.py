@@ -104,12 +104,23 @@ def decide(plan, stop_before="", retry_failed=False):
 # ----------------------------------------------------------------------------------------- tasks
 @task(task_run_name="clone-curation-repo")
 def prepare_repo(ssh, branch_name, working_directory, curation_commit):
-    repo = utils.clone_github_repository.fn(ssh, REPO_NAME, branch_name, working_directory)
-    if curation_commit:
-        status, out, err = utils.exec_command(
-            ssh, f"cd {shlex.quote(str(repo))} && git fetch -q origin && git checkout -q --detach {shlex.quote(curation_commit)}")
-        if status != 0:
-            raise RuntimeError(f"cannot check out {curation_commit}: {err}")
+    """Clone the curation repo, or update the flow's existing clone, and check out the branch head
+    (or an exact commit). The clone belongs to the flow: it refuses to touch one with local edits.
+    Done here rather than with utils.clone_github_repository so git's own error reaches the log."""
+    q = shlex.quote
+    repo = f"{working_directory}/{REPO_NAME}"
+    checkout = (f"git checkout -q --detach {q(curation_commit)}" if curation_commit
+                else f"git checkout -q -B {q(branch_name)} origin/{q(branch_name)}")
+    cmd = (f"set -e; export GIT_TERMINAL_PROMPT=0; mkdir -p {q(str(working_directory))}; "
+           f"if [ ! -d {q(repo)}/.git ]; then git clone -q https://github.com/ua-snap/{REPO_NAME}.git {q(repo)}; fi; "
+           f"cd {q(repo)}; "
+           f"if [ -n \"$(git status --porcelain --untracked-files=no)\" ]; then "
+           f"echo 'the clone has local edits; it belongs to the flow, so commit or discard them' >&2; exit 3; fi; "
+           f"git fetch -q origin; {checkout}; git log -1 --format='%H %s'")
+    status, out, err = utils.exec_command(ssh, cmd)
+    if status != 0:
+        raise RuntimeError(f"preparing the curation repo at {repo} failed (exit {status}):\n{err or out}")
+    get_run_logger().info(f"{repo} at {out}")
     return repo
 
 
