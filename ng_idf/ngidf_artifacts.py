@@ -22,6 +22,27 @@ STATUS = {
 CHECK = {"pass": "✅ Pass", "warn": "⚠️ Warning", "fail": "❌ Fail"}
 HEX = re.compile(r"^[0-9a-f]{40,64}$")
 INLINE_ROWS, INLINE_COLS = 25, 8
+FINGERPRINT = """\
+A **fingerprint** is a code (a SHA-256 hash) calculated from everything a stage uses to make its outputs:
+
+- the exact contents of its scripts;
+- the contents of its input files, or the fingerprints of the earlier stages whose outputs it reads;
+- its settings (which places, which model commit, ...);
+- the fingerprint of the software environment it runs in.
+
+Change any of these (one character of a script, one row of an input table, a new model version) and the
+fingerprint changes; otherwise it stays the same. Each stage's outputs live in a folder named after its
+fingerprint (`stages/<stage>/<first 16 characters>/`). If that folder already holds a passing result, the stage
+is **reused**. Otherwise it runs into a new folder, so earlier results are never overwritten. Because a stage's
+fingerprint includes those of the stages it reads from, a change re-runs exactly the stages downstream of it
+and no others.
+
+Left out, because they cannot change the results: where the code is checked out, who ran it and when, and the
+checks themselves (they can be run again on existing outputs). One shortcut: the 86 TB WRF/CESM archive is
+identified by its path rather than by hashing its contents. It is SNAP's read-only archive, and the `inputs`
+stage records its file counts and sizes.
+"""
+
 # warnings every stage carries for the same reason; listed once in the summary, not per stage
 ROUTINE_WARNINGS = ("outputs produced by this pipeline (not adopted)", "curation code committed")
 
@@ -110,14 +131,17 @@ def plan_markdown(info, plan, actions, flow_params):
     L = [
         f"# NG-IDF pipeline: plan for model `{m['MODEL_LABEL']}`",
         "",
-        "This flow runs SNAP's NG-IDF curation pipeline on Chinook. Every stage records exactly what it read "
-        "(code, inputs, settings) as a *fingerprint*. A stage whose fingerprint already has a passing result is "
-        "**reused**, not run again; anything that changed, such as a new model version, runs in a new directory. "
-        "Nothing is overwritten.",
+        "This flow runs SNAP's NG-IDF curation pipeline on Chinook: 25 stages, from the software environments "
+        "to the final quality report. A stage runs only if something it uses has changed since it last passed; "
+        "otherwise its earlier result is reused. Whether anything changed is decided by the stage's fingerprint "
+        "(below).",
         "",
         f"**This run:** {n['run'] + n['retry']} stages to run, {n['resume']} to resume, {n['reuse']} reused unchanged, "
         f"{n['wait']} waiting on earlier stages" + (f", {n['exclude']} excluded by `stop_before`" if n["exclude"] else "") + ".",
         "",
+        "## What a fingerprint is",
+        "",
+        FINGERPRINT,
         "## Model version",
         "",
         "| | |",
@@ -170,7 +194,7 @@ def stage_markdown(report, ran_now, slurm_jobs=None, upstream=None):
           f"| In this flow run | {'ran now' if ran_now else 'reused: inputs and code unchanged since it ran'} (finished {report.get('finalized', '?')}) |",
           f"| Model | `{report.get('model_label')}` (app commit `{(report.get('app_commit') or '')[:12]}`) |",
           f"| Curation code | `{(report.get('curation_commit') or '?')[:7]}` |",
-          f"| Fingerprint | `{report['fingerprint'][:16]}` |",
+          f"| Fingerprint | `{report['fingerprint'][:16]}`: the ID of exactly what this stage used (listed at the end); also its folder name |",
           f"| Directory | `{report['dir']}` |"]
     if report.get("job_ids"):
         L.append(f"| Slurm jobs | {', '.join(report['job_ids'])} |")
@@ -200,7 +224,10 @@ def stage_markdown(report, ran_now, slurm_jobs=None, upstream=None):
     comp = report.get("components") or {}
     if comp:
         L += ["", "## What the fingerprint covers", "",
-              "The stage runs again only if one of these changes.", "", "**Code files** (SHA-256)", ""]
+              "The fingerprint is calculated from the items below. The stage runs again only if one of them "
+              "changes. Long codes are SHA-256 hashes of file contents, shortened here; a code marked with a stage "
+              "name is that stage's fingerprint. Full definition: the `ngidf-plan` artifact.", "",
+              "**Code files**", ""]
         L += [f"- `{f}` {short(h)}" for f, h in (comp.get("code") or {}).items()]
         L += ["", "**Inputs and settings**", ""]
         for k, v in (comp.get("inputs") or {}).items():
@@ -250,7 +277,9 @@ def summary_markdown(info, plan, reports, ran_now, release=None, excluded=()):
         "waiting": "Not every stage has run yet (see the table).",
     }[ov]
     L += [verdict, "",
-          f"{len(ran)} of {len(plan)} stages ran in this flow run; the others were reused because nothing they read had changed.", ""]
+          f"{len(ran)} of {len(plan)} stages ran in this flow run. The others were reused: their fingerprints "
+          "(the code, inputs and settings they use) match a result that already passed. See `ngidf-plan` for "
+          "what a fingerprint is.", ""]
     qa = reports.get("qa")
     if qa and qa["status"] in ("pass", "warn"):
         L += ["## The report", "",
