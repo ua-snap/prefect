@@ -22,6 +22,7 @@ import shlex
 import time
 from pathlib import Path
 
+import paramiko
 from prefect import flow, task, get_run_logger
 from prefect.artifacts import create_markdown_artifact, create_table_artifact
 
@@ -255,7 +256,10 @@ def ngidf_pipeline(
     params = dict(branch_name=branch_name, model_version=model_version or "(CURRENT)", data_root=data_root or "(paths.env)",
                   curation_commit=curation_commit or "(branch head)", stop_before=stop_before or "(none)",
                   retry_failed=retry_failed, release_name=release_name or "(none)")
-    ssh = utils.connect_ssh(SSH_HOST, SSH_PORT, ssh_username, ssh_private_key_path)
+    # connect here rather than with utils.connect_ssh, which older installs of the shared utils lack
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(SSH_HOST, SSH_PORT, ssh_username, pkey=paramiko.RSAKey(filename=str(ssh_private_key_path)))
     ssh.get_transport().set_keepalive(60)   # the waits last hours
     try:
         utils.check_for_nfs_mount(ssh, "/import/beegfs")
