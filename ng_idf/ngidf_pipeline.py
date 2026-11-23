@@ -224,6 +224,38 @@ def sacct_rows(pipe, job_ids):
     return [dict(g, exit_codes=" ".join(sorted(g["exit_codes"]))) for g in groups.values()]
 
 
+def flow_run_info(params, user, ran_now):
+    """What the QC package records about this flow run."""
+    try:
+        from prefect.runtime import flow_run as fr
+    except ImportError:   # older Prefect
+        fr = None
+    def get(name):
+        try:
+            v = getattr(fr, name, None)
+        except Exception:
+            v = None
+        return None if v is None else str(v)
+    return dict(name=get("name"), id=get("id"), started=get("scheduled_start_time"), ui_url=get("ui_url"),
+                user=user, parameters=params, ran_now=sorted(ran_now))
+
+
+@task(task_run_name="build-qc-package")
+def build_package(pipe, data_root, flow_info):
+    """The QC package (PDF) of this run: pipeline.py package, given this flow run's details."""
+    path = f"{data_root}/packages/flow_run_{flow_info.get('id') or int(time.time())}.json"
+    status, _, err = pipe.sh(f"mkdir -p {shlex.quote(data_root)}/packages && cat > {shlex.quote(path)} <<'NGIDF_EOF'\n"
+                             f"{json.dumps(flow_info, indent=1, default=str)}\nNGIDF_EOF")
+    if status != 0:
+        raise RuntimeError(f"cannot write {path}: {err}")
+    try:
+        doc, _, _ = pipe.run("package", "--flow-run", path)
+    finally:
+        pipe.sh(f"rm -f {shlex.quote(path)}")
+    get_run_logger().info(f"QC package: {doc['pdf']}")
+    return doc
+
+
 @task(task_run_name="document-{stage}")
 def publish_stage(stage, report, ran_now, slurm_jobs, upstream):
     md = art.stage_markdown(report, ran_now, slurm_jobs, upstream)
@@ -271,6 +303,10 @@ def ngidf_pipeline(
         driver_python: Python >= 3.9 on Chinook to run pipeline.py (stdlib only).
     """
     log = get_run_logger()
+    params_full = dict(branch_name=branch_name, working_directory=str(working_directory), model_version=model_version,
+                       data_root=data_root, curation_commit=curation_commit, stop_before=stop_before,
+                       retry_failed=retry_failed, release_name=release_name, poll_seconds=poll_seconds,
+                       driver_python=driver_python, ssh_username=ssh_username)
     params = dict(branch_name=branch_name, model_version=model_version or "(CURRENT)", data_root=data_root or "(paths.env)",
                   curation_commit=curation_commit or "(branch head)", stop_before=stop_before or "(none)",
                   retry_failed=retry_failed, release_name=release_name or "(none)")
@@ -366,9 +402,19 @@ def ngidf_pipeline(
                 release["dir"] = f"{info['data_root']}/releases/{release_name}"
                 log.info(f"Released {release_name} in {release['dir']}")
 
+        # the QC package documents whatever state the run ended in, so it is built even if a stage failed
+        package = None
+        try:
+            package = build_package(pipe, info["data_root"], flow_run_info(params_full, ssh_username, ran_now))
+        except Exception as e:
+            log.error(f"The QC package could not be built: {e}")
+            package = dict(error=str(e))
+
         create_markdown_artifact(key="ngidf-summary",
-                                 markdown=art.summary_markdown(info, plan, reports, ran_now, release, excluded),
+                                 markdown=art.summary_markdown(info, plan, reports, ran_now, release, excluded, package),
                                  description=f"NG-IDF pipeline, model {info['model']['MODEL_LABEL']}: {art.label(overall)}")
+        if package and package.get("error"):
+            raise RuntimeError(f"The QC package could not be built: {package['error']}")
         if overall == "fail" or overall == "waiting":
             stuck = [s["stage"] for s in plan if s["stage"] not in excluded and s["status"] not in ("pass", "warn")]
             raise RuntimeError(f"Pipeline incomplete: {', '.join(stuck)} did not pass (see the ngidf-summary artifact)")

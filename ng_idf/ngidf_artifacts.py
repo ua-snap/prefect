@@ -285,7 +285,7 @@ def overall_status(statuses):
     return "warn" if any(s == "warn" for s in statuses) else "pass"
 
 
-def summary_markdown(info, plan, reports, ran_now, release=None, excluded=()):
+def summary_markdown(info, plan, reports, ran_now, release=None, excluded=(), package=None):
     """Artifact at the end of a flow run: one verdict, one row per stage, the warnings in one list,
     and where the report is."""
     m = info["model"]
@@ -304,11 +304,16 @@ def summary_markdown(info, plan, reports, ran_now, release=None, excluded=()):
           f"{len(ran)} of {len(plan)} stages ran in this flow run. The others were reused: their fingerprints "
           "(the code, inputs and settings they use) match a result that already passed. See `ngidf-plan` for "
           "what a fingerprint is.", ""]
+    if package and package.get("pdf"):
+        L += ["## The QC package", "",
+              "The document to share is the QC package, one PDF built from this run: what the pipeline does, "
+              "what this run used, the result of every check, the known issues, and appendices on the inputs and "
+              f"the method. `{package['pdf']}`", ""]
+    elif package and package.get("error"):
+        L += ["## The QC package", "", f"❌ The QC package could not be built: {cell(package['error'], 400)}", ""]
     qa = reports.get("qa")
     if qa and qa["status"] in ("pass", "warn"):
-        L += ["## The report", "",
-              f"The full report for SNAP and the dataset author is one self-contained HTML file (figures included): "
-              f"`{qa['dir']}/out/report.html`. Copy it and open it in any browser.", ""]
+        L += [f"The QA step's HTML report is also available: `{qa['dir']}/out/report.html`.", ""]
     if release:
         L += ["## Release", "", f"Released as **{release['release']}** in `{release['dir']}` "
               f"(stage reports, report.html and a link to the coverage files).", ""]
