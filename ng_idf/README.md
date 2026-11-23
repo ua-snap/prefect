@@ -36,7 +36,7 @@ The report for the dataset author is a separate self-contained HTML file written
 | Parameter | Default | |
 |---|---|---|
 | `ssh_username`, `ssh_private_key_path` | | Chinook account that owns the data directory |
-| `branch_name` | `main` | Curation repo branch |
+| `branch_name` | `main` | Branch of the **curation** repo (`ng-idf_curation`), not of this prefect repo |
 | `working_directory` | `/import/beegfs/SNAP/jdpaul3` | Where the repo is cloned on Chinook |
 | `model_version` | repo's `CURRENT` | Label of a file in `config/model_versions/` |
 | `data_root` | `config/paths.env` | Override the data directory |

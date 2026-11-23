@@ -116,7 +116,13 @@ def prepare_repo(ssh, branch_name, working_directory, curation_commit):
            f"cd {q(repo)}; "
            f"if [ -n \"$(git status --porcelain --untracked-files=no)\" ]; then "
            f"echo 'the clone has local edits; it belongs to the flow, so commit or discard them' >&2; exit 3; fi; "
-           f"git fetch -q origin; {checkout}; git log -1 --format='%H %s'")
+           f"git fetch -q --prune origin; "
+           + ("" if curation_commit else
+              f"if ! git rev-parse -q --verify origin/{q(branch_name)} >/dev/null; then "
+              f"echo \"ua-snap/{REPO_NAME} has no branch {q(branch_name)} (branch_name names a branch of the "
+              f"curation repo, not of this prefect repo). Its branches: $(git branch -r --format='%(refname:lstrip=3)' "
+              f"| grep -v '^HEAD$' | tr '\\n' ' ')\" >&2; exit 4; fi; ")
+           + f"{checkout}; git log -1 --format='%H %s'")
     status, out, err = utils.exec_command(ssh, cmd)
     if status != 0:
         raise RuntimeError(f"preparing the curation repo at {repo} failed (exit {status}):\n{err or out}")
@@ -251,7 +257,8 @@ def ngidf_pipeline(
     Args:
         ssh_username: Chinook account that owns the data directory.
         ssh_private_key_path: Private key for that account.
-        branch_name: Branch of ua-snap/ng-idf_curation to run.
+        branch_name: Branch of the curation repo, ua-snap/ng-idf_curation, to run (not a branch of this
+            prefect repo).
         working_directory: Where the curation repo is cloned on Chinook.
         model_version: Label of a file in config/model_versions/ (empty: the repo's CURRENT).
         data_root: Override DATA_ROOT from config/paths.env (empty: keep it).
