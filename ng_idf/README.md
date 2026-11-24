@@ -45,6 +45,7 @@ The report for the dataset author is a separate self-contained HTML file written
 | `retry_failed` | `False` | Run failed stages again. The failed attempt is moved aside, not deleted |
 | `release_name` | none | Cut a release when everything passed |
 | `poll_seconds` | 120 | Slurm queue polling interval |
+| `max_queue_failures` | 15 | Give up after this many failed Slurm queue checks in a row (30 min at the default interval). The jobs keep running; start the flow again with the same settings and it waits for them |
 | `driver_python` | `$HOME/miniconda3/bin/python3` | Python 3.9 or later on Chinook. `pipeline.py` uses only the standard library; the stages build their own conda environments from lock files |
 
 ## A new model version

@@ -198,9 +198,23 @@ def log_tail(pipe, stage_dir, files=3, lines=40):
         log.error(f"--- {stage_dir}/logs/{name} (last {lines} lines)\n{text}")
 
 
-def squeue_alive(pipe):
-    status, out, _ = pipe.sh("squeue -h -o %A -u $(whoami)")
-    return set(out.split()) if status == 0 else None
+def squeue_alive(pipe, timeout=120):
+    """The user's job IDs in the Slurm queue, or (None, reason) when the check failed: squeue's
+    error (e.g. a controller timeout) or a dropped SSH connection."""
+    # not pipe.sh: utils.exec_command waits for the exit status with no time limit, so a connection
+    # that died silently would hang the flow here instead of counting as a failed check
+    try:
+        _, stdout, stderr = pipe.ssh.exec_command(PREAMBLE + "squeue -h -o %A -u $(whoami)", timeout=timeout)
+        if not stdout.channel.status_event.wait(timeout):
+            stdout.channel.close()
+            return None, f"squeue gave no answer within {timeout} s"
+        status = stdout.channel.recv_exit_status()
+        out, err = stdout.read().decode(errors="replace"), stderr.read().decode(errors="replace")
+    except (paramiko.SSHException, OSError, EOFError) as e:
+        return None, f"{type(e).__name__}: {e}"
+    if status != 0:
+        return None, f"squeue exit {status}: {(err or out).strip()[-500:]}"
+    return set(out.split()), ""
 
 
 def sacct_rows(pipe, job_ids):
@@ -283,6 +297,7 @@ def ngidf_pipeline(
     retry_failed: bool = False,
     release_name: str = "",
     poll_seconds: int = 120,
+    max_queue_failures: int = 15,
     driver_python: str = "$HOME/miniconda3/bin/python3",
 ):
     """
@@ -300,13 +315,15 @@ def ngidf_pipeline(
         retry_failed: Run failed stages again. The failed attempt is moved aside, not deleted.
         release_name: Cut a release with this name when every stage has passed (empty: no release).
         poll_seconds: How often to check the Slurm queue.
+        max_queue_failures: Give up after this many Slurm queue checks in a row have failed (15 x 120 s =
+            30 min). The jobs keep running; running the flow again with the same settings waits for them.
         driver_python: Python >= 3.9 on Chinook to run pipeline.py (stdlib only).
     """
     log = get_run_logger()
     params_full = dict(branch_name=branch_name, working_directory=str(working_directory), model_version=model_version,
                        data_root=data_root, curation_commit=curation_commit, stop_before=stop_before,
                        retry_failed=retry_failed, release_name=release_name, poll_seconds=poll_seconds,
-                       driver_python=driver_python, ssh_username=ssh_username)
+                       max_queue_failures=max_queue_failures, driver_python=driver_python, ssh_username=ssh_username)
     params = dict(branch_name=branch_name, model_version=model_version or "(CURRENT)", data_root=data_root or "(paths.env)",
                   curation_commit=curation_commit or "(branch head)", stop_before=stop_before or "(none)",
                   retry_failed=retry_failed, release_name=release_name or "(none)")
@@ -372,9 +389,20 @@ def ngidf_pipeline(
                     inflight[name] = (res["dir"], res["job_ids"])
 
             # finalize each stage as soon as its jobs have left the queue
+            failures = 0
             while inflight:
-                alive = squeue_alive(pipe)
-                if alive is not None:
+                alive, why = squeue_alive(pipe)
+                if alive is None:
+                    failures += 1
+                    log.warning(f"Slurm queue check failed ({failures} of {max_queue_failures} in a row): {why}")
+                    if failures >= max_queue_failures:
+                        jobs = "; ".join(f"{n}: {', '.join(ids)}" for n, (_, ids) in inflight.items())
+                        raise RuntimeError(
+                            f"Gave up after {failures} failed Slurm queue checks in a row (last: {why}). "
+                            f"The jobs were not cancelled and may still be running ({jobs}). Run the flow "
+                            f"again with the same settings: it waits for these jobs instead of submitting new ones.")
+                else:
+                    failures = 0
                     for name in [n for n, (_, ids) in inflight.items() if not set(ids) & alive]:
                         stage_dir, ids = inflight.pop(name)
                         ran_now.add(name)
